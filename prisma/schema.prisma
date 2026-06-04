@@ -1,0 +1,241 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Rol {
+  ADMIN
+  PILOTO
+}
+
+enum Disciplina {
+  RALLY
+  CIRCUITO
+  DRIFT
+  KARTCROSS
+  MONOPLAZA
+}
+
+enum Simulador {
+  ASSETTO_CORSA
+  EA_WRC
+  DIRT_RALLY
+  F1_24
+  BEAMNG
+}
+
+enum EstadoCampeonato {
+  PROXIMO
+  ACTIVO
+  FINALIZADO
+}
+
+enum EstadoCarrera {
+  PROGRAMADA
+  EN_CURSO
+  FINALIZADA
+}
+
+enum EstadoInscripcion {
+  PENDIENTE
+  CONFIRMADA
+  CANCELADA
+}
+
+enum CanalChat {
+  GENERAL
+  RALLY
+  CIRCUITO
+  DRIFT
+  ANUNCIOS
+}
+
+enum TipoNotificacion {
+  CARRERA_PROXIMA
+  RESULTADO_PUBLICADO
+  INSCRIPCION_CONFIRMADA
+  NUEVA_CARRERA
+  NUEVO_CAMPEONATO
+}
+
+model User {
+  id              String    @id @default(cuid())
+  username        String    @unique
+  email           String    @unique
+  emailVerified   DateTime?
+  password        String?
+  role            Rol       @default(PILOTO)
+  avatar          String?
+  pais            String?
+  bio             String?
+  silenciado      Boolean   @default(false)
+  fechaRegistro   DateTime  @default(now())
+  totalPuntos     Int       @default(0)
+  totalCarreras   Int       @default(0)
+  totalVictorias  Int       @default(0)
+  totalPodios     Int       @default(0)
+
+  accounts        Account[]
+  sessions        Session[]
+  inscripciones   Inscripcion[]
+  resultados      Resultado[]
+  mensajes        MensajeChat[]
+  notificaciones  Notificacion[]
+
+  @@map("users")
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verification_tokens")
+}
+
+model Campeonato {
+  id          String           @id @default(cuid())
+  nombre      String
+  disciplina  Disciplina
+  simulador   Simulador
+  descripcion String
+  estado      EstadoCampeonato @default(PROXIMO)
+  fechaInicio DateTime
+  fechaFin    DateTime
+  maxPilotos  Int              @default(20)
+  imagen      String?
+  modsReq     String?
+  creadoEn    DateTime         @default(now())
+
+  carreras      Carrera[]
+  inscripciones Inscripcion[]
+  sistemaPuntos SistemaPuntos[]
+
+  @@map("campeonatos")
+}
+
+model Carrera {
+  id              String        @id @default(cuid())
+  campeonatoId    String
+  nombre          String
+  circuito        String
+  fecha           DateTime
+  duracionMin     Int           @default(60)
+  estado          EstadoCarrera @default(PROGRAMADA)
+  servidorIP      String?
+  servidorPassword String?
+  transmisionUrl  String?
+  modsRequeridos  String?
+
+  campeonato Campeonato @relation(fields: [campeonatoId], references: [id], onDelete: Cascade)
+  resultados Resultado[]
+
+  @@map("carreras")
+}
+
+model Inscripcion {
+  id              String            @id @default(cuid())
+  userId          String
+  campeonatoId    String
+  estado          EstadoInscripcion @default(PENDIENTE)
+  fechaInscripcion DateTime         @default(now())
+
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  campeonato Campeonato @relation(fields: [campeonatoId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, campeonatoId])
+  @@map("inscripciones")
+}
+
+model Resultado {
+  id          String  @id @default(cuid())
+  carreraId   String
+  userId      String
+  posicion    Int
+  puntos      Int     @default(0)
+  vueltaRapida Boolean @default(false)
+  abandono    Boolean @default(false)
+  tiempo      String?
+  creadoEn    DateTime @default(now())
+
+  carrera Carrera @relation(fields: [carreraId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([carreraId, userId])
+  @@map("resultados")
+}
+
+model SistemaPuntos {
+  id           String @id @default(cuid())
+  campeonatoId String
+  posicion     Int
+  puntos       Int
+
+  campeonato Campeonato @relation(fields: [campeonatoId], references: [id], onDelete: Cascade)
+
+  @@unique([campeonatoId, posicion])
+  @@map("sistema_puntos")
+}
+
+model MensajeChat {
+  id        String    @id @default(cuid())
+  userId    String
+  canal     CanalChat @default(GENERAL)
+  contenido String
+  eliminado Boolean   @default(false)
+  creadoEn  DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("mensajes_chat")
+}
+
+model Notificacion {
+  id       String           @id @default(cuid())
+  userId   String
+  tipo     TipoNotificacion
+  mensaje  String
+  leida    Boolean          @default(false)
+  link     String?
+  creadoEn DateTime         @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notificaciones")
+}
