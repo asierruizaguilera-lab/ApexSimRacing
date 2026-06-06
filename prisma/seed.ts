@@ -392,7 +392,7 @@ async function main() {
     { nombre: 'Dallara F2', disciplina: Disciplina.MONOPLAZA, planMinimo: PlanSuscripcion.ELITE, descripcion: 'La antesala de la Fórmula 1. La cúspide del SimRacing.', modAC: 'dallara_f2' },
   ]
 
-  const cochesCreados = []
+  const cochesCreados: Awaited<ReturnType<typeof prisma.coche.create>>[] = []
   for (const c of cochesData) {
     const coche = await prisma.coche.create({ data: c })
     cochesCreados.push(coche)
