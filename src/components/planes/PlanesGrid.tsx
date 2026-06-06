@@ -1,18 +1,15 @@
 'use client'
 
 import { useState } from 'react'
-import { Check, Star, Zap, ExternalLink } from 'lucide-react'
+import { Check, Star, Zap } from 'lucide-react'
 import { PLAN_LABELS, PLAN_PRECIOS, PLAN_FEATURES, cn } from '@/lib/utils'
 import { ModalPago } from './ModalPago'
-import { useRouter } from 'next/navigation'
-import toast from 'react-hot-toast'
 
 interface Suscripcion {
   id: string
   plan: string
   estado: string
   fechaRenovacion: string
-  stripeSubscriptionId?: string | null
 }
 
 interface Props {
@@ -37,19 +34,7 @@ const PLAN_COLORES_BG: Record<string, string> = {
 }
 
 export function PlanesGrid({ suscripcionActual, userId }: Props) {
-  const router = useRouter()
   const [modalPlan, setModalPlan] = useState<string | null>(null)
-  const [loadingPortal, setLoadingPortal] = useState(false)
-
-  async function irAlPortal() {
-    setLoadingPortal(true)
-    try {
-      window.location.href = '/api/stripe/portal'
-    } catch {
-      toast.error('Error al acceder al portal')
-      setLoadingPortal(false)
-    }
-  }
 
   return (
     <div>
@@ -70,12 +55,6 @@ export function PlanesGrid({ suscripcionActual, userId }: Props) {
               className="text-xs px-3 py-1.5 bg-apex-red text-white rounded-lg hover:bg-apex-red-dark transition-colors flex items-center gap-1"
             >
               <Zap size={12} />Actualizar plan
-            </button>
-          )}
-          {suscripcionActual.stripeSubscriptionId && (
-            <button onClick={irAlPortal} disabled={loadingPortal}
-              className="text-xs px-3 py-1.5 bg-apex-surface border border-apex-border rounded-lg text-apex-muted hover:text-apex-text transition-colors flex items-center gap-1">
-              <ExternalLink size={12} />Gestionar suscripción
             </button>
           )}
         </div>
