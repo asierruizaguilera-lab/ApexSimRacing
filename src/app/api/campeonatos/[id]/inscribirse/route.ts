@@ -15,11 +15,15 @@ export async function POST(_: NextRequest, { params }: { params: { id: string } 
 
   if (!camp) return NextResponse.json({ error: 'Campeonato no encontrado' }, { status: 404 })
 
-  // Verificar suscripción activa
+  // Verificar suscripción activa (ACTIVA o GRATUITA no expirada)
   const suscripcion = await prisma.suscripcion.findFirst({
-    where: { userId: session.user.id, estado: 'ACTIVA' },
+    where: { userId: session.user.id, estado: { in: ['ACTIVA', 'GRATUITA'] } },
   })
-  if (!suscripcion) {
+  const accesoValido = suscripcion && (
+    !suscripcion.fechaExpiracionManual ||
+    new Date(suscripcion.fechaExpiracionManual) > new Date()
+  )
+  if (!accesoValido) {
     return NextResponse.json({
       error: 'Necesitas un plan activo para inscribirte en campeonatos',
       code: 'NO_SUBSCRIPTION',

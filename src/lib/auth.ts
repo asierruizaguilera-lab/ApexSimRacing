@@ -1,7 +1,6 @@
 import { NextAuthOptions } from 'next-auth'
 import { PrismaAdapter } from '@auth/prisma-adapter'
 import CredentialsProvider from 'next-auth/providers/credentials'
-import DiscordProvider from 'next-auth/providers/discord'
 import bcrypt from 'bcryptjs'
 import { prisma } from './prisma'
 
@@ -45,23 +44,6 @@ export const authOptions: NextAuthOptions = {
         }
       },
     }),
-    DiscordProvider({
-      clientId: process.env.DISCORD_CLIENT_ID ?? '',
-      clientSecret: process.env.DISCORD_CLIENT_SECRET ?? '',
-      profile(profile) {
-        return {
-          id: profile.id,
-          name: profile.username,
-          email: profile.email,
-          image: profile.avatar
-            ? `https://cdn.discordapp.com/avatars/${profile.id}/${profile.avatar}.png`
-            : null,
-          role: 'PILOTO',
-          baneado: false,
-          hasSuscripcion: false,
-        }
-      },
-    }),
   ],
   callbacks: {
     async jwt({ token, user, trigger, session }) {
@@ -73,13 +55,11 @@ export const authOptions: NextAuthOptions = {
         token.hasSuscripcion = (user as any).hasSuscripcion ?? false
       }
 
-      // Refrescar datos de suscripción en cada acceso (trigger='update' o cada N horas)
       if (trigger === 'update' && session) {
         token.username = session.username
         token.image = session.image
       }
 
-      // Refrescar estado suscripción desde BD si el token lleva más de 5 min
       if (token.id && !token.lastChecked) {
         await refreshSuscripcionToken(token)
       }
@@ -95,23 +75,6 @@ export const authOptions: NextAuthOptions = {
         session.user.hasSuscripcion = token.hasSuscripcion as boolean
       }
       return session
-    },
-    async signIn({ user, account }) {
-      if (account?.provider === 'discord') {
-        const existing = await prisma.user.findUnique({
-          where: { email: user.email! },
-        })
-        if (!existing) {
-          await prisma.user.update({
-            where: { email: user.email! },
-            data: {
-              username: user.name || `pilot_${Date.now()}`,
-              role: 'PILOTO',
-            },
-          }).catch(() => null)
-        }
-      }
-      return true
     },
   },
 }

@@ -425,8 +425,12 @@ async function main() {
     })
   }
 
-  // Admin: Rookie
-  await crearSuscripcionSeed(admin.id, PlanSuscripcion.ROOKIE)
+  // Admin: Elite gratuito
+  await crearSuscripcionSeed(admin.id, PlanSuscripcion.ELITE)
+  await prisma.suscripcion.updateMany({
+    where: { userId: admin.id },
+    data: { esGratuita: true, notasAdmin: 'Admin — acceso permanente Elite' },
+  })
 
   // Pilotos 0-4: Rookie
   for (const p of pilotos.slice(0, 5)) {
@@ -438,14 +442,24 @@ async function main() {
     await crearSuscripcionSeed(p.id, PlanSuscripcion.PRO)
   }
 
+  // Pilotos 13-14 (RuedaLibre, CircuitoMaster): sin plan — no se crea suscripción
+
+  // Piloto 8 (LatinoSpeed): baneado
+  await prisma.user.update({
+    where: { id: pilotos[8].id },
+    data: { baneado: true, motivoBan: 'Conducta inapropiada en el chat de la comunidad' },
+  })
+
   console.log('✅ Seed completado:')
-  console.log(`   - 1 admin (admin@apex.gg / admin123)`)
+  console.log(`   - 1 admin (admin@apex.gg / admin123) — plan Elite gratuito`)
   console.log(`   - ${pilotos.length} pilotos (contraseña: piloto123)`)
+  console.log(`     · 5 con plan Rookie, 3 con plan Pro`)
+  console.log(`     · 2 sin plan (rueda@apex.gg, circuito@apex.gg)`)
+  console.log(`     · 1 baneado (latino@apex.gg)`)
   console.log(`   - 3 campeonatos (activo, próximo, finalizado)`)
   console.log(`   - ${carrerasCamp1.length + carrerasCamp2.length + carrerasCamp3.length} carreras`)
   console.log(`   - ${mensajesGeneral.length + mensajesRally.length} mensajes de chat`)
   console.log(`   - ${cochesCreados.length} coches (Rookie×5, Amateur×5, Pro×5, Elite×5)`)
-  console.log(`   - Suscripciones: 6 Rookie + 3 Pro`)
   console.log(`   - Notificaciones generadas para todos los pilotos`)
 }
 
