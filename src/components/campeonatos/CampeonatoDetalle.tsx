@@ -38,6 +38,9 @@ export function CampeonatoDetalle({ campeonato: c, clasificacion, inscripcionAct
     if (res.ok) {
       setInscrito('PENDIENTE')
       toast.success('Inscripción enviada. Pendiente de confirmación.')
+    } else if (data.code === 'NO_SUBSCRIPTION') {
+      toast.error('Necesitas un plan activo para inscribirte')
+      setTimeout(() => { window.location.href = '/planes' }, 1500)
     } else {
       toast.error(data.error || 'Error')
     }

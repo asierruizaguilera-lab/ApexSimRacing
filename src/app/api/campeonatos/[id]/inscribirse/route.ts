@@ -14,6 +14,18 @@ export async function POST(_: NextRequest, { params }: { params: { id: string } 
   })
 
   if (!camp) return NextResponse.json({ error: 'Campeonato no encontrado' }, { status: 404 })
+
+  // Verificar suscripción activa
+  const suscripcion = await prisma.suscripcion.findFirst({
+    where: { userId: session.user.id, estado: 'ACTIVA' },
+  })
+  if (!suscripcion) {
+    return NextResponse.json({
+      error: 'Necesitas un plan activo para inscribirte en campeonatos',
+      code: 'NO_SUBSCRIPTION',
+      redirectTo: '/planes',
+    }, { status: 403 })
+  }
   if (camp.estado === 'FINALIZADO') return NextResponse.json({ error: 'Este campeonato ya ha finalizado' }, { status: 400 })
   if (camp._count.inscripciones >= camp.maxPilotos) return NextResponse.json({ error: 'Campeonato lleno' }, { status: 400 })
 

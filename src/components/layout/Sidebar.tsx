@@ -6,7 +6,7 @@ import { useSession } from 'next-auth/react'
 import { cn } from '@/lib/utils'
 import {
   LayoutDashboard, Trophy, Calendar, MessageSquare,
-  User, Shield, TrendingUp, Menu, X,
+  User, Shield, TrendingUp, Menu, X, Star, Car,
 } from 'lucide-react'
 import { useState } from 'react'
 
@@ -15,12 +15,16 @@ const navItems = [
   { href: '/campeonatos', icon: Trophy, label: 'Campeonatos' },
   { href: '/ranking', icon: TrendingUp, label: 'Ranking' },
   { href: '/calendario', icon: Calendar, label: 'Calendario' },
+  { href: '/planes', icon: Star, label: 'Planes' },
+  { href: '/mi-garaje', icon: Car, label: 'Mi Garaje' },
   { href: '/chat', icon: MessageSquare, label: 'Chat' },
   { href: '/perfil', icon: User, label: 'Mi Perfil' },
 ]
 
 const adminItems = [
   { href: '/admin', icon: Shield, label: 'Panel Admin' },
+  { href: '/admin/coches', icon: Car, label: 'Coches' },
+  { href: '/admin/suscriptores', icon: Star, label: 'Suscriptores' },
 ]
 
 export function Sidebar() {

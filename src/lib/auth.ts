@@ -24,6 +24,7 @@ export const authOptions: NextAuthOptions = {
 
         const user = await prisma.user.findUnique({
           where: { email: credentials.email },
+          include: { suscripcion: { select: { estado: true, fechaExpiracionManual: true } } },
         })
 
         if (!user || !user.password) return null
@@ -31,12 +32,16 @@ export const authOptions: NextAuthOptions = {
         const valid = await bcrypt.compare(credentials.password, user.password)
         if (!valid) return null
 
+        const hasSuscripcion = esAccesoActivo(user.suscripcion)
+
         return {
           id: user.id,
           email: user.email,
           name: user.username,
           image: user.avatar,
           role: user.role,
+          baneado: user.baneado,
+          hasSuscripcion,
         }
       },
     }),
@@ -52,6 +57,8 @@ export const authOptions: NextAuthOptions = {
             ? `https://cdn.discordapp.com/avatars/${profile.id}/${profile.avatar}.png`
             : null,
           role: 'PILOTO',
+          baneado: false,
+          hasSuscripcion: false,
         }
       },
     }),
@@ -62,11 +69,21 @@ export const authOptions: NextAuthOptions = {
         token.id = user.id
         token.role = (user as any).role
         token.username = user.name ?? ''
+        token.baneado = (user as any).baneado ?? false
+        token.hasSuscripcion = (user as any).hasSuscripcion ?? false
       }
+
+      // Refrescar datos de suscripción en cada acceso (trigger='update' o cada N horas)
       if (trigger === 'update' && session) {
         token.username = session.username
         token.image = session.image
       }
+
+      // Refrescar estado suscripción desde BD si el token lleva más de 5 min
+      if (token.id && !token.lastChecked) {
+        await refreshSuscripcionToken(token)
+      }
+
       return token
     },
     async session({ session, token }) {
@@ -74,17 +91,17 @@ export const authOptions: NextAuthOptions = {
         session.user.id = token.id as string
         session.user.role = token.role as string
         session.user.username = token.username as string
+        session.user.baneado = token.baneado as boolean
+        session.user.hasSuscripcion = token.hasSuscripcion as boolean
       }
       return session
     },
     async signIn({ user, account }) {
-      // Para Discord: crear username si no existe
       if (account?.provider === 'discord') {
         const existing = await prisma.user.findUnique({
           where: { email: user.email! },
         })
         if (!existing) {
-          // El adapter crea el user, pero aseguramos el username
           await prisma.user.update({
             where: { email: user.email! },
             data: {
@@ -99,6 +116,30 @@ export const authOptions: NextAuthOptions = {
   },
 }
 
+function esAccesoActivo(suscripcion: { estado: string; fechaExpiracionManual: Date | null } | null): boolean {
+  if (!suscripcion) return false
+  if (suscripcion.estado === 'CANCELADA' || suscripcion.estado === 'EXPIRADA') return false
+  if (suscripcion.fechaExpiracionManual && new Date(suscripcion.fechaExpiracionManual) < new Date()) return false
+  return suscripcion.estado === 'ACTIVA' || suscripcion.estado === 'GRATUITA'
+}
+
+async function refreshSuscripcionToken(token: any) {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: token.id as string },
+      select: {
+        baneado: true,
+        suscripcion: { select: { estado: true, fechaExpiracionManual: true } },
+      },
+    })
+    if (user) {
+      token.baneado = user.baneado
+      token.hasSuscripcion = esAccesoActivo(user.suscripcion)
+      token.lastChecked = Date.now()
+    }
+  } catch {}
+}
+
 declare module 'next-auth' {
   interface Session {
     user: {
@@ -108,6 +149,8 @@ declare module 'next-auth' {
       image?: string | null
       role: string
       username: string
+      baneado: boolean
+      hasSuscripcion: boolean
     }
   }
 }
@@ -117,5 +160,8 @@ declare module 'next-auth/jwt' {
     id: string
     role: string
     username: string
+    baneado: boolean
+    hasSuscripcion: boolean
+    lastChecked?: number
   }
 }

@@ -145,3 +145,66 @@ export function calcularPuntos(posicion: number, vueltaRapida: boolean = false):
   const pts = PUNTOS_SISTEMA[posicion - 1] || 0
   return pts + (vueltaRapida ? 1 : 0)
 }
+
+// --- Suscripciones ---
+
+export const PLAN_LABELS: Record<string, string> = {
+  ROOKIE: 'Rookie',
+  AMATEUR: 'Amateur',
+  PRO: 'Pro',
+  ELITE: 'Elite',
+}
+
+export const PLAN_PRECIOS: Record<string, number> = {
+  ROOKIE: 5,
+  AMATEUR: 10,
+  PRO: 18,
+  ELITE: 25,
+}
+
+export const PLAN_COLORS: Record<string, string> = {
+  ROOKIE: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
+  AMATEUR: 'bg-purple-500/20 text-purple-400 border-purple-500/30',
+  PRO: 'bg-orange-500/20 text-orange-400 border-orange-500/30',
+  ELITE: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
+}
+
+export const PLAN_FEATURES: Record<string, string[]> = {
+  ROOKIE: [
+    'Peugeot 106 Rally, Saxo Kit Car',
+    'Kart 125cc básico',
+    'Honda Civic EG6',
+    'Formula Ford',
+    'Acceso a campeonatos',
+  ],
+  AMATEUR: [
+    'Todo lo del plan Rookie',
+    'Mitsubishi Lancer Evo VI',
+    'Subaru Impreza WRX',
+    'BMW E30, Nissan S13 Drift',
+    'Formula Renault',
+  ],
+  PRO: [
+    'Todo lo del plan Amateur',
+    'Ford Fiesta Rally2, Škoda Fabia Rally2',
+    'Porsche 911 GT3',
+    'Nissan R35 Drift',
+    'Dallara F3',
+  ],
+  ELITE: [
+    'Acceso completo a todos los coches',
+    'Toyota GR Yaris Rally1 & Ford Puma Rally1',
+    'Ferrari 488 GT3 & Lamborghini Huracán GT3',
+    'Dallara F2',
+    'Soporte prioritario',
+  ],
+}
+
+export const PLAN_ORDER = ['ROOKIE', 'AMATEUR', 'PRO', 'ELITE']
+
+export const ESTADO_SUSCRIPCION_LABELS: Record<string, string> = {
+  ACTIVA: 'Activa',
+  CANCELADA: 'Cancelada',
+  EXPIRADA: 'Expirada',
+  PENDIENTE: 'Pendiente',
+}

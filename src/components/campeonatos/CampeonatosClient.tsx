@@ -50,6 +50,9 @@ export function CampeonatosClient({ campeonatos, userId }: { campeonatos: Campeo
       if (res.ok) {
         setInscripciones(prev => ({ ...prev, [campeonatoId]: 'PENDIENTE' }))
         toast.success('Inscripción enviada. Pendiente de confirmación.')
+      } else if (data.code === 'NO_SUBSCRIPTION') {
+        toast.error('Necesitas un plan activo para inscribirte')
+        setTimeout(() => { window.location.href = '/planes' }, 1500)
       } else {
         toast.error(data.error || 'Error al inscribirse')
       }

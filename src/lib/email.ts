@@ -58,3 +58,22 @@ export function emailResultadoPublicado(username: string, carreraNombre: string,
     </div>
   `
 }
+
+export function emailSuscripcionActiva(username: string, plan: string, precio: number): string {
+  return `
+    <div style="font-family:sans-serif;background:#1C1C1C;color:#F5F5F5;padding:32px;max-width:600px;margin:0 auto;border-radius:8px;">
+      <h1 style="color:#C0392B;font-size:28px;margin:0 0 8px;">APEX SimRacing</h1>
+      <h2 style="color:#F5F5F5;font-size:20px;margin:0 0 24px;">¡Tu plan está activo!</h2>
+      <p>Hola <strong>${username}</strong>,</p>
+      <p>Tu suscripción al plan <strong style="color:#C0392B;">${plan}</strong> (${precio}€/mes) está ahora activa.</p>
+      <div style="background:#2A2A2A;padding:16px;border-radius:8px;margin:16px 0;">
+        <p style="margin:0;">✅ Ya puedes inscribirte en campeonatos</p>
+        <p style="margin:8px 0 0;">🚗 Tus coches están desbloqueados en Mi Garaje</p>
+        <p style="margin:8px 0 0;">🏆 Compite y sube en el ranking global</p>
+      </div>
+      <p>¡Nos vemos en pista! 🏁</p>
+      <hr style="border-color:#333;margin:24px 0;"/>
+      <p style="color:#888;font-size:12px;">APEX SimRacing — La comunidad hispanohablante de SimRacing</p>
+    </div>
+  `
+}

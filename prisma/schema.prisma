@@ -60,6 +60,23 @@ enum TipoNotificacion {
   INSCRIPCION_CONFIRMADA
   NUEVA_CARRERA
   NUEVO_CAMPEONATO
+  SUSCRIPCION_ACTIVA
+  SUSCRIPCION_CANCELADA
+}
+
+enum PlanSuscripcion {
+  ROOKIE
+  AMATEUR
+  PRO
+  ELITE
+}
+
+enum EstadoSuscripcion {
+  ACTIVA
+  CANCELADA
+  EXPIRADA
+  PENDIENTE
+  GRATUITA
 }
 
 model User {
@@ -73,18 +90,24 @@ model User {
   pais            String?
   bio             String?
   silenciado      Boolean   @default(false)
+  baneado         Boolean   @default(false)
+  motivoBan       String?
   fechaRegistro   DateTime  @default(now())
   totalPuntos     Int       @default(0)
   totalCarreras   Int       @default(0)
   totalVictorias  Int       @default(0)
   totalPodios     Int       @default(0)
 
-  accounts        Account[]
-  sessions        Session[]
-  inscripciones   Inscripcion[]
-  resultados      Resultado[]
-  mensajes        MensajeChat[]
-  notificaciones  Notificacion[]
+  accounts              Account[]
+  sessions              Session[]
+  inscripciones         Inscripcion[]
+  resultados            Resultado[]
+  mensajes              MensajeChat[]
+  notificaciones        Notificacion[]
+  suscripcion           Suscripcion?
+  cochesDesbloqueados   CocheDesbloqueado[]
+  accionesAdmin         LogAccionAdmin[]    @relation("AdminAcciones")
+  accionesRecibidas     LogAccionAdmin[]    @relation("TargetAcciones")
 
   @@map("users")
 }
@@ -151,17 +174,17 @@ model Campeonato {
 }
 
 model Carrera {
-  id              String        @id @default(cuid())
-  campeonatoId    String
-  nombre          String
-  circuito        String
-  fecha           DateTime
-  duracionMin     Int           @default(60)
-  estado          EstadoCarrera @default(PROGRAMADA)
-  servidorIP      String?
+  id               String        @id @default(cuid())
+  campeonatoId     String
+  nombre           String
+  circuito         String
+  fecha            DateTime
+  duracionMin      Int           @default(60)
+  estado           EstadoCarrera @default(PROGRAMADA)
+  servidorIP       String?
   servidorPassword String?
-  transmisionUrl  String?
-  modsRequeridos  String?
+  transmisionUrl   String?
+  modsRequeridos   String?
 
   campeonato Campeonato @relation(fields: [campeonatoId], references: [id], onDelete: Cascade)
   resultados Resultado[]
@@ -170,11 +193,11 @@ model Carrera {
 }
 
 model Inscripcion {
-  id              String            @id @default(cuid())
-  userId          String
-  campeonatoId    String
-  estado          EstadoInscripcion @default(PENDIENTE)
-  fechaInscripcion DateTime         @default(now())
+  id               String            @id @default(cuid())
+  userId           String
+  campeonatoId     String
+  estado           EstadoInscripcion @default(PENDIENTE)
+  fechaInscripcion DateTime          @default(now())
 
   user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   campeonato Campeonato @relation(fields: [campeonatoId], references: [id], onDelete: Cascade)
@@ -184,15 +207,15 @@ model Inscripcion {
 }
 
 model Resultado {
-  id          String  @id @default(cuid())
-  carreraId   String
-  userId      String
-  posicion    Int
-  puntos      Int     @default(0)
-  vueltaRapida Boolean @default(false)
-  abandono    Boolean @default(false)
-  tiempo      String?
-  creadoEn    DateTime @default(now())
+  id           String   @id @default(cuid())
+  carreraId    String
+  userId       String
+  posicion     Int
+  puntos       Int      @default(0)
+  vueltaRapida Boolean  @default(false)
+  abandono     Boolean  @default(false)
+  tiempo       String?
+  creadoEn     DateTime @default(now())
 
   carrera Carrera @relation(fields: [carreraId], references: [id], onDelete: Cascade)
   user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -238,4 +261,70 @@ model Notificacion {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("notificaciones")
+}
+
+model Suscripcion {
+  id                    String            @id @default(cuid())
+  userId                String            @unique
+  plan                  PlanSuscripcion
+  estado                EstadoSuscripcion @default(ACTIVA)
+  precioMensual         Float
+  fechaInicio           DateTime          @default(now())
+  fechaRenovacion       DateTime
+  fechaCancelacion      DateTime?
+  esGratuita            Boolean           @default(false)
+  fechaExpiracionManual DateTime?
+  planAnterior          PlanSuscripcion?
+  notasAdmin            String?
+  paypalSubscriptionId  String?           @unique
+  paypalOrderId         String?
+  creadoEn              DateTime          @default(now())
+  actualizadoEn         DateTime          @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("suscripciones")
+}
+
+model Coche {
+  id          String          @id @default(cuid())
+  nombre      String
+  disciplina  Disciplina
+  planMinimo  PlanSuscripcion
+  descripcion String?
+  imagen      String?
+  modAC       String?
+  activo      Boolean         @default(true)
+  creadoEn    DateTime        @default(now())
+
+  desbloqueos CocheDesbloqueado[]
+
+  @@map("coches")
+}
+
+model CocheDesbloqueado {
+  id       String   @id @default(cuid())
+  userId   String
+  cocheId  String
+  creadoEn DateTime @default(now())
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  coche Coche @relation(fields: [cocheId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, cocheId])
+  @@map("coches_desbloqueados")
+}
+
+model LogAccionAdmin {
+  id           String   @id @default(cuid())
+  adminId      String
+  targetUserId String
+  accion       String
+  detalle      String?
+  creadoEn     DateTime @default(now())
+
+  admin  User @relation("AdminAcciones",  fields: [adminId],      references: [id])
+  target User @relation("TargetAcciones", fields: [targetUserId], references: [id])
+
+  @@map("log_acciones_admin")
 }
