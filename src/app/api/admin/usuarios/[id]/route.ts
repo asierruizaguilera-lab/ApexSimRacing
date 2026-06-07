@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { darAccesoManual, cambiarPlanAdmin, banearUsuario, desbanearUsuario } from '@/lib/suscripciones'
+import { darAccesoManual, banearUsuario, desbanearUsuario } from '@/lib/suscripciones'
 import type { PlanSuscripcion } from '@prisma/client'
 
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
@@ -18,11 +18,13 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     case 'CAMBIO_PLAN': {
       const validPlans: PlanSuscripcion[] = ['ROOKIE', 'AMATEUR', 'PRO', 'ELITE']
       if (!validPlans.includes(plan)) return NextResponse.json({ error: 'Plan inválido' }, { status: 400 })
-      if (esGratuita) {
-        await darAccesoManual(adminId, userId, plan as PlanSuscripcion, fechaExpiracion ? new Date(fechaExpiracion) : undefined, notas)
-      } else {
-        await cambiarPlanAdmin(adminId, userId, plan as PlanSuscripcion, notas)
-      }
+      await darAccesoManual(
+        adminId,
+        userId,
+        plan as PlanSuscripcion,
+        fechaExpiracion ? new Date(fechaExpiracion) : undefined,
+        notas
+      )
       break
     }
     case 'BAN': {
