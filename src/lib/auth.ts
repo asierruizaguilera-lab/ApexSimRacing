@@ -60,7 +60,11 @@ export const authOptions: NextAuthOptions = {
         token.image = session.image
       }
 
-      if (token.id && !token.lastChecked) {
+      const CINCO_MINUTOS = 5 * 60 * 1000
+      const necesitaRefresh = !token.lastChecked ||
+        Date.now() - (token.lastChecked as number) > CINCO_MINUTOS
+
+      if (token.id && necesitaRefresh) {
         await refreshSuscripcionToken(token)
       }
 
