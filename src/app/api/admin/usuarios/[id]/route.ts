@@ -9,9 +9,16 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   const session = await getServerSession(authOptions)
   if (session?.user?.role !== 'ADMIN') return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
 
+  // Obtener adminId desde la BD para garantizar que la FK existe
+  const adminUser = await prisma.user.findUnique({
+    where: { email: session.user.email },
+    select: { id: true },
+  })
+  if (!adminUser) return NextResponse.json({ error: 'Admin no encontrado en BD' }, { status: 404 })
+
   const body = await req.json()
   const { accion, plan, esGratuita, fechaExpiracion, notas, baneado, motivoBan } = body
-  const adminId = session.user.id
+  const adminId = adminUser.id
   const userId = params.id
 
   switch (accion) {
