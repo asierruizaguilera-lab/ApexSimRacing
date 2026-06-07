@@ -11,7 +11,7 @@ export default async function PlanesPage() {
 
   const suscripcion = session?.user?.id
     ? await prisma.suscripcion.findFirst({
-        where: { userId: session.user.id, estado: 'ACTIVA' },
+        where: { userId: session.user.id, estado: { in: ['ACTIVA', 'GRATUITA'] } },
       })
     : null
 

@@ -93,13 +93,15 @@ function esAccesoActivo(suscripcion: { estado: string; fechaExpiracionManual: Da
 async function refreshSuscripcionToken(token: any) {
   try {
     const user = await prisma.user.findUnique({
-      where: { id: token.id as string },
+      where: { email: token.email as string },
       select: {
+        id: true,
         baneado: true,
         suscripcion: { select: { estado: true, fechaExpiracionManual: true } },
       },
     })
     if (user) {
+      token.id = user.id
       token.baneado = user.baneado
       token.hasSuscripcion = esAccesoActivo(user.suscripcion)
       token.lastChecked = Date.now()

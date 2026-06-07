@@ -12,7 +12,7 @@ export default async function MiGarajePage() {
   const [suscripcion, cochesDesbloqueados] = await Promise.all([
     session?.user?.id
       ? prisma.suscripcion.findFirst({
-          where: { userId: session.user.id, estado: 'ACTIVA' },
+          where: { userId: session.user.id, estado: { in: ['ACTIVA', 'GRATUITA'] } },
           select: { plan: true, estado: true },
         })
       : null,

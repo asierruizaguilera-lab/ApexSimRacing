@@ -10,7 +10,7 @@ export async function GET() {
   if (!session?.user) return NextResponse.json(null, { status: 401 })
 
   const suscripcion = await prisma.suscripcion.findFirst({
-    where: { userId: session.user.id, estado: 'ACTIVA' },
+    where: { userId: session.user.id, estado: { in: ['ACTIVA', 'GRATUITA'] } },
   })
 
   return NextResponse.json(suscripcion)
