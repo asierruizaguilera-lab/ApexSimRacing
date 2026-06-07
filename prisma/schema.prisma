@@ -108,6 +108,7 @@ model User {
   cochesDesbloqueados   CocheDesbloqueado[]
   accionesAdmin         LogAccionAdmin[]    @relation("AdminAcciones")
   accionesRecibidas     LogAccionAdmin[]    @relation("TargetAcciones")
+  clasesVistas          ClaseVista[]
 
   @@map("users")
 }
@@ -327,4 +328,32 @@ model LogAccionAdmin {
   target User @relation("TargetAcciones", fields: [targetUserId], references: [id])
 
   @@map("log_acciones_admin")
+}
+
+model Clase {
+  id            String      @id @default(cuid())
+  titulo        String
+  descripcion   String?
+  disciplina    Disciplina
+  youtubeUrl    String
+  duracionMin   Int?
+  orden         Int         @default(0)
+  publicada     Boolean     @default(false)
+  creadoEn      DateTime    @default(now())
+  actualizadoEn DateTime    @updatedAt
+  vistas        ClaseVista[]
+
+  @@map("clases")
+}
+
+model ClaseVista {
+  id       String   @id @default(cuid())
+  userId   String
+  claseId  String
+  vistoCEn DateTime @default(now())
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  clase    Clase    @relation(fields: [claseId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, claseId])
+  @@map("clases_vistas")
 }

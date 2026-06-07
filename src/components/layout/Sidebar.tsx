@@ -6,13 +6,14 @@ import { useSession } from 'next-auth/react'
 import { cn } from '@/lib/utils'
 import {
   LayoutDashboard, Trophy, Calendar, MessageSquare,
-  User, Shield, TrendingUp, Menu, X, Star, Car, Users,
+  User, Shield, TrendingUp, Menu, X, Star, Car, Users, GraduationCap,
 } from 'lucide-react'
 import { useState } from 'react'
 
 const navItems = [
   { href: '/dashboard', icon: LayoutDashboard, label: 'Inicio' },
   { href: '/campeonatos', icon: Trophy, label: 'Campeonatos' },
+  { href: '/academia', icon: GraduationCap, label: 'Academia' },
   { href: '/ranking', icon: TrendingUp, label: 'Ranking' },
   { href: '/calendario', icon: Calendar, label: 'Calendario' },
   { href: '/planes', icon: Star, label: 'Planes' },
@@ -24,6 +25,7 @@ const navItems = [
 const adminItems = [
   { href: '/admin', icon: Shield, label: 'Panel Admin' },
   { href: '/admin/usuarios', icon: Users, label: 'Usuarios' },
+  { href: '/admin/academia', icon: GraduationCap, label: 'Academia' },
   { href: '/admin/coches', icon: Car, label: 'Coches' },
   { href: '/admin/suscriptores', icon: Star, label: 'Suscriptores' },
 ]
