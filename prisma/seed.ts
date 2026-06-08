@@ -1,4 +1,4 @@
-import { PrismaClient, Rol, Disciplina, PlanSuscripcion } from '@prisma/client'
+import { PrismaClient, Rol, Disciplina, PlanSuscripcion, UbicacionPatrocinador } from '@prisma/client'
 import bcrypt from 'bcryptjs'
 
 const prisma = new PrismaClient()
@@ -144,6 +144,36 @@ async function main() {
     console.log(`   ✅ ${clasesData.length} clases de Academia creadas`)
   } else {
     console.log(`   ⏭️  Ya existen ${totalClases} clases — omitiendo seed de Academia`)
+  }
+
+  // ── 3. Patrocinadores placeholder ────────────────────────────────────────────
+  const totalPatrocinadores = await prisma.patrocinador.count()
+  if (totalPatrocinadores === 0) {
+    await prisma.patrocinador.createMany({
+      data: [
+        {
+          nombre: 'Tu Marca Aquí',
+          descripcion: '¿Quieres llegar a la comunidad del motor hispanohablante? Contáctanos.',
+          logoUrl: null,
+          linkExterno: null,
+          ubicaciones: [UbicacionPatrocinador.TODAS],
+          activo: true,
+          orden: 0,
+        },
+        {
+          nombre: 'Patrocinador Oficial',
+          descripcion: 'Colaborador oficial de APEX SimRacing.',
+          logoUrl: null,
+          linkExterno: null,
+          ubicaciones: [UbicacionPatrocinador.LANDING, UbicacionPatrocinador.CAMPEONATOS],
+          activo: false,
+          orden: 1,
+        },
+      ],
+    })
+    console.log('   ✅ 2 patrocinadores placeholder creados')
+  } else {
+    console.log(`   ⏭️  Ya existen ${totalPatrocinadores} patrocinadores — omitiendo seed`)
   }
 
   console.log('✅ Seed completado')

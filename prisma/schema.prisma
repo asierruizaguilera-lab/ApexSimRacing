@@ -79,6 +79,14 @@ enum EstadoSuscripcion {
   GRATUITA
 }
 
+enum UbicacionPatrocinador {
+  LANDING
+  SIDEBAR
+  CAMPEONATOS
+  ACADEMIA
+  TODAS
+}
+
 model User {
   id              String    @id @default(cuid())
   username        String    @unique
@@ -344,6 +352,21 @@ model Clase {
   vistas        ClaseVista[]
 
   @@map("clases")
+}
+
+model Patrocinador {
+  id            String                   @id @default(cuid())
+  nombre        String
+  descripcion   String?
+  logoUrl       String?
+  linkExterno   String?
+  ubicaciones   UbicacionPatrocinador[]
+  activo        Boolean                  @default(true)
+  orden         Int                      @default(0)
+  creadoEn      DateTime                 @default(now())
+  actualizadoEn DateTime                 @updatedAt
+
+  @@map("patrocinadores")
 }
 
 model ClaseVista {

@@ -27,7 +27,19 @@ const ESTADO_COLORS: Record<string, string> = {
   FINALIZADO: 'bg-gray-500/20 text-gray-400 border-gray-500/30',
 }
 
-export function CampeonatosClient({ campeonatos, userId }: { campeonatos: Campeonato[]; userId?: string }) {
+interface Patrocinador {
+  id: string
+  nombre: string
+  descripcion: string | null
+  logoUrl: string | null
+  linkExterno: string | null
+}
+
+export function CampeonatosClient({ campeonatos, userId, patrocinadores = [] }: {
+  campeonatos: Campeonato[]
+  userId?: string
+  patrocinadores?: Patrocinador[]
+}) {
   const [filtroEstado, setFiltroEstado] = useState('TODOS')
   const [filtroDisciplina, setFiltroDisciplina] = useState('TODOS')
   const [loading, setLoading] = useState<string | null>(null)
@@ -68,6 +80,35 @@ export function CampeonatosClient({ campeonatos, userId }: { campeonatos: Campeo
 
   return (
     <div>
+      {/* Banner patrocinadores */}
+      {patrocinadores.length > 0 && (
+        <div className="flex items-center gap-4 py-3 px-4 bg-apex-card/50 border border-apex-border rounded-xl mb-5">
+          <span className="text-xs text-apex-muted whitespace-nowrap font-medium shrink-0">Patrocinado por</span>
+          <div className="flex items-center gap-3 flex-wrap">
+            {patrocinadores.map(p => {
+              const logo = (
+                <div
+                  key={p.id}
+                  className="w-8 h-8 rounded-lg border border-apex-border/50 bg-apex-card flex items-center justify-center overflow-hidden hover:border-apex-red/40 transition-colors"
+                  title={p.nombre}
+                >
+                  {p.logoUrl ? (
+                    <img src={p.logoUrl} alt={p.nombre} className="w-full h-full object-contain" />
+                  ) : (
+                    <span className="text-[9px] font-bold text-apex-muted">
+                      {p.nombre.split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase()}
+                    </span>
+                  )}
+                </div>
+              )
+              return p.linkExterno ? (
+                <a key={p.id} href={p.linkExterno} target="_blank" rel="noopener noreferrer">{logo}</a>
+              ) : <div key={p.id}>{logo}</div>
+            })}
+          </div>
+        </div>
+      )}
+
       {/* Filtros */}
       <div className="flex flex-wrap gap-3 mb-6">
         <div className="flex gap-1 bg-apex-card border border-apex-border rounded-lg p-1">

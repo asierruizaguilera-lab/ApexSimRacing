@@ -3,6 +3,8 @@
 import Link from 'next/link'
 import { Check, Star } from 'lucide-react'
 import { PLAN_LABELS, PLAN_PRECIOS, PLAN_FEATURES, DISCIPLINA_COLORS, DISCIPLINA_LABELS, cn } from '@/lib/utils'
+import { useEffect, useState } from 'react'
+import type { Patrocinador } from '@/components/patrocinadores/PatrocinadoresStrip'
 
 const PLAN_ICONS: Record<string, string> = {
   ROOKIE: '🏁', AMATEUR: '⚡', PRO: '🏆', ELITE: '👑',
@@ -27,6 +29,15 @@ const DISCIPLINA_DESCS: Record<string, string> = {
 const PLANES = ['ROOKIE', 'AMATEUR', 'PRO', 'ELITE']
 
 export function LandingClient() {
+  const [sponsors, setSponsors] = useState<Patrocinador[]>([])
+
+  useEffect(() => {
+    fetch('/api/patrocinadores?ubicacion=LANDING&public=1')
+      .then(r => r.ok ? r.json() : [])
+      .then(setSponsors)
+      .catch(() => {})
+  }, [])
+
   return (
     <div className="min-h-screen bg-apex-bg font-sans">
 
@@ -231,6 +242,39 @@ export function LandingClient() {
           </Link>
         </div>
       </section>
+
+      {/* ── PATROCINADORES ── */}
+      {sponsors.length > 0 && (
+        <section className="py-16 px-6 bg-apex-surface border-t border-apex-border">
+          <div className="max-w-4xl mx-auto">
+            <p className="text-xs font-semibold uppercase tracking-widest text-apex-muted text-center mb-8">
+              Nuestros Patrocinadores
+            </p>
+            <div className="flex flex-wrap justify-center gap-6">
+              {sponsors.map(p => {
+                const card = (
+                  <div className={cn(
+                    'flex flex-col items-center gap-2 p-4 rounded-xl border border-apex-border bg-apex-card/60 transition-all duration-200 min-w-[90px]',
+                    p.linkExterno && 'hover:border-apex-red/40 hover:brightness-110 cursor-pointer'
+                  )}>
+                    {p.logoUrl ? (
+                      <img src={p.logoUrl} alt={p.nombre} className="w-14 h-14 object-contain rounded-lg" />
+                    ) : (
+                      <div className="w-14 h-14 rounded-lg bg-apex-surface border border-apex-border flex items-center justify-center font-bold text-apex-muted text-sm">
+                        {p.nombre.split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase()}
+                      </div>
+                    )}
+                    <span className="text-xs text-apex-muted text-center leading-tight max-w-[80px]">{p.nombre}</span>
+                  </div>
+                )
+                return p.linkExterno ? (
+                  <a key={p.id} href={p.linkExterno} target="_blank" rel="noopener noreferrer">{card}</a>
+                ) : <div key={p.id}>{card}</div>
+              })}
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* ── FOOTER ── */}
       <footer className="bg-apex-bg border-t border-apex-border py-10 px-6 text-center">

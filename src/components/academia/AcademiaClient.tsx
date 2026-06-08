@@ -34,7 +34,15 @@ type Clase = {
   vistaPorMi: boolean
 }
 
-export function AcademiaClient({ clases }: { clases: Clase[] }) {
+type Patrocinador = {
+  id: string
+  nombre: string
+  descripcion: string | null
+  logoUrl: string | null
+  linkExterno: string | null
+}
+
+export function AcademiaClient({ clases, patrocinadores = [] }: { clases: Clase[]; patrocinadores?: Patrocinador[] }) {
   const [tab, setTab] = useState('TODOS')
 
   const filtradas = tab === 'TODOS' ? clases : clases.filter(c => c.disciplina === tab)
@@ -43,6 +51,52 @@ export function AcademiaClient({ clases }: { clases: Clase[] }) {
 
   return (
     <div className="space-y-5">
+      {/* Card fija Vadosan */}
+      <div className="bg-apex-card border-2 border-apex-red/60 rounded-2xl p-5 flex items-start gap-4">
+        <div className="w-14 h-14 rounded-full bg-apex-red flex items-center justify-center font-bold text-white text-xl shrink-0">
+          VA
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-1 flex-wrap">
+            <span className="font-bold text-lg leading-tight">Vadosan</span>
+            <span className="text-xs px-2 py-0.5 rounded-full bg-apex-red/20 text-apex-red border border-apex-red/30 font-semibold">
+              Colaborador Técnico
+            </span>
+          </div>
+          <p className="text-apex-muted text-sm leading-relaxed">
+            Colaborador técnico — Mecánica, técnica de pilotaje y conocimiento de circuitos
+          </p>
+        </div>
+      </div>
+
+      {/* Patrocinadores de Academia */}
+      {patrocinadores.length > 0 && (
+        <div className="flex items-center gap-3 py-3 px-4 bg-apex-card/50 border border-apex-border rounded-xl flex-wrap">
+          <span className="text-xs text-apex-muted font-medium whitespace-nowrap shrink-0">Colaboradores</span>
+          {patrocinadores.map(p => {
+            const logo = (
+              <div
+                key={p.id}
+                className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-apex-border/50 bg-apex-card hover:border-apex-red/30 transition-colors"
+                title={p.nombre}
+              >
+                {p.logoUrl ? (
+                  <img src={p.logoUrl} alt={p.nombre} className="w-6 h-6 object-contain rounded" />
+                ) : (
+                  <div className="w-6 h-6 rounded bg-apex-surface border border-apex-border flex items-center justify-center text-[9px] font-bold text-apex-muted">
+                    {p.nombre.split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase()}
+                  </div>
+                )}
+                <span className="text-xs text-apex-muted">{p.nombre}</span>
+              </div>
+            )
+            return p.linkExterno ? (
+              <a key={p.id} href={p.linkExterno} target="_blank" rel="noopener noreferrer">{logo}</a>
+            ) : <div key={p.id}>{logo}</div>
+          })}
+        </div>
+      )}
+
       {/* Tabs */}
       <div className="flex flex-wrap gap-2">
         <button

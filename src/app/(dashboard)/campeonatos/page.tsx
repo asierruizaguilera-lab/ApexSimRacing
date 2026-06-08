@@ -8,15 +8,22 @@ export const metadata = { title: 'Campeonatos' }
 export default async function CampeonatosPage() {
   const session = await getServerSession(authOptions)
 
-  const campeonatos = await prisma.campeonato.findMany({
-    orderBy: { creadoEn: 'desc' },
-    include: {
-      _count: { select: { inscripciones: true, carreras: true } },
-      inscripciones: session?.user
-        ? { where: { userId: session.user.id }, select: { estado: true } }
-        : undefined,
-    },
-  })
+  const [campeonatos, patrocinadores] = await Promise.all([
+    prisma.campeonato.findMany({
+      orderBy: { creadoEn: 'desc' },
+      include: {
+        _count: { select: { inscripciones: true, carreras: true } },
+        inscripciones: session?.user
+          ? { where: { userId: session.user.id }, select: { estado: true } }
+          : undefined,
+      },
+    }),
+    prisma.patrocinador.findMany({
+      where: { activo: true, ubicaciones: { hasSome: ['CAMPEONATOS', 'TODAS'] } },
+      orderBy: [{ orden: 'asc' }, { creadoEn: 'asc' }],
+      select: { id: true, nombre: true, descripcion: true, logoUrl: true, linkExterno: true },
+    }),
+  ])
 
   return (
     <div>
@@ -33,6 +40,7 @@ export default async function CampeonatosPage() {
           inscrito: c.inscripciones?.[0]?.estado || null,
         }))}
         userId={session?.user?.id}
+        patrocinadores={patrocinadores}
       />
     </div>
   )

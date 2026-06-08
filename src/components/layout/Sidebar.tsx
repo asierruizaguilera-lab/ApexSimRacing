@@ -6,9 +6,10 @@ import { useSession } from 'next-auth/react'
 import { cn } from '@/lib/utils'
 import {
   LayoutDashboard, Trophy, Calendar, MessageSquare,
-  User, Shield, TrendingUp, Menu, X, Star, Car, Users, GraduationCap,
+  User, Shield, TrendingUp, Menu, X, Star, Car, Users, GraduationCap, Handshake,
 } from 'lucide-react'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { PatrocinadoresSidebar, type Patrocinador } from '@/components/patrocinadores/PatrocinadoresStrip'
 
 const navItems = [
   { href: '/dashboard', icon: LayoutDashboard, label: 'Inicio' },
@@ -28,13 +29,22 @@ const adminItems = [
   { href: '/admin/academia', icon: GraduationCap, label: 'Academia' },
   { href: '/admin/coches', icon: Car, label: 'Coches' },
   { href: '/admin/suscriptores', icon: Star, label: 'Suscriptores' },
+  { href: '/admin/patrocinadores', icon: Handshake, label: 'Patrocinadores' },
 ]
 
 export function Sidebar() {
   const pathname = usePathname()
   const { data: session } = useSession()
   const [mobileOpen, setMobileOpen] = useState(false)
+  const [sidebarSponsors, setSidebarSponsors] = useState<Patrocinador[]>([])
   const isAdmin = session?.user?.role === 'ADMIN'
+
+  useEffect(() => {
+    fetch('/api/patrocinadores?ubicacion=SIDEBAR')
+      .then(r => r.ok ? r.json() : [])
+      .then(setSidebarSponsors)
+      .catch(() => {})
+  }, [])
 
   const NavLink = ({ href, icon: Icon, label }: { href: string; icon: any; label: string }) => {
     const active = pathname === href || pathname.startsWith(href + '/')
@@ -86,6 +96,11 @@ export function Sidebar() {
           </>
         )}
       </nav>
+
+      {/* Patrocinadores sidebar */}
+      {sidebarSponsors.length > 0 && (
+        <PatrocinadoresSidebar patrocinadores={sidebarSponsors} />
+      )}
 
       {/* User info bottom */}
       {session?.user && (
