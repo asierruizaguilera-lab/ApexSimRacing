@@ -23,6 +23,7 @@ interface Patrocinador {
   linkExterno: string | null
   ubicaciones: Ubicacion[]
   activo: boolean
+  esColaborador: boolean
   orden: number
   creadoEn: string
 }
@@ -34,6 +35,7 @@ interface FormState {
   linkExterno: string
   ubicaciones: Ubicacion[]
   activo: boolean
+  esColaborador: boolean
   orden: number
   logoFile: File | null
   logoPreview: string
@@ -41,7 +43,7 @@ interface FormState {
 
 const emptyForm = (): FormState => ({
   nombre: '', descripcion: '', logoUrl: '', linkExterno: '',
-  ubicaciones: [], activo: true, orden: 0, logoFile: null, logoPreview: '',
+  ubicaciones: [], activo: true, esColaborador: false, orden: 0, logoFile: null, logoPreview: '',
 })
 
 export function AdminPatrocinadoresClient({ initial }: { initial: Patrocinador[] }) {
@@ -68,6 +70,7 @@ export function AdminPatrocinadoresClient({ initial }: { initial: Patrocinador[]
       linkExterno: p.linkExterno || '',
       ubicaciones: [...p.ubicaciones],
       activo: p.activo,
+      esColaborador: p.esColaborador,
       orden: p.orden,
       logoFile: null,
       logoPreview: p.logoUrl || '',
@@ -100,6 +103,7 @@ export function AdminPatrocinadoresClient({ initial }: { initial: Patrocinador[]
       fd.append('linkExterno', form.linkExterno.trim())
       fd.append('ubicaciones', JSON.stringify(form.ubicaciones))
       fd.append('activo', String(form.activo))
+      fd.append('esColaborador', String(form.esColaborador))
       fd.append('orden', String(form.orden))
       if (form.logoFile) {
         fd.append('logo', form.logoFile)
@@ -202,7 +206,14 @@ export function AdminPatrocinadoresClient({ initial }: { initial: Patrocinador[]
                     </div>
                   </td>
                   <td className="px-4 py-3">
-                    <div className="font-medium text-apex-text">{p.nombre}</div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-apex-text">{p.nombre}</span>
+                      {p.esColaborador && (
+                        <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-apex-red/20 text-apex-red border border-apex-red/30 font-semibold whitespace-nowrap">
+                          Colaborador
+                        </span>
+                      )}
+                    </div>
                     {p.descripcion && (
                       <div className="text-xs text-apex-muted line-clamp-1 mt-0.5">{p.descripcion}</div>
                     )}
@@ -378,6 +389,22 @@ export function AdminPatrocinadoresClient({ initial }: { initial: Patrocinador[]
                     {form.activo ? 'Activo' : 'Inactivo'}
                   </button>
                 </div>
+              </div>
+
+              {/* Colaborador técnico */}
+              <div>
+                <button
+                  onClick={() => setForm(f => ({ ...f, esColaborador: !f.esColaborador }))}
+                  className={cn(
+                    'w-full py-2 rounded-lg text-sm font-medium border transition-colors flex items-center justify-center gap-2',
+                    form.esColaborador
+                      ? 'bg-apex-red/10 text-apex-red border-apex-red/30'
+                      : 'bg-apex-surface text-apex-muted border-apex-border'
+                  )}
+                >
+                  {form.esColaborador ? <ToggleRight size={16} /> : <ToggleLeft size={16} />}
+                  {form.esColaborador ? 'Colaborador técnico (card destacada en Academia)' : 'No es colaborador técnico'}
+                </button>
               </div>
             </div>
 

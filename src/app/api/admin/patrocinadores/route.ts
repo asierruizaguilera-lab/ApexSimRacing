@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
 
   const contentType = req.headers.get('content-type') || ''
   let nombre: string, descripcion: string | null, linkExterno: string | null,
-    ubicaciones: string[], activo: boolean, orden: number, logoUrl: string | null = null
+    ubicaciones: string[], activo: boolean, esColaborador: boolean, orden: number, logoUrl: string | null = null
 
   if (contentType.includes('multipart/form-data')) {
     const form = await req.formData()
@@ -36,6 +36,7 @@ export async function POST(req: NextRequest) {
     linkExterno = (form.get('linkExterno') as string)?.trim() || null
     ubicaciones = JSON.parse((form.get('ubicaciones') as string) || '[]')
     activo = form.get('activo') === 'true'
+    esColaborador = form.get('esColaborador') === 'true'
     orden = parseInt(form.get('orden') as string) || 0
 
     const file = form.get('logo') as File | null
@@ -52,7 +53,7 @@ export async function POST(req: NextRequest) {
     }
   } else {
     const body = await req.json()
-    ;({ nombre, descripcion, linkExterno, ubicaciones, activo, orden, logoUrl } = body)
+    ;({ nombre, descripcion, linkExterno, ubicaciones, activo, esColaborador, orden, logoUrl } = body)
     descripcion = descripcion || null
     linkExterno = linkExterno || null
     logoUrl = logoUrl || null
@@ -61,7 +62,7 @@ export async function POST(req: NextRequest) {
   if (!nombre) return NextResponse.json({ error: 'El nombre es obligatorio' }, { status: 400 })
 
   const patrocinador = await prisma.patrocinador.create({
-    data: { nombre, descripcion, logoUrl, linkExterno, ubicaciones: ubicaciones as any, activo: activo ?? true, orden: orden ?? 0 },
+    data: { nombre, descripcion, logoUrl, linkExterno, ubicaciones: ubicaciones as any, activo: activo ?? true, esColaborador: esColaborador ?? false, orden: orden ?? 0 },
   })
   return NextResponse.json(patrocinador, { status: 201 })
 }

@@ -16,12 +16,13 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
 
   if (contentType.includes('multipart/form-data')) {
     const form = await req.formData()
-    if (form.has('nombre'))      updates.nombre      = (form.get('nombre') as string).trim()
-    if (form.has('descripcion')) updates.descripcion = (form.get('descripcion') as string).trim() || null
-    if (form.has('linkExterno')) updates.linkExterno = (form.get('linkExterno') as string).trim() || null
-    if (form.has('ubicaciones')) updates.ubicaciones = JSON.parse(form.get('ubicaciones') as string)
-    if (form.has('activo'))      updates.activo      = form.get('activo') === 'true'
-    if (form.has('orden'))       updates.orden       = parseInt(form.get('orden') as string) || 0
+    if (form.has('nombre'))         updates.nombre        = (form.get('nombre') as string).trim()
+    if (form.has('descripcion'))    updates.descripcion   = (form.get('descripcion') as string).trim() || null
+    if (form.has('linkExterno'))    updates.linkExterno   = (form.get('linkExterno') as string).trim() || null
+    if (form.has('ubicaciones'))    updates.ubicaciones   = JSON.parse(form.get('ubicaciones') as string)
+    if (form.has('activo'))         updates.activo        = form.get('activo') === 'true'
+    if (form.has('esColaborador'))  updates.esColaborador = form.get('esColaborador') === 'true'
+    if (form.has('orden'))          updates.orden         = parseInt(form.get('orden') as string) || 0
 
     const file = form.get('logo') as File | null
     if (file && file.size > 0) {

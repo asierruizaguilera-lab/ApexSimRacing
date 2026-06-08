@@ -146,9 +146,29 @@ async function main() {
     console.log(`   ⏭️  Ya existen ${totalClases} clases — omitiendo seed de Academia`)
   }
 
-  // ── 3. Patrocinadores placeholder ────────────────────────────────────────────
+  // ── 3. Vadosan — colaborador técnico de Academia ─────────────────────────────
+  const vadosan = await prisma.patrocinador.findFirst({ where: { nombre: 'Vadosan' } })
+  if (!vadosan) {
+    await prisma.patrocinador.create({
+      data: {
+        nombre: 'Vadosan',
+        descripcion: 'Colaborador técnico — Mecánica, técnica de pilotaje y conocimiento de circuitos',
+        logoUrl: null,
+        linkExterno: null,
+        ubicaciones: [UbicacionPatrocinador.ACADEMIA],
+        activo: true,
+        esColaborador: true,
+        orden: 0,
+      },
+    })
+    console.log('   ✅ Vadosan (colaborador técnico Academia) creado')
+  } else {
+    console.log('   ⏭️  Vadosan ya existe — omitiendo')
+  }
+
+  // ── 4. Patrocinadores placeholder ────────────────────────────────────────────
   const totalPatrocinadores = await prisma.patrocinador.count()
-  if (totalPatrocinadores === 0) {
+  if (totalPatrocinadores <= 1) {
     await prisma.patrocinador.createMany({
       data: [
         {
@@ -158,7 +178,8 @@ async function main() {
           linkExterno: null,
           ubicaciones: [UbicacionPatrocinador.TODAS],
           activo: true,
-          orden: 0,
+          esColaborador: false,
+          orden: 1,
         },
         {
           nombre: 'Patrocinador Oficial',
@@ -167,13 +188,14 @@ async function main() {
           linkExterno: null,
           ubicaciones: [UbicacionPatrocinador.LANDING, UbicacionPatrocinador.CAMPEONATOS],
           activo: false,
-          orden: 1,
+          esColaborador: false,
+          orden: 2,
         },
       ],
     })
     console.log('   ✅ 2 patrocinadores placeholder creados')
   } else {
-    console.log(`   ⏭️  Ya existen ${totalPatrocinadores} patrocinadores — omitiendo seed`)
+    console.log(`   ⏭️  Ya existen ${totalPatrocinadores} patrocinadores — omitiendo placeholders`)
   }
 
   console.log('✅ Seed completado')

@@ -24,7 +24,7 @@ export default async function AcademiaPage() {
     prisma.patrocinador.findMany({
       where: { activo: true, ubicaciones: { hasSome: ['ACADEMIA', 'TODAS'] } },
       orderBy: [{ orden: 'asc' }, { creadoEn: 'asc' }],
-      select: { id: true, nombre: true, descripcion: true, logoUrl: true, linkExterno: true },
+      select: { id: true, nombre: true, descripcion: true, logoUrl: true, linkExterno: true, esColaborador: true },
     }),
   ])
 

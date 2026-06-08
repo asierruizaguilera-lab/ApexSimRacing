@@ -355,16 +355,17 @@ model Clase {
 }
 
 model Patrocinador {
-  id            String                   @id @default(cuid())
-  nombre        String
-  descripcion   String?
-  logoUrl       String?
-  linkExterno   String?
-  ubicaciones   UbicacionPatrocinador[]
-  activo        Boolean                  @default(true)
-  orden         Int                      @default(0)
-  creadoEn      DateTime                 @default(now())
-  actualizadoEn DateTime                 @updatedAt
+  id             String                   @id @default(cuid())
+  nombre         String
+  descripcion    String?
+  logoUrl        String?
+  linkExterno    String?
+  ubicaciones    UbicacionPatrocinador[]
+  activo         Boolean                  @default(true)
+  esColaborador  Boolean                  @default(false)
+  orden          Int                      @default(0)
+  creadoEn       DateTime                 @default(now())
+  actualizadoEn  DateTime                 @updatedAt
 
   @@map("patrocinadores")
 }
