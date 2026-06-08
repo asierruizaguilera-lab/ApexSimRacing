@@ -86,9 +86,13 @@ export function ModalPago({ plan, isLoggedIn = true, onClose }: Props) {
       {/* PayPalScriptProvider wraps todo el modal para que el SDK cargue al abrirse,
           no al llegar al paso de pago — evita el error de SDK no inicializado */}
       <PayPalScriptProvider options={{
-        clientId: paypalClientId || 'test',
+        'client-id': paypalClientId || 'test',
         vault: true,
         intent: 'subscription',
+        currency: 'EUR',
+        components: 'buttons',
+        'data-sdk-integration-source': 'button-factory',
+        ...(process.env.NEXT_PUBLIC_PAYPAL_MODE === 'sandbox' ? { 'data-sandbox': 'true' } : {}),
       }}>
         <div className="w-full max-w-md bg-apex-card border border-apex-border rounded-2xl shadow-2xl animate-fade-in overflow-hidden">
           {/* Header */}
