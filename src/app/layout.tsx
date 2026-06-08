@@ -7,6 +7,13 @@ export const metadata: Metadata = {
   description: 'La comunidad hispanohablante de SimRacing y cultura del motor. Compite, clasifica y conecta.',
   keywords: ['simracing', 'campeonatos', 'assetto corsa', 'rally', 'drift', 'comunidad'],
   themeColor: '#C0392B',
+  icons: {
+    icon: [
+      { url: '/favicon.ico' },
+      { url: '/logo-apex-a.jpg', type: 'image/jpeg' },
+    ],
+    apple: { url: '/logo-apex-a.jpg', type: 'image/jpeg' },
+  },
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
