@@ -6,7 +6,7 @@ export const PLAN_ORDER: PlanSuscripcion[] = ['ROOKIE', 'AMATEUR', 'PRO', 'ELITE
 export const PLAN_PRECIOS: Record<PlanSuscripcion, number> = {
   ROOKIE: 5,
   AMATEUR: 10,
-  PRO: 18,
+  PRO: 15,
   ELITE: 25,
 }
 

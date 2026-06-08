@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { PAYPAL_PLAN_IDS, getPayPalAccessToken } from '@/lib/paypal'
+import { PAYPAL_BASE, PAYPAL_PLAN_IDS, getPayPalAccessToken } from '@/lib/paypal'
 
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions)
@@ -14,10 +14,6 @@ export async function POST(req: NextRequest) {
   try {
     const token = await getPayPalAccessToken()
     const baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000'
-
-    const PAYPAL_BASE = process.env.NODE_ENV === 'production'
-      ? 'https://api-m.paypal.com'
-      : 'https://api-m.sandbox.paypal.com'
 
     const res = await fetch(`${PAYPAL_BASE}/v1/billing/subscriptions`, {
       method: 'POST',

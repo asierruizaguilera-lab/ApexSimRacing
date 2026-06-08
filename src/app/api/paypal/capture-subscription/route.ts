@@ -16,10 +16,12 @@ export async function POST(req: NextRequest) {
   if (!subscriptionId || !plan) return NextResponse.json({ error: 'Datos incompletos' }, { status: 400 })
 
   try {
-    // Verificar estado de la suscripción en PayPal
-    const ppSub = await getPayPalSubscription(subscriptionId)
-    if (!ppSub || !['ACTIVE', 'APPROVED'].includes(ppSub.status)) {
-      return NextResponse.json({ error: 'La suscripción de PayPal no está activa' }, { status: 400 })
+    // Verificar estado con la API de PayPal (solo si hay credenciales de backend)
+    if (process.env.PAYPAL_CLIENT_SECRET) {
+      const ppSub = await getPayPalSubscription(subscriptionId)
+      if (!ppSub || !['ACTIVE', 'APPROVED'].includes(ppSub.status)) {
+        return NextResponse.json({ error: 'La suscripción de PayPal no está activa' }, { status: 400 })
+      }
     }
 
     await activarPlan(session.user.id, plan as PlanSuscripcion, {

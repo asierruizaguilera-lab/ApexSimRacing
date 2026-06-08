@@ -1,6 +1,6 @@
-const PAYPAL_BASE = process.env.NODE_ENV === 'production'
-  ? 'https://api-m.paypal.com'
-  : 'https://api-m.sandbox.paypal.com'
+export const PAYPAL_BASE = process.env.PAYPAL_MODE === 'sandbox'
+  ? 'https://api-m.sandbox.paypal.com'
+  : 'https://api-m.paypal.com'
 
 // Accepts both PAYPAL_PLAN_* (server-only) and NEXT_PUBLIC_PAYPAL_*_PLAN_ID (server+client)
 export const PAYPAL_PLAN_IDS: Record<string, string> = {

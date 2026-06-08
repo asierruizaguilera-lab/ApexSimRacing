@@ -160,7 +160,7 @@ export const PLAN_LABELS: Record<string, string> = {
 export const PLAN_PRECIOS: Record<string, number> = {
   ROOKIE: 5,
   AMATEUR: 10,
-  PRO: 18,
+  PRO: 15,
   ELITE: 25,
 }
 
