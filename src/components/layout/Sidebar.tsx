@@ -61,13 +61,12 @@ export function Sidebar() {
   const SidebarContent = () => (
     <div className="flex flex-col h-full">
       {/* Logo */}
-      <div className="px-3 py-3 border-b border-apex-border">
+      <div className="px-3 py-4 border-b border-apex-border flex justify-center">
         <Link href="/dashboard" onClick={() => setMobileOpen(false)}>
           <img
-            src="/logo-apex-completo.jpg"
+            src="/logo-apex-a.jpg"
             alt="APEX SimRacing"
-            className="w-full rounded-lg object-cover"
-            style={{ height: '72px' }}
+            className="w-12 h-12 rounded-lg object-cover"
           />
         </Link>
       </div>
