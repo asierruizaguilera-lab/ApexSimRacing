@@ -4,7 +4,7 @@ import { useState } from 'react'
 import toast from 'react-hot-toast'
 import Link from 'next/link'
 import { DISCIPLINA_COLORS, DISCIPLINA_LABELS, SIMULADOR_LABELS, formatFechaHora, formatFecha, getPaisFlag, getPositionColor, cn } from '@/lib/utils'
-import { Users, Calendar, Trophy, Server, Wifi, Copy, ChevronLeft } from 'lucide-react'
+import { Users, Calendar, Trophy, Server, Wifi, Copy, ChevronLeft, ChevronDown, ChevronUp } from 'lucide-react'
 
 interface Carrera {
   id: string; nombre: string; circuito: string; fecha: string; duracionMin: number
@@ -17,6 +17,16 @@ interface Clasificacion {
   puntos: number; carreras: number; victorias: number
 }
 
+interface ResultadoCarrera {
+  id: string
+  posicion: number
+  puntos: number
+  vueltaRapida: boolean
+  abandono: boolean
+  tiempo: string | null
+  user: { id: string; username: string; avatar: string | null; pais: string | null }
+}
+
 interface Props {
   campeonato: any
   clasificacion: Clasificacion[]
@@ -24,10 +34,20 @@ interface Props {
   userId?: string
 }
 
+function getPodiumRowClass(pos: number): string {
+  if (pos === 1) return 'bg-yellow-400/8 border-l-2 border-yellow-400/70'
+  if (pos === 2) return 'bg-gray-300/8 border-l-2 border-gray-300/50'
+  if (pos === 3) return 'bg-amber-600/8 border-l-2 border-amber-600/50'
+  return ''
+}
+
 export function CampeonatoDetalle({ campeonato: c, clasificacion, inscripcionActual, userId }: Props) {
   const [tab, setTab] = useState<'info' | 'carreras' | 'clasificacion' | 'pilotos'>('info')
   const [inscrito, setInscrito] = useState(inscripcionActual)
   const [loading, setLoading] = useState(false)
+  const [expandedRace, setExpandedRace] = useState<string | null>(null)
+  const [raceResults, setRaceResults] = useState<Record<string, ResultadoCarrera[]>>({})
+  const [loadingResults, setLoadingResults] = useState<string | null>(null)
 
   async function inscribirse() {
     if (!userId) { toast.error('Debes iniciar sesión'); return }
@@ -49,6 +69,28 @@ export function CampeonatoDetalle({ campeonato: c, clasificacion, inscripcionAct
   function copiar(text: string, label: string) {
     navigator.clipboard.writeText(text)
     toast.success(`${label} copiado`)
+  }
+
+  async function toggleResultados(carreraId: string) {
+    if (expandedRace === carreraId) {
+      setExpandedRace(null)
+      return
+    }
+    if (raceResults[carreraId]) {
+      setExpandedRace(carreraId)
+      return
+    }
+    setLoadingResults(carreraId)
+    try {
+      const res = await fetch(`/api/carreras/${carreraId}/resultados`)
+      const data = await res.json()
+      setRaceResults(prev => ({ ...prev, [carreraId]: data }))
+      setExpandedRace(carreraId)
+    } catch {
+      toast.error('No se pudieron cargar los resultados')
+    } finally {
+      setLoadingResults(null)
+    }
   }
 
   const lleno = c.inscripciones.filter((i: any) => i.estado === 'CONFIRMADA').length >= c.maxPilotos
@@ -163,83 +205,185 @@ export function CampeonatoDetalle({ campeonato: c, clasificacion, inscripcionAct
         <div className="space-y-3">
           {c.carreras.map((carrera: Carrera, idx: number) => {
             const isInscrito = inscrito === 'CONFIRMADA'
-            return (
-              <div key={carrera.id} className="bg-apex-card border border-apex-border rounded-xl p-5">
-                <div className="flex items-start justify-between gap-3 mb-3">
-                  <div>
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-apex-muted text-sm">Ronda {idx + 1}</span>
-                      <span className={cn('text-xs px-2 py-0.5 rounded-full border', {
-                        'bg-yellow-500/20 text-yellow-400 border-yellow-500/30': carrera.estado === 'EN_CURSO',
-                        'bg-blue-500/20 text-blue-400 border-blue-500/30': carrera.estado === 'PROGRAMADA',
-                        'bg-gray-500/20 text-gray-400 border-gray-500/30': carrera.estado === 'FINALIZADA',
-                      })}>
-                        {carrera.estado === 'PROGRAMADA' ? 'Programada' : carrera.estado === 'EN_CURSO' ? 'En Curso' : 'Finalizada'}
-                      </span>
-                    </div>
-                    <h4 className="font-semibold">{carrera.nombre}</h4>
-                    <p className="text-apex-muted text-sm">{carrera.circuito}</p>
-                  </div>
-                  <div className="text-right text-sm text-apex-muted flex-shrink-0">
-                    <div className="font-medium text-apex-text">{formatFechaHora(carrera.fecha)}</div>
-                    <div>{carrera.duracionMin} min</div>
-                  </div>
-                </div>
+            const isFinalizada = carrera.estado === 'FINALIZADA'
+            const isExpanded = expandedRace === carrera.id
+            const results = raceResults[carrera.id] || []
+            const isLoadingThis = loadingResults === carrera.id
 
-                {/* Server info */}
-                {isInscrito && carrera.servidorIP && carrera.estado !== 'FINALIZADA' && (
-                  <div className="bg-apex-surface border border-apex-border rounded-lg p-4 mt-3">
-                    <div className="flex items-center gap-2 mb-3 text-sm font-medium">
-                      <Server size={14} className="text-green-400" />
-                      <span>Servidor de Juego</span>
-                    </div>
-                    <div className="grid sm:grid-cols-2 gap-3">
-                      <div>
-                        <div className="text-xs text-apex-muted mb-1">IP del Servidor</div>
-                        <div className="flex items-center gap-2 bg-apex-bg rounded-lg px-3 py-2">
-                          <code className="text-sm text-green-400 flex-1">{carrera.servidorIP}</code>
-                          <button onClick={() => copiar(carrera.servidorIP!, 'IP')}
-                            className="text-apex-muted hover:text-apex-text transition-colors">
-                            <Copy size={14} />
-                          </button>
-                        </div>
+            return (
+              <div key={carrera.id} className="bg-apex-card border border-apex-border rounded-xl overflow-hidden">
+                <div className="p-5">
+                  <div className="flex items-start justify-between gap-3 mb-3">
+                    <div>
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-apex-muted text-sm">Ronda {idx + 1}</span>
+                        <span className={cn('text-xs px-2 py-0.5 rounded-full border', {
+                          'bg-yellow-500/20 text-yellow-400 border-yellow-500/30': carrera.estado === 'EN_CURSO',
+                          'bg-blue-500/20 text-blue-400 border-blue-500/30': carrera.estado === 'PROGRAMADA',
+                          'bg-gray-500/20 text-gray-400 border-gray-500/30': carrera.estado === 'FINALIZADA',
+                        })}>
+                          {carrera.estado === 'PROGRAMADA' ? 'Programada' : carrera.estado === 'EN_CURSO' ? 'En Curso' : 'Finalizada'}
+                        </span>
                       </div>
-                      {carrera.servidorPassword && (
+                      <h4 className="font-semibold">{carrera.nombre}</h4>
+                      <p className="text-apex-muted text-sm">{carrera.circuito}</p>
+                    </div>
+                    <div className="text-right text-sm text-apex-muted flex-shrink-0">
+                      <div className="font-medium text-apex-text">{formatFechaHora(carrera.fecha)}</div>
+                      <div>{carrera.duracionMin} min</div>
+                    </div>
+                  </div>
+
+                  {/* Server info */}
+                  {isInscrito && carrera.servidorIP && carrera.estado !== 'FINALIZADA' && (
+                    <div className="bg-apex-surface border border-apex-border rounded-lg p-4 mt-3">
+                      <div className="flex items-center gap-2 mb-3 text-sm font-medium">
+                        <Server size={14} className="text-green-400" />
+                        <span>Servidor de Juego</span>
+                      </div>
+                      <div className="grid sm:grid-cols-2 gap-3">
                         <div>
-                          <div className="text-xs text-apex-muted mb-1">Contraseña</div>
+                          <div className="text-xs text-apex-muted mb-1">IP del Servidor</div>
                           <div className="flex items-center gap-2 bg-apex-bg rounded-lg px-3 py-2">
-                            <code className="text-sm text-yellow-400 flex-1">{carrera.servidorPassword}</code>
-                            <button onClick={() => copiar(carrera.servidorPassword!, 'Contraseña')}
+                            <code className="text-sm text-green-400 flex-1">{carrera.servidorIP}</code>
+                            <button onClick={() => copiar(carrera.servidorIP!, 'IP')}
                               className="text-apex-muted hover:text-apex-text transition-colors">
                               <Copy size={14} />
                             </button>
                           </div>
                         </div>
+                        {carrera.servidorPassword && (
+                          <div>
+                            <div className="text-xs text-apex-muted mb-1">Contraseña</div>
+                            <div className="flex items-center gap-2 bg-apex-bg rounded-lg px-3 py-2">
+                              <code className="text-sm text-yellow-400 flex-1">{carrera.servidorPassword}</code>
+                              <button onClick={() => copiar(carrera.servidorPassword!, 'Contraseña')}
+                                className="text-apex-muted hover:text-apex-text transition-colors">
+                                <Copy size={14} />
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                      <p className="text-xs text-apex-muted mt-3">
+                        💡 Abre Content Manager → Online → Busca el servidor o introduce la IP directamente
+                      </p>
+                      {carrera.modsRequeridos && (
+                        <div className="mt-3 pt-3 border-t border-apex-border">
+                          <div className="text-xs text-apex-muted mb-1">Mods requeridos:</div>
+                          <pre className="text-xs text-apex-text/80 whitespace-pre-wrap font-sans">{carrera.modsRequeridos}</pre>
+                        </div>
                       )}
                     </div>
-                    <p className="text-xs text-apex-muted mt-3">
-                      💡 Abre Content Manager → Online → Busca el servidor o introduce la IP directamente
+                  )}
+
+                  {carrera.transmisionUrl && (
+                    <a href={carrera.transmisionUrl} target="_blank" rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2 mt-3 text-sm text-apex-red hover:underline">
+                      📺 Ver transmisión en directo
+                    </a>
+                  )}
+
+                  {!isInscrito && carrera.servidorIP && c.estado !== 'FINALIZADO' && (
+                    <p className="text-xs text-apex-muted mt-3 italic">
+                      🔒 Inscríbete al campeonato para ver los datos del servidor
                     </p>
-                    {carrera.modsRequeridos && (
-                      <div className="mt-3 pt-3 border-t border-apex-border">
-                        <div className="text-xs text-apex-muted mb-1">Mods requeridos:</div>
-                        <pre className="text-xs text-apex-text/80 whitespace-pre-wrap font-sans">{carrera.modsRequeridos}</pre>
-                      </div>
-                    )}
+                  )}
+
+                  {/* Botón Ver Resultados */}
+                  {isFinalizada && (
+                    <div className="mt-4 pt-4 border-t border-apex-border">
+                      <button
+                        onClick={() => toggleResultados(carrera.id)}
+                        disabled={isLoadingThis}
+                        className="flex items-center gap-2 text-sm font-medium text-apex-muted hover:text-apex-text transition-colors disabled:opacity-60">
+                        {isLoadingThis ? (
+                          <span className="w-4 h-4 border-2 border-apex-muted/30 border-t-apex-red rounded-full animate-spin" />
+                        ) : isExpanded ? (
+                          <ChevronUp size={16} className="text-apex-red" />
+                        ) : (
+                          <ChevronDown size={16} />
+                        )}
+                        {isLoadingThis ? 'Cargando...' : isExpanded ? 'Ocultar resultados' : '🏁 Ver Resultados'}
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Tabla de resultados expandida */}
+                {isFinalizada && isExpanded && results.length > 0 && (
+                  <div className="border-t border-apex-border overflow-x-auto">
+                    <table className="w-full">
+                      <thead>
+                        <tr className="bg-apex-surface border-b border-apex-border">
+                          <th className="px-4 py-2.5 text-xs font-semibold uppercase tracking-wider text-apex-muted text-left w-12">Pos</th>
+                          <th className="px-4 py-2.5 text-xs font-semibold uppercase tracking-wider text-apex-muted text-left">Piloto</th>
+                          <th className="px-4 py-2.5 text-xs font-semibold uppercase tracking-wider text-apex-muted text-center hidden sm:table-cell">Tiempo</th>
+                          <th className="px-4 py-2.5 text-xs font-semibold uppercase tracking-wider text-apex-muted text-right">Pts</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-apex-border/40">
+                        {results.map((r) => {
+                          const isCurrentUser = r.user.id === userId
+                          return (
+                            <tr
+                              key={r.id}
+                              className={cn(
+                                'transition-colors',
+                                getPodiumRowClass(r.posicion),
+                                isCurrentUser && 'outline outline-1 outline-apex-red/40'
+                              )}>
+                              <td className="px-4 py-3">
+                                <span className={cn('font-bold text-sm', getPositionColor(r.posicion))}>
+                                  {r.posicion === 1 ? '🥇' : r.posicion === 2 ? '🥈' : r.posicion === 3 ? '🥉' : `${r.posicion}º`}
+                                </span>
+                              </td>
+                              <td className="px-4 py-3">
+                                <Link href={`/perfil/${r.user.id}`} className="flex items-center gap-2.5 hover:text-apex-red transition-colors">
+                                  {r.user.avatar ? (
+                                    <img src={r.user.avatar} alt={r.user.username}
+                                      className="w-7 h-7 rounded-full object-cover flex-shrink-0" />
+                                  ) : (
+                                    <div className="w-7 h-7 rounded-full bg-apex-red flex items-center justify-center text-white text-[10px] font-bold flex-shrink-0">
+                                      {r.user.username.slice(0, 2).toUpperCase()}
+                                    </div>
+                                  )}
+                                  <div className="min-w-0">
+                                    <div className="flex items-center gap-1.5">
+                                      <span className="text-sm font-medium truncate">{r.user.username}</span>
+                                      {isCurrentUser && (
+                                        <span className="text-[10px] bg-apex-red/20 text-apex-red px-1.5 py-0.5 rounded-full flex-shrink-0">Tú</span>
+                                      )}
+                                    </div>
+                                    <div className="flex flex-wrap gap-1 mt-0.5">
+                                      {r.vueltaRapida && (
+                                        <span className="text-[10px] bg-purple-500/20 text-purple-400 px-1.5 py-0.5 rounded-full">🏁 Vuelta Rápida</span>
+                                      )}
+                                      {r.abandono && (
+                                        <span className="text-[10px] bg-gray-500/20 text-gray-400 px-1.5 py-0.5 rounded-full">Abandonó</span>
+                                      )}
+                                    </div>
+                                  </div>
+                                </Link>
+                              </td>
+                              <td className="px-4 py-3 text-center text-sm text-apex-muted hidden sm:table-cell">
+                                {r.tiempo || '—'}
+                              </td>
+                              <td className="px-4 py-3 text-right font-bold text-apex-red">
+                                {r.abandono ? '—' : `+${r.puntos}`}
+                              </td>
+                            </tr>
+                          )
+                        })}
+                      </tbody>
+                    </table>
                   </div>
                 )}
 
-                {carrera.transmisionUrl && (
-                  <a href={carrera.transmisionUrl} target="_blank" rel="noopener noreferrer"
-                    className="inline-flex items-center gap-2 mt-3 text-sm text-apex-red hover:underline">
-                    📺 Ver transmisión en directo
-                  </a>
-                )}
-
-                {!isInscrito && carrera.servidorIP && c.estado !== 'FINALIZADO' && (
-                  <p className="text-xs text-apex-muted mt-3 italic">
-                    🔒 Inscríbete al campeonato para ver los datos del servidor
-                  </p>
+                {isFinalizada && isExpanded && results.length === 0 && !isLoadingThis && (
+                  <div className="border-t border-apex-border px-5 py-8 text-center text-apex-muted text-sm">
+                    No hay resultados publicados para esta carrera
+                  </div>
                 )}
               </div>
             )

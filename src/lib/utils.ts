@@ -55,6 +55,7 @@ export const PAISES: Record<string, string> = {
   DO: '🇩🇴',
   CU: '🇨🇺',
   PR: '🇵🇷',
+  NI: '🇳🇮',
 }
 
 export const PAISES_NOMBRES: Record<string, string> = {
@@ -77,6 +78,7 @@ export const PAISES_NOMBRES: Record<string, string> = {
   DO: 'República Dominicana',
   CU: 'Cuba',
   PR: 'Puerto Rico',
+  NI: 'Nicaragua',
 }
 
 export function getPaisFlag(pais?: string | null): string {

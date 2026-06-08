@@ -6,15 +6,13 @@ import { LandingClient } from '@/components/landing/LandingClient'
 export default async function LandingPage() {
   const session = await getServerSession(authOptions)
 
-  // Usuario con suscripción activa va al dashboard
   if (session?.user?.hasSuscripcion) {
     redirect('/dashboard')
   }
 
-  return (
-    <LandingClient
-      isLoggedIn={!!session?.user}
-      userId={session?.user?.id}
-    />
-  )
+  if (session?.user) {
+    redirect('/planes')
+  }
+
+  return <LandingClient />
 }

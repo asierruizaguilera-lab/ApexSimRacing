@@ -22,17 +22,16 @@ export default async function PerfilPage({ params }: { params: { id: string } })
         where: { estado: 'CONFIRMADA' },
         include: { campeonato: { select: { id: true, nombre: true, disciplina: true, estado: true } } },
       },
+      suscripcion: { select: { plan: true, estado: true } },
     },
   })
 
   if (!piloto) notFound()
 
-  // Ranking global
   const rankingGlobal = await prisma.user.count({
     where: { role: 'PILOTO', totalPuntos: { gt: piloto.totalPuntos } },
   }) + 1
 
-  // Puntos por carrera para el gráfico (últimas 10)
   const chartData = piloto.resultados.slice(0, 10).reverse().map(r => ({
     nombre: r.carrera.nombre.split('—')[0].trim().substring(0, 15),
     puntos: r.puntos,
@@ -45,6 +44,7 @@ export default async function PerfilPage({ params }: { params: { id: string } })
       piloto={{
         ...piloto,
         fechaRegistro: piloto.fechaRegistro.toISOString(),
+        suscripcion: piloto.suscripcion,
         resultados: piloto.resultados.map(r => ({
           id: r.id,
           posicion: r.posicion,
