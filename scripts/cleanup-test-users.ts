@@ -1,4 +1,24 @@
 import { PrismaClient } from '@prisma/client'
+import fs from 'fs'
+import path from 'path'
+
+// Carga .env.local si no hay DATABASE_URL en el entorno (desarrollo local)
+if (!process.env.DATABASE_URL) {
+  const envPath = path.join(process.cwd(), '.env.local')
+  if (fs.existsSync(envPath)) {
+    fs.readFileSync(envPath, 'utf-8')
+      .split('\n')
+      .forEach(line => {
+        const trimmed = line.trim()
+        if (!trimmed || trimmed.startsWith('#')) return
+        const eq = trimmed.indexOf('=')
+        if (eq === -1) return
+        const key = trimmed.slice(0, eq).trim()
+        const val = trimmed.slice(eq + 1).trim()
+        if (key && !(key in process.env)) process.env[key] = val
+      })
+  }
+}
 
 const prisma = new PrismaClient()
 
@@ -25,10 +45,9 @@ async function main() {
 
   console.log('\n🗑  Eliminando datos relacionados...')
 
-  const [coches, clases, resultados, inscripciones, mensajes, notificaciones, logs, suscripciones, sessions, accounts] =
+  const [coches, resultados, inscripciones, mensajes, notificaciones, logs, suscripciones, sessions, accounts] =
     await Promise.all([
       prisma.cocheDesbloqueado.deleteMany({ where: { userId: { in: userIds } } }),
-      prisma.claseVista.deleteMany({ where: { userId: { in: userIds } } }),
       prisma.resultado.deleteMany({ where: { userId: { in: userIds } } }),
       prisma.inscripcion.deleteMany({ where: { userId: { in: userIds } } }),
       prisma.mensajeChat.deleteMany({ where: { userId: { in: userIds } } }),
@@ -52,7 +71,6 @@ async function main() {
   console.log(`  Notificaciones:     ${notificaciones.count}`)
   console.log(`  Logs admin:         ${logs.count}`)
   console.log(`  Coches desbloq.:    ${coches.count}`)
-  console.log(`  Clases vistas:      ${clases.count}`)
   console.log(`  Sessions:           ${sessions.count}`)
   console.log(`  Accounts OAuth:     ${accounts.count}`)
   console.log('\n✅ Limpieza completada.')
