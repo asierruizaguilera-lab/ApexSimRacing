@@ -61,15 +61,14 @@ export function Sidebar() {
   const SidebarContent = () => (
     <div className="flex flex-col h-full">
       {/* Logo */}
-      <div className="px-4 py-6 border-b border-apex-border">
-        <Link href="/dashboard" className="flex items-center gap-3" onClick={() => setMobileOpen(false)}>
-          <div className="w-10 h-10 bg-apex-red rounded-lg flex items-center justify-center shadow-lg shadow-apex-red/30">
-            <span className="text-white font-bold text-lg tracking-tight">A</span>
-          </div>
-          <div>
-            <div className="text-white font-bold text-xl tracking-widest">APEX</div>
-            <div className="text-apex-muted text-xs tracking-wider uppercase">SimRacing</div>
-          </div>
+      <div className="px-3 py-3 border-b border-apex-border">
+        <Link href="/dashboard" onClick={() => setMobileOpen(false)}>
+          <img
+            src="/logo-apex-completo.jpg"
+            alt="APEX SimRacing"
+            className="w-full rounded-lg object-cover"
+            style={{ height: '72px' }}
+          />
         </Link>
       </div>
 
