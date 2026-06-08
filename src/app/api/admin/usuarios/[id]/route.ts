@@ -9,17 +9,12 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   const session = await getServerSession(authOptions)
   if (session?.user?.role !== 'ADMIN') return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
 
-  // Obtener adminId desde la BD para garantizar que la FK existe
-  const adminUser = await prisma.user.findUnique({
-    where: { email: session.user.email },
-    select: { id: true },
-  })
-  if (!adminUser) return NextResponse.json({ error: 'Admin no encontrado en BD' }, { status: 404 })
+  // Usar session.user.id directamente — ya está verificado en el JWT
+  const adminId = session.user.id
+  const userId = params.id
 
   const body = await req.json()
   const { accion, plan, esGratuita, fechaExpiracion, notas, baneado, motivoBan } = body
-  const adminId = adminUser.id
-  const userId = params.id
 
   switch (accion) {
     case 'CAMBIO_PLAN': {
@@ -47,9 +42,13 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
         where: { userId },
         data: { notasAdmin: notas },
       })
-      await prisma.logAccionAdmin.create({
-        data: { adminId, targetUserId: userId, accion: 'NOTA', detalle: notas },
-      })
+      try {
+        await prisma.logAccionAdmin.create({
+          data: { adminId, targetUserId: userId, accion: 'NOTA', detalle: notas },
+        })
+      } catch (logErr) {
+        console.error('[Admin] Log NOTA falló (no crítico):', logErr)
+      }
       break
     }
     case 'CANCELAR_SUSCRIPCION': {
@@ -57,9 +56,13 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
         where: { userId, estado: { in: ['ACTIVA', 'GRATUITA'] } },
         data: { estado: 'CANCELADA', fechaCancelacion: new Date() },
       })
-      await prisma.logAccionAdmin.create({
-        data: { adminId, targetUserId: userId, accion: 'CANCELAR_SUSCRIPCION', detalle: notas },
-      })
+      try {
+        await prisma.logAccionAdmin.create({
+          data: { adminId, targetUserId: userId, accion: 'CANCELAR_SUSCRIPCION', detalle: notas },
+        })
+      } catch (logErr) {
+        console.error('[Admin] Log CANCELAR falló (no crítico):', logErr)
+      }
       break
     }
     default:

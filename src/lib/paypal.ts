@@ -2,11 +2,12 @@ const PAYPAL_BASE = process.env.NODE_ENV === 'production'
   ? 'https://api-m.paypal.com'
   : 'https://api-m.sandbox.paypal.com'
 
+// Accepts both PAYPAL_PLAN_* (server-only) and NEXT_PUBLIC_PAYPAL_*_PLAN_ID (server+client)
 export const PAYPAL_PLAN_IDS: Record<string, string> = {
-  ROOKIE: process.env.PAYPAL_PLAN_ROOKIE ?? '',
-  AMATEUR: process.env.PAYPAL_PLAN_AMATEUR ?? '',
-  PRO: process.env.PAYPAL_PLAN_PRO ?? '',
-  ELITE: process.env.PAYPAL_PLAN_ELITE ?? '',
+  ROOKIE: process.env.PAYPAL_PLAN_ROOKIE || process.env.NEXT_PUBLIC_PAYPAL_ROOKIE_PLAN_ID || '',
+  AMATEUR: process.env.PAYPAL_PLAN_AMATEUR || process.env.NEXT_PUBLIC_PAYPAL_AMATEUR_PLAN_ID || '',
+  PRO: process.env.PAYPAL_PLAN_PRO || process.env.NEXT_PUBLIC_PAYPAL_PRO_PLAN_ID || '',
+  ELITE: process.env.PAYPAL_PLAN_ELITE || process.env.NEXT_PUBLIC_PAYPAL_ELITE_PLAN_ID || '',
 }
 
 export async function getPayPalAccessToken(): Promise<string> {

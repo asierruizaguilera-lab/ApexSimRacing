@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import bcrypt from 'bcryptjs'
 import { prisma } from '@/lib/prisma'
+import { sendEmail, emailBienvenida } from '@/lib/email'
 
 export async function POST(req: NextRequest) {
   try {
@@ -34,6 +35,13 @@ export async function POST(req: NextRequest) {
       data: { username, email, password: hashed, pais, role: 'PILOTO' },
       select: { id: true, username: true, email: true, role: true },
     })
+
+    // Email de bienvenida (async, no bloquea el registro)
+    sendEmail({
+      to: user.email,
+      subject: `Bienvenido a APEX, ${user.username} 🏁`,
+      html: emailBienvenida(user.username),
+    }).catch(() => null)
 
     return NextResponse.json(user, { status: 201 })
   } catch (err) {

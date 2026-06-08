@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
+import { prisma } from '@/lib/prisma'
 import { getPayPalSubscription } from '@/lib/paypal'
 import { activarPlan } from '@/lib/suscripciones'
+import { sendEmail, emailSuscripcionActiva } from '@/lib/email'
+import { PLAN_PRECIOS } from '@/lib/utils'
 import type { PlanSuscripcion } from '@prisma/client'
 
 export async function POST(req: NextRequest) {
@@ -22,6 +25,26 @@ export async function POST(req: NextRequest) {
     await activarPlan(session.user.id, plan as PlanSuscripcion, {
       paypalSubscriptionId: subscriptionId,
     })
+
+    // Email de confirmación (async, no bloquea)
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { email: true, username: true },
+    })
+    if (user) {
+      const fechaRenovacion = new Date()
+      fechaRenovacion.setMonth(fechaRenovacion.getMonth() + 1)
+      sendEmail({
+        to: user.email,
+        subject: `Tu plan ${plan} está activo — ¡A competir!`,
+        html: emailSuscripcionActiva(
+          user.username,
+          plan,
+          PLAN_PRECIOS[plan] ?? 0,
+          fechaRenovacion.toLocaleDateString('es-ES')
+        ),
+      }).catch(() => null)
+    }
 
     return NextResponse.json({ ok: true, plan })
   } catch (err) {

@@ -15,6 +15,14 @@ interface Props {
   onClose: () => void
 }
 
+// Plan IDs expuestos en el cliente — deben estar en Railway como NEXT_PUBLIC_PAYPAL_*_PLAN_ID
+const PAYPAL_PLAN_IDS: Record<string, string> = {
+  ROOKIE: process.env.NEXT_PUBLIC_PAYPAL_ROOKIE_PLAN_ID ?? '',
+  AMATEUR: process.env.NEXT_PUBLIC_PAYPAL_AMATEUR_PLAN_ID ?? '',
+  PRO: process.env.NEXT_PUBLIC_PAYPAL_PRO_PLAN_ID ?? '',
+  ELITE: process.env.NEXT_PUBLIC_PAYPAL_ELITE_PLAN_ID ?? '',
+}
+
 export function ModalPago({ plan, isLoggedIn = true, onClose }: Props) {
   const router = useRouter()
   const [paso, setPaso] = useState<Paso>('resumen')
@@ -25,17 +33,8 @@ export function ModalPago({ plan, isLoggedIn = true, onClose }: Props) {
   const features = PLAN_FEATURES[plan] || []
 
   const paypalClientId = process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID
-
-  async function createPayPalSubscription() {
-    const res = await fetch('/api/paypal/create-subscription', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ plan }),
-    })
-    const data = await res.json()
-    if (!res.ok) throw new Error(data.error || 'Error PayPal')
-    return data.subscriptionId
-  }
+  const planId = PAYPAL_PLAN_IDS[plan]
+  const paypalConfigurado = !!(paypalClientId && planId)
 
   async function onPayPalApprove(data: any) {
     try {
@@ -49,12 +48,12 @@ export function ModalPago({ plan, isLoggedIn = true, onClose }: Props) {
         throw new Error(d.error || 'Error al confirmar')
       }
       setPaso('exito')
-      toast.success(`¡Plan ${label} activado!`)
+      toast.success(`¡Tu plan ${label} está activo! Ya puedes competir.`)
       setTimeout(() => {
         onClose()
         router.push('/dashboard')
         router.refresh()
-      }, 2500)
+      }, 2000)
     } catch (err: any) {
       setErrorMsg(err.message)
       toast.error(err.message)
@@ -145,15 +144,17 @@ export function ModalPago({ plan, isLoggedIn = true, onClose }: Props) {
                 </div>
               )}
 
-              {paypalClientId ? (
+              {paypalConfigurado ? (
                 <PayPalScriptProvider options={{
-                  clientId: paypalClientId,
+                  clientId: paypalClientId!,
                   vault: true,
                   intent: 'subscription',
                 }}>
                   <PayPalButtons
                     style={{ layout: 'vertical', color: 'gold', shape: 'rect', label: 'subscribe' }}
-                    createSubscription={createPayPalSubscription}
+                    createSubscription={(_data, actions) =>
+                      actions.subscription.create({ plan_id: planId })
+                    }
                     onApprove={onPayPalApprove}
                     onError={(err) => {
                       console.error('[PayPal]', err)
@@ -167,7 +168,7 @@ export function ModalPago({ plan, isLoggedIn = true, onClose }: Props) {
               ) : (
                 <div className="text-center py-6 bg-apex-surface rounded-xl border border-apex-border">
                   <p className="text-apex-muted text-sm mb-2">PayPal no está configurado en este entorno.</p>
-                  <p className="text-xs text-apex-muted">Añade NEXT_PUBLIC_PAYPAL_CLIENT_ID al .env.local</p>
+                  <p className="text-xs text-apex-muted">Añade NEXT_PUBLIC_PAYPAL_CLIENT_ID y NEXT_PUBLIC_PAYPAL_{plan}_PLAN_ID al entorno.</p>
                 </div>
               )}
 
@@ -183,9 +184,9 @@ export function ModalPago({ plan, isLoggedIn = true, onClose }: Props) {
               <div className="w-16 h-16 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
                 <Check size={32} className="text-green-400" />
               </div>
-              <h3 className="text-xl font-bold mb-2">¡Bienvenido al plan {label}!</h3>
+              <h3 className="text-xl font-bold mb-2">¡Tu plan {label} está activo!</h3>
               <p className="text-apex-muted text-sm mb-4">
-                Tu suscripción está activa. Los coches ya están disponibles en Mi Garaje.
+                Ya puedes competir. Los coches están disponibles en Mi Garaje.
               </p>
               <div className="flex items-center justify-center gap-2 text-sm text-apex-muted">
                 <Loader2 size={14} className="animate-spin" />

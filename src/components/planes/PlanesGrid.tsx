@@ -1,7 +1,9 @@
 'use client'
 
 import { useState } from 'react'
-import { Check, Star, Zap } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { Check, Star, Zap, AlertTriangle } from 'lucide-react'
+import toast from 'react-hot-toast'
 import { PLAN_LABELS, PLAN_PRECIOS, PLAN_FEATURES, cn } from '@/lib/utils'
 import { ModalPago } from './ModalPago'
 
@@ -34,28 +36,89 @@ const PLAN_COLORES_BG: Record<string, string> = {
 }
 
 export function PlanesGrid({ suscripcionActual, userId }: Props) {
+  const router = useRouter()
   const [modalPlan, setModalPlan] = useState<string | null>(null)
+  const [confirmCancel, setConfirmCancel] = useState(false)
+  const [cancelling, setCancelling] = useState(false)
+
+  async function cancelarSuscripcion() {
+    setCancelling(true)
+    try {
+      const res = await fetch('/api/paypal/cancel-subscription', { method: 'POST' })
+      if (!res.ok) {
+        const d = await res.json()
+        toast.error(d.error || 'Error al cancelar')
+        return
+      }
+      toast.success('Suscripción cancelada correctamente')
+      setConfirmCancel(false)
+      router.refresh()
+    } catch {
+      toast.error('Error de conexión')
+    } finally {
+      setCancelling(false)
+    }
+  }
 
   return (
     <div>
       {/* Banner plan actual */}
       {suscripcionActual && (
-        <div className="bg-green-500/10 border border-green-500/30 rounded-xl p-4 mb-8 flex items-center justify-between flex-wrap gap-3">
-          <div>
-            <span className="text-green-400 font-semibold">
-              ✓ Plan actual: {PLAN_LABELS[suscripcionActual.plan]}
-            </span>
-            <span className="text-apex-muted text-sm ml-3">
-              Renueva el {new Date(suscripcionActual.fechaRenovacion).toLocaleDateString('es-ES')}
-            </span>
+        <div className="bg-green-500/10 border border-green-500/30 rounded-xl p-4 mb-8">
+          <div className="flex items-center justify-between flex-wrap gap-3">
+            <div>
+              <span className="text-green-400 font-semibold">
+                ✓ Plan actual: {PLAN_LABELS[suscripcionActual.plan]}
+              </span>
+              <span className="text-apex-muted text-sm ml-3">
+                Renueva el {new Date(suscripcionActual.fechaRenovacion).toLocaleDateString('es-ES')}
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              {suscripcionActual.plan !== 'ELITE' && (
+                <button
+                  onClick={() => setModalPlan(PLANES[PLANES.indexOf(suscripcionActual.plan) + 1])}
+                  className="text-xs px-3 py-1.5 bg-apex-red text-white rounded-lg hover:bg-apex-red-dark transition-colors flex items-center gap-1">
+                  <Zap size={12} />Actualizar plan
+                </button>
+              )}
+              {suscripcionActual.estado === 'ACTIVA' && (
+                <button
+                  onClick={() => setConfirmCancel(true)}
+                  className="text-xs px-3 py-1.5 bg-apex-surface border border-apex-border text-apex-muted rounded-lg hover:border-red-500/50 hover:text-red-400 transition-colors">
+                  Cancelar suscripción
+                </button>
+              )}
+            </div>
           </div>
-          {suscripcionActual.plan !== 'ELITE' && (
-            <button
-              onClick={() => setModalPlan(PLANES[PLANES.indexOf(suscripcionActual.plan) + 1])}
-              className="text-xs px-3 py-1.5 bg-apex-red text-white rounded-lg hover:bg-apex-red-dark transition-colors flex items-center gap-1"
-            >
-              <Zap size={12} />Actualizar plan
-            </button>
+
+          {/* Confirmación de cancelación */}
+          {confirmCancel && (
+            <div className="mt-4 pt-4 border-t border-green-500/20">
+              <div className="flex items-start gap-3">
+                <AlertTriangle size={16} className="text-yellow-400 flex-shrink-0 mt-0.5" />
+                <div className="flex-1">
+                  <p className="text-sm text-apex-text font-medium mb-1">¿Cancelar suscripción?</p>
+                  <p className="text-xs text-apex-muted mb-3">
+                    Perderás acceso inmediatamente a los coches de tu plan y no podrás inscribirte en nuevos campeonatos.
+                  </p>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={cancelarSuscripcion}
+                      disabled={cancelling}
+                      className="text-xs px-3 py-1.5 bg-red-500/20 text-red-400 border border-red-500/30 rounded-lg hover:bg-red-500/30 transition-colors disabled:opacity-60">
+                      {cancelling ? 'Cancelando...' : 'Sí, cancelar'}
+                    </button>
+                    <button
+                      onClick={() => setConfirmCancel(false)}
+                      disabled={cancelling}
+                      className="text-xs px-3 py-1.5 bg-apex-surface text-apex-muted border border-apex-border rounded-lg hover:text-apex-text transition-colors disabled:opacity-60">
+                      No, mantener
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
           )}
         </div>
       )}
@@ -130,7 +193,7 @@ export function PlanesGrid({ suscripcionActual, userId }: Props) {
         })}
       </div>
 
-      {/* Comparativa feature */}
+      {/* Nota */}
       <div className="mt-8 bg-apex-card border border-apex-border rounded-xl p-6 text-center">
         <p className="text-apex-muted text-sm">
           Todos los planes incluyen acceso completo a la comunidad, chat en tiempo real, ranking global y calendario de carreras.
