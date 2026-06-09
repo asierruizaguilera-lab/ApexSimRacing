@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server'
 
 // Rutas públicas que no requieren ni login ni suscripción
 const PUBLIC_PATHS = ['/', '/login', '/register', '/registro', '/bloqueado']
-const PUBLIC_PREFIXES = ['/api/auth', '/api/paypal', '/api/cron', '/_next', '/favicon']
+const PUBLIC_PREFIXES = ['/api/auth', '/api/paypal', '/api/cron', '/api/patrocinadores', '/_next', '/favicon']
 
 function isPublic(pathname: string): boolean {
   if (PUBLIC_PATHS.includes(pathname)) return true

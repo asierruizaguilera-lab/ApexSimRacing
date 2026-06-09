@@ -11,7 +11,8 @@
     "db:seed": "prisma db seed",
     "db:studio": "prisma studio",
     "db:reset": "prisma db push --force-reset && prisma db seed",
-    "cleanup:test-users": "npx ts-node --compiler-options {\"module\":\"CommonJS\"} scripts/cleanup-test-users.ts"
+    "cleanup:test-users": "npx ts-node --compiler-options {\"module\":\"CommonJS\"} scripts/cleanup-test-users.ts",
+    "fix:patrocinadores": "npx ts-node --compiler-options {\"module\":\"CommonJS\"} scripts/fix-patrocinadores-ubicaciones.ts"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.7.4",
