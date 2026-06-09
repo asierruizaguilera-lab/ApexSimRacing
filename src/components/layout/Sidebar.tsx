@@ -135,7 +135,10 @@ export function Sidebar() {
   return (
     <>
       {/* Desktop Sidebar */}
-      <aside className="hidden lg:flex fixed left-0 top-0 bottom-0 w-56 bg-apex-surface border-r border-apex-border z-30 flex-col">
+      <aside
+        className="hidden lg:flex fixed left-0 bottom-0 w-56 bg-apex-surface border-r border-apex-border z-30 flex-col"
+        style={{ top: 'var(--topbar-height, 0px)' }}
+      >
         <SidebarContent />
       </aside>
 
@@ -156,10 +159,13 @@ export function Sidebar() {
       )}
 
       {/* Mobile sidebar */}
-      <aside className={cn(
-        'lg:hidden fixed left-0 top-0 bottom-0 w-56 bg-apex-surface border-r border-apex-border z-50 flex flex-col transition-transform duration-300',
-        mobileOpen ? 'translate-x-0' : '-translate-x-full'
-      )}>
+      <aside
+        className={cn(
+          'lg:hidden fixed left-0 bottom-0 w-56 bg-apex-surface border-r border-apex-border z-50 flex flex-col transition-transform duration-300',
+          mobileOpen ? 'translate-x-0' : '-translate-x-full'
+        )}
+        style={{ top: 'var(--topbar-height, 0px)' }}
+      >
         <SidebarContent />
       </aside>
     </>

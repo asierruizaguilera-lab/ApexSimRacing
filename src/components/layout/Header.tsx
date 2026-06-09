@@ -68,7 +68,10 @@ export function Header() {
   }, [])
 
   return (
-    <header className="fixed top-0 right-0 left-0 lg:left-56 z-20 h-14 bg-apex-surface/80 backdrop-blur-md border-b border-apex-border flex items-center justify-between px-4 lg:px-6">
+    <header
+      className="fixed right-0 left-0 lg:left-56 z-20 h-14 bg-apex-surface/80 backdrop-blur-md border-b border-apex-border flex items-center justify-between px-4 lg:px-6"
+      style={{ top: 'var(--topbar-height, 0px)' }}
+    >
       {/* Left: breadcrumb / title area */}
       <div className="flex items-center gap-2">
         <div className="w-2 h-2 bg-apex-red rounded-full animate-pulse" />
