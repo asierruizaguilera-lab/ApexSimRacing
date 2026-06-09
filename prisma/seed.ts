@@ -167,35 +167,48 @@ async function main() {
   }
 
   // ── 4. Patrocinadores placeholder ────────────────────────────────────────────
-  const totalPatrocinadores = await prisma.patrocinador.count()
-  if (totalPatrocinadores <= 1) {
-    await prisma.patrocinador.createMany({
-      data: [
-        {
-          nombre: 'Tu Marca Aquí',
-          descripcion: '¿Quieres llegar a la comunidad del motor hispanohablante? Contáctanos.',
-          logoUrl: null,
-          linkExterno: null,
-          ubicaciones: [UbicacionPatrocinador.TODAS],
-          activo: true,
-          esColaborador: false,
-          orden: 1,
-        },
-        {
-          nombre: 'Patrocinador Oficial',
-          descripcion: 'Colaborador oficial de APEX SimRacing.',
-          logoUrl: null,
-          linkExterno: null,
-          ubicaciones: [UbicacionPatrocinador.LANDING, UbicacionPatrocinador.CAMPEONATOS],
-          activo: false,
-          esColaborador: false,
-          orden: 2,
-        },
-      ],
-    })
-    console.log('   ✅ 2 patrocinadores placeholder creados')
-  } else {
-    console.log(`   ⏭️  Ya existen ${totalPatrocinadores} patrocinadores — omitiendo placeholders`)
+  const placeholders = [
+    {
+      nombre: 'Tu Marca Aquí',
+      descripcion: '¿Quieres llegar a la comunidad del motor hispanohablante? Contáctanos.',
+      logoUrl: null as string | null,
+      linkExterno: null as string | null,
+      ubicaciones: [UbicacionPatrocinador.TODAS],
+      activo: true,
+      esColaborador: false,
+      orden: 1,
+    },
+    {
+      nombre: 'Patrocinador Oficial',
+      descripcion: 'Colaborador oficial de APEX SimRacing.',
+      logoUrl: null as string | null,
+      linkExterno: null as string | null,
+      ubicaciones: [UbicacionPatrocinador.TODAS],
+      activo: true,
+      esColaborador: false,
+      orden: 2,
+    },
+  ]
+
+  let placeholdersCreados = 0
+  let placeholdersActualizados = 0
+  for (const p of placeholders) {
+    const existing = await prisma.patrocinador.findFirst({ where: { nombre: p.nombre } })
+    if (!existing) {
+      await prisma.patrocinador.create({ data: p })
+      placeholdersCreados++
+    } else if (!existing.ubicaciones.includes(UbicacionPatrocinador.TODAS)) {
+      await prisma.patrocinador.update({
+        where: { id: existing.id },
+        data: { ubicaciones: [UbicacionPatrocinador.TODAS], activo: true },
+      })
+      placeholdersActualizados++
+    }
+  }
+  if (placeholdersCreados > 0) console.log(`   ✅ ${placeholdersCreados} patrocinadores placeholder creados`)
+  if (placeholdersActualizados > 0) console.log(`   ✅ ${placeholdersActualizados} patrocinadores placeholder actualizados a TODAS`)
+  if (placeholdersCreados === 0 && placeholdersActualizados === 0) {
+    console.log('   ⏭️  Placeholders ya correctos — omitiendo')
   }
 
   console.log('✅ Seed completado')
