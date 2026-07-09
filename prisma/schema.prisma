@@ -87,36 +87,59 @@ enum UbicacionPatrocinador {
   TODAS
 }
 
-model User {
-  id              String    @id @default(cuid())
-  username        String    @unique
-  email           String    @unique
-  emailVerified   DateTime?
-  password        String?
-  role            Rol       @default(PILOTO)
-  avatar          String?
-  pais            String?
-  bio             String?
-  silenciado      Boolean   @default(false)
-  baneado         Boolean   @default(false)
-  motivoBan       String?
-  fechaRegistro   DateTime  @default(now())
-  totalPuntos     Int       @default(0)
-  totalCarreras   Int       @default(0)
-  totalVictorias  Int       @default(0)
-  totalPodios     Int       @default(0)
+enum TipoQueja {
+  INCIDENCIA_CARRERA
+  QUEJA_GENERAL
+}
 
-  accounts              Account[]
-  sessions              Session[]
-  inscripciones         Inscripcion[]
-  resultados            Resultado[]
-  mensajes              MensajeChat[]
-  notificaciones        Notificacion[]
-  suscripcion           Suscripcion?
-  cochesDesbloqueados   CocheDesbloqueado[]
-  accionesAdmin         LogAccionAdmin[]    @relation("AdminAcciones")
-  accionesRecibidas     LogAccionAdmin[]    @relation("TargetAcciones")
-  clasesVistas          ClaseVista[]
+enum EstadoQueja {
+  ABIERTA
+  EN_REVISION
+  RESUELTA
+  ARCHIVADA
+}
+
+enum TipoSancion {
+  ADVERTENCIA
+  PENALIZACION_PUNTOS
+  EXCLUSION_CARRERA
+  SUSPENSION_TEMPORAL
+  BAN_PERMANENTE
+}
+
+model User {
+  id             String    @id @default(cuid())
+  username       String    @unique
+  email          String    @unique
+  emailVerified  DateTime?
+  password       String?
+  role           Rol       @default(PILOTO)
+  avatar         String?
+  pais           String?
+  bio            String?
+  silenciado     Boolean   @default(false)
+  baneado        Boolean   @default(false)
+  motivoBan      String?
+  fechaRegistro  DateTime  @default(now())
+  totalPuntos    Int       @default(0)
+  totalCarreras  Int       @default(0)
+  totalVictorias Int       @default(0)
+  totalPodios    Int       @default(0)
+
+  accounts            Account[]
+  sessions            Session[]
+  inscripciones       Inscripcion[]
+  resultados          Resultado[]
+  mensajes            MensajeChat[]
+  notificaciones      Notificacion[]
+  suscripcion         Suscripcion?
+  cochesDesbloqueados CocheDesbloqueado[]
+  accionesAdmin       LogAccionAdmin[]    @relation("AdminAcciones")
+  accionesRecibidas   LogAccionAdmin[]    @relation("TargetAcciones")
+  clasesVistas        ClaseVista[]
+  quejasPresentadas   Queja[]             @relation("QuejaDenunciante")
+  quejasRecibidas     Queja[]             @relation("QuejaDenunciado")
+  pruebasAportadas    PruebaQueja[]
 
   @@map("users")
 }
@@ -195,8 +218,9 @@ model Carrera {
   transmisionUrl   String?
   modsRequeridos   String?
 
-  campeonato Campeonato @relation(fields: [campeonatoId], references: [id], onDelete: Cascade)
+  campeonato Campeonato  @relation(fields: [campeonatoId], references: [id], onDelete: Cascade)
   resultados Resultado[]
+  quejas     Queja[]
 
   @@map("carreras")
 }
@@ -332,40 +356,87 @@ model LogAccionAdmin {
   detalle      String?
   creadoEn     DateTime @default(now())
 
-  admin  User @relation("AdminAcciones",  fields: [adminId],      references: [id])
+  admin  User @relation("AdminAcciones", fields: [adminId], references: [id])
   target User @relation("TargetAcciones", fields: [targetUserId], references: [id])
 
   @@map("log_acciones_admin")
 }
 
+model Queja {
+  id     String      @id @default(cuid())
+  tipo   TipoQueja
+  estado EstadoQueja @default(ABIERTA)
+
+  denuncianteId String
+  denunciante   User   @relation("QuejaDenunciante", fields: [denuncianteId], references: [id])
+
+  denunciadoId String?
+  denunciado   User?   @relation("QuejaDenunciado", fields: [denunciadoId], references: [id])
+
+  carreraId String?
+  carrera   Carrera? @relation(fields: [carreraId], references: [id])
+
+  titulo         String
+  descripcion    String
+  vuelta         Int?
+  linkRepeticion String?
+
+  pruebas PruebaQueja[]
+
+  resolucion        String?
+  sancion           TipoSancion?
+  puntosPenalizados Int?
+  diasSuspension    Int?
+  resueltaPor       String?
+  fechaResolucion   DateTime?
+
+  creadoEn      DateTime @default(now())
+  actualizadoEn DateTime @updatedAt
+
+  @@map("quejas")
+}
+
+model PruebaQueja {
+  id          String   @id @default(cuid())
+  quejaId     String
+  queja       Queja    @relation(fields: [quejaId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  descripcion String
+  linkPrueba  String?
+  creadoEn    DateTime @default(now())
+
+  @@map("pruebas_queja")
+}
+
 model Clase {
-  id            String      @id @default(cuid())
+  id            String       @id @default(cuid())
   titulo        String
   descripcion   String?
   disciplina    Disciplina
   youtubeUrl    String
   duracionMin   Int?
-  orden         Int         @default(0)
-  publicada     Boolean     @default(false)
-  creadoEn      DateTime    @default(now())
-  actualizadoEn DateTime    @updatedAt
+  orden         Int          @default(0)
+  publicada     Boolean      @default(false)
+  creadoEn      DateTime     @default(now())
+  actualizadoEn DateTime     @updatedAt
   vistas        ClaseVista[]
 
   @@map("clases")
 }
 
 model Patrocinador {
-  id             String                   @id @default(cuid())
-  nombre         String
-  descripcion    String?
-  logoUrl        String?
-  linkExterno    String?
-  ubicaciones    UbicacionPatrocinador[]
-  activo         Boolean                  @default(true)
-  esColaborador  Boolean                  @default(false)
-  orden          Int                      @default(0)
-  creadoEn       DateTime                 @default(now())
-  actualizadoEn  DateTime                 @updatedAt
+  id            String                  @id @default(cuid())
+  nombre        String
+  descripcion   String?
+  logoUrl       String?
+  linkExterno   String?
+  ubicaciones   UbicacionPatrocinador[]
+  activo        Boolean                 @default(true)
+  esColaborador Boolean                 @default(false)
+  orden         Int                     @default(0)
+  creadoEn      DateTime                @default(now())
+  actualizadoEn DateTime                @updatedAt
 
   @@map("patrocinadores")
 }

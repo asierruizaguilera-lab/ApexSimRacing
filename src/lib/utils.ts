@@ -210,3 +210,40 @@ export const ESTADO_SUSCRIPCION_LABELS: Record<string, string> = {
   EXPIRADA: 'Expirada',
   PENDIENTE: 'Pendiente',
 }
+
+// --- Incidencias / Quejas ---
+
+export const TIPO_QUEJA_LABELS: Record<string, string> = {
+  INCIDENCIA_CARRERA: 'Incidencia de carrera',
+  QUEJA_GENERAL: 'Queja general',
+}
+
+export const ESTADO_QUEJA_LABELS: Record<string, string> = {
+  ABIERTA: 'Abierta',
+  EN_REVISION: 'En revisión',
+  RESUELTA: 'Resuelta',
+  ARCHIVADA: 'Archivada',
+}
+
+export const ESTADO_QUEJA_COLORS: Record<string, string> = {
+  ABIERTA: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
+  EN_REVISION: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
+  RESUELTA: 'bg-green-500/20 text-green-400 border-green-500/30',
+  ARCHIVADA: 'bg-gray-500/20 text-gray-400 border-gray-500/30',
+}
+
+export const TIPO_SANCION_LABELS: Record<string, string> = {
+  ADVERTENCIA: 'Advertencia',
+  PENALIZACION_PUNTOS: 'Penalización de puntos',
+  EXCLUSION_CARRERA: 'Exclusión de la carrera',
+  SUSPENSION_TEMPORAL: 'Suspensión temporal',
+  BAN_PERMANENTE: 'Ban permanente',
+}
+
+export const TIPO_SANCION_COLORS: Record<string, string> = {
+  ADVERTENCIA: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
+  PENALIZACION_PUNTOS: 'bg-orange-500/20 text-orange-400 border-orange-500/30',
+  EXCLUSION_CARRERA: 'bg-purple-500/20 text-purple-400 border-purple-500/30',
+  SUSPENSION_TEMPORAL: 'bg-red-500/20 text-red-400 border-red-500/30',
+  BAN_PERMANENTE: 'bg-red-700/30 text-red-300 border-red-700/40',
+}

@@ -6,7 +6,7 @@ import { useSession } from 'next-auth/react'
 import { cn } from '@/lib/utils'
 import {
   LayoutDashboard, Trophy, Calendar, MessageSquare,
-  User, Shield, TrendingUp, Menu, X, Star, Car, Users, GraduationCap, Handshake,
+  User, Shield, TrendingUp, Menu, X, Star, Car, Users, GraduationCap, Handshake, AlertTriangle,
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { PatrocinadoresSidebar, type Patrocinador } from '@/components/patrocinadores/PatrocinadoresStrip'
@@ -19,6 +19,7 @@ const navItems = [
   { href: '/calendario', icon: Calendar, label: 'Calendario' },
   { href: '/planes', icon: Star, label: 'Planes' },
   { href: '/mi-garaje', icon: Car, label: 'Mi Garaje' },
+  { href: '/incidencias', icon: AlertTriangle, label: 'Incidencias' },
   { href: '/chat', icon: MessageSquare, label: 'Chat' },
   { href: '/perfil', icon: User, label: 'Mi Perfil' },
 ]
@@ -26,6 +27,7 @@ const navItems = [
 const adminItems = [
   { href: '/admin', icon: Shield, label: 'Panel Admin' },
   { href: '/admin/usuarios', icon: Users, label: 'Usuarios' },
+  { href: '/admin/incidencias', icon: AlertTriangle, label: 'Incidencias' },
   { href: '/admin/academia', icon: GraduationCap, label: 'Academia' },
   { href: '/admin/coches', icon: Car, label: 'Coches' },
   { href: '/admin/suscriptores', icon: Star, label: 'Suscriptores' },
@@ -37,6 +39,7 @@ export function Sidebar() {
   const { data: session } = useSession()
   const [mobileOpen, setMobileOpen] = useState(false)
   const [sidebarSponsors, setSidebarSponsors] = useState<Patrocinador[]>([])
+  const [badges, setBadges] = useState<Record<string, number>>({})
   const isAdmin = session?.user?.role === 'ADMIN'
 
   useEffect(() => {
@@ -46,8 +49,36 @@ export function Sidebar() {
       .catch(() => {})
   }, [])
 
+  useEffect(() => {
+    if (!session?.user) return
+    fetchBadges()
+    const interval = setInterval(fetchBadges, 30000)
+    return () => clearInterval(interval)
+  }, [session, isAdmin])
+
+  async function fetchBadges() {
+    try {
+      const res = await fetch('/api/incidencias')
+      if (res.ok) {
+        const data = await res.json()
+        const pendientes = data.filter((q: any) => q.estado === 'ABIERTA' || q.estado === 'EN_REVISION').length
+        setBadges(prev => ({ ...prev, '/incidencias': pendientes }))
+      }
+    } catch {}
+    if (isAdmin) {
+      try {
+        const res = await fetch('/api/admin/incidencias?estado=ABIERTA')
+        if (res.ok) {
+          const data = await res.json()
+          setBadges(prev => ({ ...prev, '/admin/incidencias': data.length }))
+        }
+      } catch {}
+    }
+  }
+
   const NavLink = ({ href, icon: Icon, label }: { href: string; icon: any; label: string }) => {
     const active = pathname === href || pathname.startsWith(href + '/')
+    const badge = badges[href]
     return (
       <Link
         href={href}
@@ -61,7 +92,14 @@ export function Sidebar() {
       >
         <Icon size={18} />
         <span>{label}</span>
-        {active && (
+        {badge ? (
+          <span className={cn(
+            'ml-auto min-w-[18px] h-[18px] text-[10px] font-bold rounded-full flex items-center justify-center px-1',
+            active ? 'bg-white/25 text-white' : 'bg-apex-red text-white'
+          )}>
+            {badge > 9 ? '9+' : badge}
+          </span>
+        ) : active && (
           <div className="ml-auto w-1.5 h-1.5 rounded-full bg-white" />
         )}
       </Link>

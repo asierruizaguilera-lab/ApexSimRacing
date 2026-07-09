@@ -6,6 +6,9 @@ export type EstadoCarrera = 'PROGRAMADA' | 'EN_CURSO' | 'FINALIZADA'
 export type EstadoInscripcion = 'PENDIENTE' | 'CONFIRMADA' | 'CANCELADA'
 export type CanalChat = 'GENERAL' | 'RALLY' | 'CIRCUITO' | 'DRIFT' | 'ANUNCIOS'
 export type TipoNotificacion = 'CARRERA_PROXIMA' | 'RESULTADO_PUBLICADO' | 'INSCRIPCION_CONFIRMADA' | 'NUEVA_CARRERA' | 'NUEVO_CAMPEONATO'
+export type TipoQueja = 'INCIDENCIA_CARRERA' | 'QUEJA_GENERAL'
+export type EstadoQueja = 'ABIERTA' | 'EN_REVISION' | 'RESUELTA' | 'ARCHIVADA'
+export type TipoSancion = 'ADVERTENCIA' | 'PENALIZACION_PUNTOS' | 'EXCLUSION_CARRERA' | 'SUSPENSION_TEMPORAL' | 'BAN_PERMANENTE'
 
 export interface PilotoStats {
   totalCarreras: number

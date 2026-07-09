@@ -4,7 +4,7 @@ import { useState } from 'react'
 import toast from 'react-hot-toast'
 import Link from 'next/link'
 import { DISCIPLINA_COLORS, DISCIPLINA_LABELS, SIMULADOR_LABELS, formatFechaHora, formatFecha, getPaisFlag, getPositionColor, cn } from '@/lib/utils'
-import { Users, Calendar, Trophy, Server, Wifi, Copy, ChevronLeft, ChevronDown, ChevronUp } from 'lucide-react'
+import { Users, Calendar, Trophy, Server, Wifi, Copy, ChevronLeft, ChevronDown, ChevronUp, Flag } from 'lucide-react'
 
 interface Carrera {
   id: string; nombre: string; circuito: string; fecha: string; duracionMin: number
@@ -290,22 +290,30 @@ export function CampeonatoDetalle({ campeonato: c, clasificacion, inscripcionAct
                     </p>
                   )}
 
-                  {/* Botón Ver Resultados */}
-                  {isFinalizada && (
-                    <div className="mt-4 pt-4 border-t border-apex-border">
-                      <button
-                        onClick={() => toggleResultados(carrera.id)}
-                        disabled={isLoadingThis}
-                        className="flex items-center gap-2 text-sm font-medium text-apex-muted hover:text-apex-text transition-colors disabled:opacity-60">
-                        {isLoadingThis ? (
-                          <span className="w-4 h-4 border-2 border-apex-muted/30 border-t-apex-red rounded-full animate-spin" />
-                        ) : isExpanded ? (
-                          <ChevronUp size={16} className="text-apex-red" />
-                        ) : (
-                          <ChevronDown size={16} />
-                        )}
-                        {isLoadingThis ? 'Cargando...' : isExpanded ? 'Ocultar resultados' : '🏁 Ver Resultados'}
-                      </button>
+                  {/* Botón Ver Resultados + Reportar incidencia */}
+                  {(isFinalizada || isInscrito) && (
+                    <div className="mt-4 pt-4 border-t border-apex-border flex items-center justify-between gap-3">
+                      {isFinalizada ? (
+                        <button
+                          onClick={() => toggleResultados(carrera.id)}
+                          disabled={isLoadingThis}
+                          className="flex items-center gap-2 text-sm font-medium text-apex-muted hover:text-apex-text transition-colors disabled:opacity-60">
+                          {isLoadingThis ? (
+                            <span className="w-4 h-4 border-2 border-apex-muted/30 border-t-apex-red rounded-full animate-spin" />
+                          ) : isExpanded ? (
+                            <ChevronUp size={16} className="text-apex-red" />
+                          ) : (
+                            <ChevronDown size={16} />
+                          )}
+                          {isLoadingThis ? 'Cargando...' : isExpanded ? 'Ocultar resultados' : '🏁 Ver Resultados'}
+                        </button>
+                      ) : <div />}
+                      {isInscrito && (
+                        <Link href={`/incidencias/nueva?carreraId=${carrera.id}`}
+                          className="flex items-center gap-1.5 text-sm font-medium text-apex-muted hover:text-apex-red transition-colors">
+                          <Flag size={14} />Reportar incidencia
+                        </Link>
+                      )}
                     </div>
                   )}
                 </div>
