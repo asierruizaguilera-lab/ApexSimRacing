@@ -6,7 +6,7 @@ import { useSession } from 'next-auth/react'
 import { cn } from '@/lib/utils'
 import {
   LayoutDashboard, Trophy, Calendar, MessageSquare,
-  User, Shield, TrendingUp, Menu, X, Star, Car, Users, GraduationCap, Handshake, AlertTriangle,
+  User, Shield, TrendingUp, Menu, X, Star, Car, Users, GraduationCap, Handshake, AlertTriangle, RefreshCw,
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { PatrocinadoresSidebar, type Patrocinador } from '@/components/patrocinadores/PatrocinadoresStrip'
@@ -32,6 +32,7 @@ const adminItems = [
   { href: '/admin/coches', icon: Car, label: 'Coches' },
   { href: '/admin/suscriptores', icon: Star, label: 'Suscriptores' },
   { href: '/admin/patrocinadores', icon: Handshake, label: 'Patrocinadores' },
+  { href: '/admin/sync-sheet', icon: RefreshCw, label: 'Sync Sheet' },
 ]
 
 export function Sidebar() {

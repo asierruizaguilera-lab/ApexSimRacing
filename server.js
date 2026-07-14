@@ -2,6 +2,7 @@ const { createServer } = require('http')
 const { parse } = require('url')
 const next = require('next')
 const { Server } = require('socket.io')
+const cron = require('node-cron')
 
 const dev = process.env.NODE_ENV !== 'production'
 const hostname = '0.0.0.0'
@@ -89,10 +90,27 @@ app.prepare().then(() => {
     })
   })
 
+  // Sincronización semanal de carreras desde Google Sheets — lunes 6:00 AM hora española
+  cron.schedule('0 6 * * 1', async () => {
+    console.log('[CRON] Sincronizando carreras desde Google Sheets...')
+    try {
+      const base = process.env.NEXTAUTH_URL || `http://localhost:${port}`
+      const secretQs = process.env.CRON_SECRET ? `?secret=${process.env.CRON_SECRET}` : ''
+      const res = await fetch(`${base}/api/cron/sync-sheet${secretQs}`)
+      const data = await res.json()
+      console.log('[CRON] Resultado:', data)
+    } catch (err) {
+      console.error('[CRON] Error en sincronización:', err)
+    }
+  }, {
+    timezone: 'Europe/Madrid',
+  })
+
   httpServer.listen(port, hostname, () => {
     console.log(`\n🏁 APEX SimRacing Platform`)
     console.log(`   ✅ Servidor: http://localhost:${port}`)
     console.log(`   ✅ Socket.io: activo`)
     console.log(`   ✅ Modo: ${dev ? 'desarrollo' : 'producción'}\n`)
+    console.log(`   🔄 Sync Sheet: lunes 6:00 AM (Europe/Madrid)\n`)
   })
 })

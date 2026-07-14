@@ -9,7 +9,7 @@ export const metadata = { title: 'Mi Garaje' }
 export default async function MiGarajePage() {
   const session = await getServerSession(authOptions)
 
-  const [suscripcion, cochesDesbloqueados] = await Promise.all([
+  const [suscripcion, cochesDesbloqueados, carrerasConMods] = await Promise.all([
     session?.user?.id
       ? prisma.suscripcion.findFirst({
           where: { userId: session.user.id, estado: { in: ['ACTIVA', 'GRATUITA'] } },
@@ -25,6 +25,21 @@ export default async function MiGarajePage() {
             },
           },
           orderBy: { creadoEn: 'asc' },
+        })
+      : [],
+    session?.user?.id
+      ? prisma.carrera.findMany({
+          where: {
+            estado: { not: 'FINALIZADA' },
+            OR: [{ linkModCircuito: { not: null } }, { linkModCoche: { not: null } }],
+            campeonato: { inscripciones: { some: { userId: session.user.id, estado: 'CONFIRMADA' } } },
+          },
+          orderBy: { fecha: 'asc' },
+          select: {
+            id: true, nombre: true, circuito: true, fecha: true, coche: true,
+            linkModCircuito: true, linkModCoche: true,
+            campeonato: { select: { id: true, nombre: true } },
+          },
         })
       : [],
   ])
@@ -46,6 +61,7 @@ export default async function MiGarajePage() {
       <GarajeClient
         coches={coches}
         suscripcionActual={suscripcion}
+        carrerasConMods={carrerasConMods.map(c => ({ ...c, fecha: c.fecha.toISOString() }))}
       />
     </div>
   )

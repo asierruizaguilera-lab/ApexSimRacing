@@ -1,8 +1,8 @@
 'use client'
 
 import Link from 'next/link'
-import { DISCIPLINA_COLORS, DISCIPLINA_LABELS, PLAN_LABELS, PLAN_COLORS, cn } from '@/lib/utils'
-import { Car, Lock, Star } from 'lucide-react'
+import { DISCIPLINA_COLORS, DISCIPLINA_LABELS, PLAN_LABELS, PLAN_COLORS, formatFechaHora, cn } from '@/lib/utils'
+import { Car, Lock, Star, Download, Flag } from 'lucide-react'
 
 interface Coche {
   id: string
@@ -14,14 +14,61 @@ interface Coche {
   modAC: string | null
 }
 
+interface CarreraMods {
+  id: string; nombre: string; circuito: string; fecha: string; coche: string | null
+  linkModCircuito: string | null; linkModCoche: string | null
+  campeonato: { id: string; nombre: string }
+}
+
 interface Props {
   coches: Coche[]
   suscripcionActual: { plan: string; estado: string } | null
+  carrerasConMods?: CarreraMods[]
 }
 
 const DISCIPLINAS_ORDER = ['CIRCUITO', 'RALLY', 'DRIFT', 'KARTCROSS', 'MONOPLAZA']
 
-export function GarajeClient({ coches, suscripcionActual }: Props) {
+function ModsCarrerasSection({ carreras }: { carreras: CarreraMods[] }) {
+  if (carreras.length === 0) return null
+  return (
+    <div>
+      <div className="flex items-center gap-2 mb-4">
+        <Flag size={16} className="text-apex-red" />
+        <h2 className="font-semibold">Mods de tus próximas carreras</h2>
+      </div>
+      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        {carreras.map(c => (
+          <div key={c.id} className="bg-apex-card border border-apex-border rounded-xl p-4">
+            <div className="text-xs text-apex-muted mb-1">{c.campeonato.nombre} · {formatFechaHora(c.fecha)}</div>
+            <h3 className="font-semibold text-sm mb-1">{c.nombre}</h3>
+            <p className="text-xs text-apex-muted mb-3">{c.circuito}</p>
+            {c.coche && (
+              <span className="inline-block text-xs px-2 py-0.5 bg-apex-surface border border-apex-border rounded-full mb-2">
+                {c.coche}
+              </span>
+            )}
+            <div className="flex flex-wrap gap-2">
+              {c.linkModCircuito && (
+                <a href={c.linkModCircuito} target="_blank" rel="noopener noreferrer"
+                  className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 bg-apex-surface border border-apex-border rounded-lg hover:border-apex-red/30 transition-colors">
+                  <Download size={12} />Mod circuito
+                </a>
+              )}
+              {c.linkModCoche && (
+                <a href={c.linkModCoche} target="_blank" rel="noopener noreferrer"
+                  className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 bg-apex-surface border border-apex-border rounded-lg hover:border-apex-red/30 transition-colors">
+                  <Download size={12} />Mod coche
+                </a>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+export function GarajeClient({ coches, suscripcionActual, carrerasConMods = [] }: Props) {
   if (!suscripcionActual) {
     return (
       <div className="flex flex-col items-center justify-center py-20 text-center">
@@ -42,12 +89,15 @@ export function GarajeClient({ coches, suscripcionActual }: Props) {
 
   if (coches.length === 0) {
     return (
-      <div className="text-center py-16 text-apex-muted">
-        <Car size={48} className="mx-auto mb-4 opacity-30" />
-        <p>No tienes coches desbloqueados aún.</p>
-        <Link href="/planes" className="text-apex-red hover:underline text-sm mt-2 inline-block">
-          Actualiza tu plan para más coches
-        </Link>
+      <div className="space-y-8">
+        <ModsCarrerasSection carreras={carrerasConMods} />
+        <div className="text-center py-16 text-apex-muted">
+          <Car size={48} className="mx-auto mb-4 opacity-30" />
+          <p>No tienes coches desbloqueados aún.</p>
+          <Link href="/planes" className="text-apex-red hover:underline text-sm mt-2 inline-block">
+            Actualiza tu plan para más coches
+          </Link>
+        </div>
       </div>
     )
   }
@@ -75,6 +125,8 @@ export function GarajeClient({ coches, suscripcionActual }: Props) {
           </Link>
         )}
       </div>
+
+      <ModsCarrerasSection carreras={carrerasConMods} />
 
       {/* Secciones por disciplina */}
       {Object.entries(porDisciplina).map(([disc, lista]) => (

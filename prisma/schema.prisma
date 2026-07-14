@@ -218,6 +218,12 @@ model Carrera {
   transmisionUrl   String?
   modsRequeridos   String?
 
+  vueltas         Int?
+  coche           String?
+  linkModCircuito String?
+  linkModCoche    String?
+  origenSheet     Boolean @default(false)
+
   campeonato Campeonato  @relation(fields: [campeonatoId], references: [id], onDelete: Cascade)
   resultados Resultado[]
   quejas     Queja[]
@@ -407,6 +413,17 @@ model PruebaQueja {
   creadoEn    DateTime @default(now())
 
   @@map("pruebas_queja")
+}
+
+model SyncLog {
+  id          String   @id @default(cuid())
+  ejecutadoEn DateTime @default(now())
+  creadas     Int
+  omitidas    Int
+  errores     String?
+  tipo        String   @default("AUTOMATICA")
+
+  @@map("sync_logs")
 }
 
 model Clase {

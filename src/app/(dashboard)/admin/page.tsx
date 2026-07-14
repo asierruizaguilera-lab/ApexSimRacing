@@ -136,6 +136,7 @@ export default async function AdminPage() {
           { href: '/admin/campeonatos/nuevo', label: 'Crear Campeonato', desc: 'Nuevo campeonato de SimRacing', icon: '🏆' },
           { href: '/admin/inscripciones', label: 'Gestionar Inscripciones', desc: 'Confirmar o cancelar inscripciones pendientes', icon: '📋' },
           { href: '/admin/incidencias', label: 'Revisar Incidencias', desc: 'Gestionar quejas, resoluciones y sanciones', icon: '🚩' },
+          { href: '/admin/sync-sheet', label: 'Sincronización Sheet', desc: 'Importar carreras desde Google Sheets', icon: '🔄' },
           { href: '/chat', label: 'Moderar Chat', desc: 'Ir al chat de comunidad', icon: '💬' },
         ].map(a => (
           <Link key={a.href} href={a.href}

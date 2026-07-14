@@ -4,12 +4,14 @@ import { useState } from 'react'
 import toast from 'react-hot-toast'
 import Link from 'next/link'
 import { DISCIPLINA_COLORS, DISCIPLINA_LABELS, SIMULADOR_LABELS, formatFechaHora, formatFecha, getPaisFlag, getPositionColor, cn } from '@/lib/utils'
-import { Users, Calendar, Trophy, Server, Wifi, Copy, ChevronLeft, ChevronDown, ChevronUp, Flag } from 'lucide-react'
+import { Users, Calendar, Trophy, Server, Wifi, Copy, ChevronLeft, ChevronDown, ChevronUp, Flag, Download, Gauge } from 'lucide-react'
 
 interface Carrera {
   id: string; nombre: string; circuito: string; fecha: string; duracionMin: number
   estado: string; servidorIP?: string | null; servidorPassword?: string | null
   transmisionUrl?: string | null; modsRequeridos?: string | null
+  vueltas?: number | null; coche?: string | null
+  linkModCircuito?: string | null; linkModCoche?: string | null
 }
 
 interface Clasificacion {
@@ -230,9 +232,32 @@ export function CampeonatoDetalle({ campeonato: c, clasificacion, inscripcionAct
                     </div>
                     <div className="text-right text-sm text-apex-muted flex-shrink-0">
                       <div className="font-medium text-apex-text">{formatFechaHora(carrera.fecha)}</div>
-                      <div>{carrera.duracionMin} min</div>
+                      <div>{carrera.duracionMin} min{carrera.vueltas ? ` · ${carrera.vueltas} vueltas` : ''}</div>
                     </div>
                   </div>
+
+                  {/* Coche asignado + mods del Sheet */}
+                  {(carrera.coche || carrera.linkModCircuito || carrera.linkModCoche) && (
+                    <div className="flex flex-wrap items-center gap-2 mt-3">
+                      {carrera.coche && (
+                        <span className="text-xs px-2.5 py-1 bg-apex-surface border border-apex-border rounded-full flex items-center gap-1.5">
+                          <Gauge size={12} className="text-apex-red" />{carrera.coche}
+                        </span>
+                      )}
+                      {carrera.linkModCircuito && (
+                        <a href={carrera.linkModCircuito} target="_blank" rel="noopener noreferrer"
+                          className="text-xs px-2.5 py-1 bg-apex-surface border border-apex-border rounded-full flex items-center gap-1.5 hover:border-apex-red/30 transition-colors">
+                          <Download size={12} />Descargar mod circuito
+                        </a>
+                      )}
+                      {carrera.linkModCoche && (
+                        <a href={carrera.linkModCoche} target="_blank" rel="noopener noreferrer"
+                          className="text-xs px-2.5 py-1 bg-apex-surface border border-apex-border rounded-full flex items-center gap-1.5 hover:border-apex-red/30 transition-colors">
+                          <Download size={12} />Descargar mod coche
+                        </a>
+                      )}
+                    </div>
+                  )}
 
                   {/* Server info */}
                   {isInscrito && carrera.servidorIP && carrera.estado !== 'FINALIZADA' && (
