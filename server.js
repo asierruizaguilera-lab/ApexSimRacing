@@ -8,6 +8,9 @@ const dev = process.env.NODE_ENV !== 'production'
 const hostname = '0.0.0.0'
 const port = parseInt(process.env.PORT || '3000', 10)
 
+// TEMPORAL: confirmar si NEXTAUTH_SECRET llega al proceso en Render (nunca loguea el valor)
+console.log('[BOOT] NEXTAUTH_SECRET presente:', !!process.env.NEXTAUTH_SECRET)
+
 const app = next({ dev, hostname, port })
 const handle = app.getRequestHandler()
 
