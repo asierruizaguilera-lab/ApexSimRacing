@@ -42,6 +42,7 @@ export default withAuth(
     return NextResponse.next()
   },
   {
+    secret: process.env.NEXTAUTH_SECRET ?? process.env.SECRET,
     callbacks: {
       // withAuth llama a este callback para decidir si ejecutar el middleware
       // Devolver true siempre para que nuestro middleware tome el control
