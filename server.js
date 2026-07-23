@@ -9,9 +9,6 @@ const dev = process.env.NODE_ENV !== 'production'
 const hostname = '0.0.0.0'
 const port = parseInt(process.env.PORT || '3000', 10)
 
-// TEMPORAL: confirmar si NEXTAUTH_SECRET llega al proceso en Render (nunca loguea el valor)
-console.log('[BOOT] NEXTAUTH_SECRET presente:', !!process.env.NEXTAUTH_SECRET)
-
 // Inicialización de BD sin acceso a Shell (Render): si RUN_SEED_ON_START=true,
 // sincroniza el esquema y ejecuta el seed antes de arrancar el servidor.
 // Ambos pasos son best-effort: un fallo se loguea pero nunca impide que el servidor arranque.
