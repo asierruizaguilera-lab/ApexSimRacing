@@ -5,11 +5,11 @@ import { useRouter } from 'next/navigation'
 import toast from 'react-hot-toast'
 import Link from 'next/link'
 import { ChevronLeft, Plus, Trash2, Check, X, Save } from 'lucide-react'
-import { DISCIPLINA_LABELS, SIMULADOR_LABELS, formatFechaHora, cn } from '@/lib/utils'
+import { DISCIPLINA_LABELS, PLAN_LABELS, formatFechaHora, cn } from '@/lib/utils'
 
-const DISCIPLINAS = ['RALLY', 'CIRCUITO', 'DRIFT', 'KARTCROSS', 'MONOPLAZA']
-const SIMULADORES = ['ASSETTO_CORSA', 'EA_WRC', 'DIRT_RALLY', 'F1_24', 'BEAMNG']
+const DISCIPLINAS = ['RALLY', 'CIRCUITO', 'DRIFT', 'KARTCROSS', 'MONOPLAZA', 'SUBIDAS']
 const ESTADOS = ['PROXIMO', 'ACTIVO', 'FINALIZADO']
+const PLANES = ['ROOKIE', 'AMATEUR', 'PRO', 'ELITE']
 
 export function AdminCampeonatoClient({ campeonato }: { campeonato: any }) {
   const router = useRouter()
@@ -18,13 +18,14 @@ export function AdminCampeonatoClient({ campeonato }: { campeonato: any }) {
   const [form, setForm] = useState({
     nombre: campeonato?.nombre || '',
     disciplina: campeonato?.disciplina || 'CIRCUITO',
-    simulador: campeonato?.simulador || 'ASSETTO_CORSA',
     descripcion: campeonato?.descripcion || '',
     estado: campeonato?.estado || 'PROXIMO',
     fechaInicio: campeonato?.fechaInicio?.slice(0, 10) || '',
     fechaFin: campeonato?.fechaFin?.slice(0, 10) || '',
     maxPilotos: campeonato?.maxPilotos || 20,
     modsReq: campeonato?.modsReq || '',
+    numEtapas: campeonato?.numEtapas || 1,
+    categoriaMinima: campeonato?.categoriaMinima || 'ROOKIE',
   })
   const [loading, setLoading] = useState(false)
   const [tab, setTab] = useState<'info' | 'carreras' | 'inscripciones' | 'resultados'>('info')
@@ -139,12 +140,6 @@ export function AdminCampeonatoClient({ campeonato }: { campeonato: any }) {
               </select>
             </div>
             <div>
-              <label className={LabelClass}>Simulador</label>
-              <select value={form.simulador} onChange={set('simulador')} className={InputClass}>
-                {SIMULADORES.map(s => <option key={s} value={s}>{SIMULADOR_LABELS[s]}</option>)}
-              </select>
-            </div>
-            <div>
               <label className={LabelClass}>Estado</label>
               <select value={form.estado} onChange={set('estado')} className={InputClass}>
                 {ESTADOS.map(e => <option key={e} value={e}>{e === 'PROXIMO' ? 'Próximo' : e === 'ACTIVO' ? 'Activo' : 'Finalizado'}</option>)}
@@ -162,6 +157,20 @@ export function AdminCampeonatoClient({ campeonato }: { campeonato: any }) {
               <label className={LabelClass}>Fecha de Fin</label>
               <input type="date" value={form.fechaFin} onChange={set('fechaFin')} required className={InputClass} />
             </div>
+            <div>
+              <label className={LabelClass}>Categoría mínima</label>
+              <select value={form.categoriaMinima} onChange={set('categoriaMinima')} className={InputClass}>
+                {PLANES.map(p => <option key={p} value={p}>{PLAN_LABELS[p]}</option>)}
+              </select>
+              <p className="text-xs text-apex-muted mt-1">Los pilotos necesitarán este plan o superior para inscribirse</p>
+            </div>
+            {form.disciplina === 'RALLY' && (
+              <div>
+                <label className={LabelClass}>Número de etapas</label>
+                <input type="number" value={form.numEtapas} onChange={set('numEtapas')} min={1} max={20} className={InputClass} />
+                <p className="text-xs text-apex-muted mt-1">Los puntos base se multiplican por este número</p>
+              </div>
+            )}
             <div className="sm:col-span-2">
               <label className={LabelClass}>Descripción</label>
               <textarea value={form.descripcion} onChange={set('descripcion')} rows={4} required className={InputClass} placeholder="Descripción del campeonato..." />

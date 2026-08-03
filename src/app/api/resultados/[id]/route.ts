@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { sendEmail, emailResultadoPublicado } from '@/lib/email'
+import { calcularPuntos, tieneVueltaRapida } from '@/lib/puntos'
 
 export async function PUT(req: NextRequest, { params }: { params: { id: string } }) {
   const session = await getServerSession(authOptions)
@@ -13,16 +14,23 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
 
   const carrera = await prisma.carrera.findUnique({
     where: { id: params.id },
-    include: { campeonato: { select: { nombre: true } } },
+    include: { campeonato: { select: { nombre: true, disciplina: true, numEtapas: true } } },
   })
   if (!carrera) return NextResponse.json({ error: 'Carrera no encontrada' }, { status: 404 })
 
-  // Upsert resultados
+  const { disciplina, numEtapas } = carrera.campeonato
+  const conVueltaRapida = tieneVueltaRapida(disciplina)
+
+  // Upsert resultados — los puntos siempre se recalculan en el servidor, nunca se confía en el valor del cliente
+  const puntosPorUsuario = new Map<string, number>()
   for (const r of resultados) {
+    const vueltaRapida = conVueltaRapida && !!r.vueltaRapida
+    const puntos = calcularPuntos(r.posicion, disciplina, numEtapas, !!r.abandono, vueltaRapida)
+    puntosPorUsuario.set(r.userId, puntos)
     await prisma.resultado.upsert({
       where: { carreraId_userId: { carreraId: params.id, userId: r.userId } },
-      update: { posicion: r.posicion, puntos: r.puntos, vueltaRapida: r.vueltaRapida, abandono: r.abandono, tiempo: r.tiempo },
-      create: { carreraId: params.id, userId: r.userId, posicion: r.posicion, puntos: r.puntos, vueltaRapida: r.vueltaRapida, abandono: r.abandono, tiempo: r.tiempo },
+      update: { posicion: r.posicion, puntos, vueltaRapida, abandono: r.abandono, tiempo: r.tiempo },
+      create: { carreraId: params.id, userId: r.userId, posicion: r.posicion, puntos, vueltaRapida, abandono: r.abandono, tiempo: r.tiempo },
     })
   }
 
@@ -34,6 +42,7 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
 
   // Recalcular stats de cada piloto
   for (const r of resultados) {
+    const puntos = puntosPorUsuario.get(r.userId) ?? 0
     const allResults = await prisma.resultado.findMany({ where: { userId: r.userId } })
     const totalPuntos = allResults.reduce((s, res) => s + res.puntos, 0)
     const totalCarreras = allResults.filter(res => !res.abandono).length
@@ -50,7 +59,7 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
       data: {
         userId: r.userId,
         tipo: 'RESULTADO_PUBLICADO',
-        mensaje: `Resultados de ${carrera.nombre} publicados. Tu posición: ${r.posicion}º (${r.puntos} pts)`,
+        mensaje: `Resultados de ${carrera.nombre} publicados. Tu posición: ${r.posicion}º (${puntos} pts)`,
         link: `/campeonatos/${carrera.campeonatoId}`,
       },
     })
@@ -62,7 +71,7 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
         sendEmail({
           to: user.email,
           subject: `Resultados publicados: ${carrera.nombre}`,
-          html: emailResultadoPublicado(user.username, carrera.nombre, r.posicion, r.puntos),
+          html: emailResultadoPublicado(user.username, carrera.nombre, r.posicion, puntos),
         })
       }
     } catch {}

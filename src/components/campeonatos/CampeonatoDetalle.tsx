@@ -3,8 +3,8 @@
 import { useState } from 'react'
 import toast from 'react-hot-toast'
 import Link from 'next/link'
-import { DISCIPLINA_COLORS, DISCIPLINA_LABELS, SIMULADOR_LABELS, formatFechaHora, formatFecha, getPaisFlag, getPositionColor, cn } from '@/lib/utils'
-import { Users, Calendar, Trophy, Server, Wifi, Copy, ChevronLeft, ChevronDown, ChevronUp, Flag, Download, Gauge } from 'lucide-react'
+import { DISCIPLINA_COLORS, DISCIPLINA_LABELS, PLAN_LABELS, PLAN_COLORS, planSuficiente, formatFechaHora, formatFecha, getPaisFlag, getPositionColor, cn } from '@/lib/utils'
+import { Users, Calendar, Trophy, Server, Wifi, Copy, ChevronLeft, ChevronDown, ChevronUp, Flag, Download, Gauge, Lock } from 'lucide-react'
 
 interface Carrera {
   id: string; nombre: string; circuito: string; fecha: string; duracionMin: number
@@ -34,6 +34,7 @@ interface Props {
   clasificacion: Clasificacion[]
   inscripcionActual: string | null
   userId?: string
+  userPlan?: string | null
 }
 
 function getPodiumRowClass(pos: number): string {
@@ -43,13 +44,14 @@ function getPodiumRowClass(pos: number): string {
   return ''
 }
 
-export function CampeonatoDetalle({ campeonato: c, clasificacion, inscripcionActual, userId }: Props) {
+export function CampeonatoDetalle({ campeonato: c, clasificacion, inscripcionActual, userId, userPlan }: Props) {
   const [tab, setTab] = useState<'info' | 'carreras' | 'clasificacion' | 'pilotos'>('info')
   const [inscrito, setInscrito] = useState(inscripcionActual)
   const [loading, setLoading] = useState(false)
   const [expandedRace, setExpandedRace] = useState<string | null>(null)
   const [raceResults, setRaceResults] = useState<Record<string, ResultadoCarrera[]>>({})
   const [loadingResults, setLoadingResults] = useState<string | null>(null)
+  const planOk = userPlan ? planSuficiente(userPlan, c.categoriaMinima) : true
 
   async function inscribirse() {
     if (!userId) { toast.error('Debes iniciar sesión'); return }
@@ -60,8 +62,8 @@ export function CampeonatoDetalle({ campeonato: c, clasificacion, inscripcionAct
     if (res.ok) {
       setInscrito('PENDIENTE')
       toast.success('Inscripción enviada. Pendiente de confirmación.')
-    } else if (data.code === 'NO_SUBSCRIPTION') {
-      toast.error('Necesitas un plan activo para inscribirte')
+    } else if (data.code === 'NO_SUBSCRIPTION' || data.code === 'PLAN_INSUFICIENTE') {
+      toast.error(data.error || 'Necesitas un plan activo para inscribirte')
       setTimeout(() => { window.location.href = '/planes' }, 1500)
     } else {
       toast.error(data.error || 'Error')
@@ -118,8 +120,8 @@ export function CampeonatoDetalle({ campeonato: c, clasificacion, inscripcionAct
               <span className={cn('text-xs px-2 py-1 rounded-full border', DISCIPLINA_COLORS[c.disciplina])}>
                 {DISCIPLINA_LABELS[c.disciplina]}
               </span>
-              <span className="text-xs px-2 py-1 bg-apex-surface border border-apex-border rounded-full text-apex-muted">
-                {SIMULADOR_LABELS[c.simulador]}
+              <span className={cn('text-xs px-2 py-1 rounded-full border', PLAN_COLORS[c.categoriaMinima])}>
+                Desde Plan {PLAN_LABELS[c.categoriaMinima]}
               </span>
               <span className={cn('text-xs px-2 py-1 rounded-full border', {
                 'bg-green-500/20 text-green-400 border-green-500/30': c.estado === 'ACTIVO',
@@ -152,6 +154,11 @@ export function CampeonatoDetalle({ campeonato: c, clasificacion, inscripcionAct
                 <div className="px-4 py-2 bg-gray-500/20 text-gray-400 border border-gray-500/30 rounded-xl font-medium">
                   Campeonato lleno
                 </div>
+              ) : !planOk ? (
+                <Link href="/planes"
+                  className="flex items-center gap-2 px-4 py-2 bg-apex-surface border border-apex-border text-apex-muted rounded-xl font-medium hover:border-apex-red/30 transition-colors">
+                  <Lock size={14} />Necesitas el plan {PLAN_LABELS[c.categoriaMinima]}
+                </Link>
               ) : (
                 <button onClick={inscribirse} disabled={loading}
                   className="px-6 py-2.5 bg-apex-red hover:bg-apex-red-dark text-white rounded-xl font-semibold transition-colors disabled:opacity-50">
@@ -191,14 +198,23 @@ export function CampeonatoDetalle({ campeonato: c, clasificacion, inscripcionAct
           <div className="bg-apex-card border border-apex-border rounded-xl p-6">
             <h3 className="font-semibold mb-3">Sistema de Puntos</h3>
             <div className="grid grid-cols-5 sm:grid-cols-10 gap-2">
-              {[25, 18, 15, 12, 10, 8, 6, 4, 2, 1].map((pts, i) => (
+              {[25, 20, 16, 13, 11, 9, 7, 5, 3, 1].map((pts, i) => (
                 <div key={i} className="text-center bg-apex-surface rounded-lg p-2">
                   <div className="text-xs text-apex-muted mb-1">{i + 1}º</div>
                   <div className="font-bold text-apex-red text-sm">{pts}</div>
                 </div>
               ))}
             </div>
-            <p className="text-xs text-apex-muted mt-3">+ 1 punto adicional por vuelta rápida</p>
+            {c.disciplina === 'RALLY' || c.disciplina === 'SUBIDAS' ? (
+              <div className="text-xs text-apex-muted mt-3 space-y-1">
+                <p>Puntúan todos los que terminen: 11º en adelante recibe 1 punto. DNF = 0 puntos.</p>
+                {c.disciplina === 'RALLY' && (
+                  <p>Este campeonato tiene <strong className="text-apex-text">{c.numEtapas}</strong> etapa{c.numEtapas === 1 ? '' : 's'} por rally — los puntos base se multiplican ×{c.numEtapas}.</p>
+                )}
+              </div>
+            ) : (
+              <p className="text-xs text-apex-muted mt-3">Solo puntúan los 10 primeros. + 1 punto adicional por vuelta rápida</p>
+            )}
           </div>
         </div>
       )}

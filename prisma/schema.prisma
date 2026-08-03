@@ -18,14 +18,11 @@ enum Disciplina {
   DRIFT
   KARTCROSS
   MONOPLAZA
+  SUBIDAS
 }
 
 enum Simulador {
   ASSETTO_CORSA
-  EA_WRC
-  DIRT_RALLY
-  F1_24
-  BEAMNG
 }
 
 enum EstadoCampeonato {
@@ -185,18 +182,20 @@ model VerificationToken {
 }
 
 model Campeonato {
-  id          String           @id @default(cuid())
-  nombre      String
-  disciplina  Disciplina
-  simulador   Simulador
-  descripcion String
-  estado      EstadoCampeonato @default(PROXIMO)
-  fechaInicio DateTime
-  fechaFin    DateTime
-  maxPilotos  Int              @default(20)
-  imagen      String?
-  modsReq     String?
-  creadoEn    DateTime         @default(now())
+  id              String           @id @default(cuid())
+  nombre          String
+  disciplina      Disciplina
+  simulador       Simulador        @default(ASSETTO_CORSA)
+  descripcion     String
+  estado          EstadoCampeonato @default(PROXIMO)
+  fechaInicio     DateTime
+  fechaFin        DateTime
+  maxPilotos      Int              @default(20)
+  imagen          String?
+  modsReq         String?
+  numEtapas       Int              @default(1)
+  categoriaMinima PlanSuscripcion  @default(ROOKIE)
+  creadoEn        DateTime         @default(now())
 
   carreras      Carrera[]
   inscripciones Inscripcion[]

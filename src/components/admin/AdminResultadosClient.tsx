@@ -5,9 +5,8 @@ import { useRouter } from 'next/navigation'
 import toast from 'react-hot-toast'
 import { ChevronLeft, Save, Trophy } from 'lucide-react'
 import Link from 'next/link'
-import { formatFechaHora, cn } from '@/lib/utils'
-
-const PUNTOS = [25, 18, 15, 12, 10, 8, 6, 4, 2, 1]
+import { formatFechaHora, DISCIPLINA_LABELS, cn } from '@/lib/utils'
+import { calcularPuntos, tieneVueltaRapida } from '@/lib/puntos'
 
 interface PilotoRow {
   userId: string
@@ -21,6 +20,9 @@ interface PilotoRow {
 export function AdminResultadosClient({ carrera }: { carrera: any }) {
   const router = useRouter()
   const pilotos = carrera.campeonato.inscripciones.map((i: any) => i.user)
+  const disciplina = carrera.campeonato.disciplina
+  const numEtapas = carrera.campeonato.numEtapas || 1
+  const conVueltaRapida = tieneVueltaRapida(disciplina)
 
   const [rows, setRows] = useState<PilotoRow[]>(
     pilotos.map((p: any, idx: number) => {
@@ -42,8 +44,7 @@ export function AdminResultadosClient({ carrera }: { carrera: any }) {
   }
 
   function calcPuntos(posicion: number, vueltaRapida: boolean, abandono: boolean): number {
-    if (abandono) return 0
-    return (PUNTOS[posicion - 1] || 0) + (vueltaRapida ? 1 : 0)
+    return calcularPuntos(posicion, disciplina, numEtapas, abandono, conVueltaRapida && vueltaRapida)
   }
 
   async function guardar() {
@@ -100,11 +101,20 @@ export function AdminResultadosClient({ carrera }: { carrera: any }) {
       </div>
 
       <div className="bg-apex-card border border-apex-border rounded-xl overflow-hidden mb-4">
-        <div className="px-4 py-3 border-b border-apex-border flex items-center gap-2">
+        <div className="px-4 py-3 border-b border-apex-border flex items-center gap-2 flex-wrap">
           <Trophy size={16} className="text-yellow-400" />
           <span className="font-semibold">Resultados de la Carrera</span>
-          <span className="text-xs text-apex-muted ml-auto">Los puntos se calculan automáticamente (F1: 25-18-15-12-10-8-6-4-2-1)</span>
+          <span className="text-xs text-apex-muted ml-auto">
+            {disciplina === 'RALLY' || disciplina === 'SUBIDAS'
+              ? `${DISCIPLINA_LABELS[disciplina]}: 25-20-16-13-11-9-7-5-3-1, 11º+ = 1 pt, DNF = 0`
+              : 'Puntos: 25-20-16-13-11-9-7-5-3-1 + 1 por vuelta rápida'}
+          </span>
         </div>
+        {disciplina === 'RALLY' && (
+          <div className="px-4 py-2 bg-apex-surface border-b border-apex-border text-xs text-apex-muted">
+            Este rally tiene <strong className="text-apex-text">{numEtapas}</strong> etapa{numEtapas === 1 ? '' : 's'} → los puntos base se multiplican ×{numEtapas}
+          </div>
+        )}
 
         <div className="overflow-x-auto">
           <table className="w-full">
@@ -113,7 +123,9 @@ export function AdminResultadosClient({ carrera }: { carrera: any }) {
                 <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-apex-muted w-16">Pos</th>
                 <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-apex-muted">Piloto</th>
                 <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-apex-muted">Tiempo</th>
-                <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-apex-muted text-center">V. Rápida</th>
+                {conVueltaRapida && (
+                  <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-apex-muted text-center">V. Rápida</th>
+                )}
                 <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-apex-muted text-center">DNF</th>
                 <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-apex-muted text-right">Puntos</th>
               </tr>
@@ -143,14 +155,16 @@ export function AdminResultadosClient({ carrera }: { carrera: any }) {
                         className="w-32 bg-apex-surface border border-apex-border rounded-lg px-2 py-1 text-sm focus:border-apex-red focus:outline-none"
                       />
                     </td>
-                    <td className="px-4 py-3 text-center">
-                      <input
-                        type="checkbox"
-                        checked={r.vueltaRapida}
-                        onChange={e => update(r.userId, 'vueltaRapida', e.target.checked)}
-                        className="w-4 h-4 accent-purple-500"
-                      />
-                    </td>
+                    {conVueltaRapida && (
+                      <td className="px-4 py-3 text-center">
+                        <input
+                          type="checkbox"
+                          checked={r.vueltaRapida}
+                          onChange={e => update(r.userId, 'vueltaRapida', e.target.checked)}
+                          className="w-4 h-4 accent-purple-500"
+                        />
+                      </td>
+                    )}
                     <td className="px-4 py-3 text-center">
                       <input
                         type="checkbox"
@@ -162,7 +176,7 @@ export function AdminResultadosClient({ carrera }: { carrera: any }) {
                     <td className="px-4 py-3 text-right">
                       <span className={cn('font-bold', pts > 0 ? 'text-apex-red' : 'text-apex-muted')}>
                         {pts > 0 ? `+${pts}` : '0'}
-                        {r.vueltaRapida && <span className="text-purple-400 text-xs ml-1">(+1⚡)</span>}
+                        {conVueltaRapida && r.vueltaRapida && <span className="text-purple-400 text-xs ml-1">(+1⚡)</span>}
                       </span>
                     </td>
                   </tr>

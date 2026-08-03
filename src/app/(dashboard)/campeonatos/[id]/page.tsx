@@ -2,10 +2,12 @@ import { prisma } from '@/lib/prisma'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { notFound } from 'next/navigation'
+import { getSuscripcionActiva } from '@/lib/suscripciones'
 import { CampeonatoDetalle } from '@/components/campeonatos/CampeonatoDetalle'
 
 export default async function CampeonatoPage({ params }: { params: { id: string } }) {
   const session = await getServerSession(authOptions)
+  const suscripcion = session?.user?.id ? await getSuscripcionActiva(session.user.id) : null
 
   const campeonato = await prisma.campeonato.findUnique({
     where: { id: params.id },
@@ -69,6 +71,7 @@ export default async function CampeonatoPage({ params }: { params: { id: string 
       clasificacion={clasificacion}
       inscripcionActual={inscripcionActual}
       userId={session?.user?.id}
+      userPlan={suscripcion?.plan || null}
     />
   )
 }

@@ -18,19 +18,21 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json()
-  const { nombre, disciplina, simulador, descripcion, estado, fechaInicio, fechaFin, maxPilotos, modsReq } = body
+  const { nombre, disciplina, descripcion, estado, fechaInicio, fechaFin, maxPilotos, modsReq, numEtapas, categoriaMinima } = body
 
-  if (!nombre || !disciplina || !simulador || !descripcion || !fechaInicio || !fechaFin) {
+  if (!nombre || !disciplina || !descripcion || !fechaInicio || !fechaFin) {
     return NextResponse.json({ error: 'Campos requeridos faltantes' }, { status: 400 })
   }
 
   const camp = await prisma.campeonato.create({
     data: {
-      nombre, disciplina, simulador, descripcion, estado: estado || 'PROXIMO',
+      nombre, disciplina, descripcion, estado: estado || 'PROXIMO',
       fechaInicio: new Date(fechaInicio),
       fechaFin: new Date(fechaFin),
       maxPilotos: parseInt(maxPilotos) || 20,
       modsReq,
+      numEtapas: parseInt(numEtapas) || 1,
+      categoriaMinima: categoriaMinima || 'ROOKIE',
     },
   })
 

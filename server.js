@@ -17,6 +17,19 @@ async function runSeedOnStartIfRequested() {
 
   console.log('[BOOT] RUN_SEED_ON_START=true — ejecutando prisma db push y seed...')
 
+  // El enum Simulador se ha reducido a solo ASSETTO_CORSA. Normaliza los datos existentes
+  // ANTES de que `db push` intente estrechar el tipo — si no, el push fallaría (a propósito,
+  // por no usar --accept-data-loss) al encontrar filas con valores fuera del nuevo enum.
+  try {
+    execSync('npx prisma db execute --stdin --schema=prisma/schema.prisma', {
+      input: "UPDATE campeonatos SET simulador = 'ASSETTO_CORSA' WHERE simulador <> 'ASSETTO_CORSA';",
+      stdio: ['pipe', 'inherit', 'inherit'],
+    })
+    console.log('[BOOT] ✅ Campeonatos normalizados a ASSETTO_CORSA')
+  } catch (err) {
+    console.error('[BOOT] ❌ Error normalizando simulador (no crítico si la tabla aún no existe):', err.message)
+  }
+
   try {
     execSync('npx prisma db push --skip-generate', { stdio: 'inherit' })
     console.log('[BOOT] ✅ prisma db push completado')

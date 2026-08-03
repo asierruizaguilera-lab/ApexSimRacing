@@ -1,6 +1,6 @@
 export type UserRole = 'ADMIN' | 'PILOTO'
-export type Disciplina = 'RALLY' | 'CIRCUITO' | 'DRIFT' | 'KARTCROSS' | 'MONOPLAZA'
-export type Simulador = 'ASSETTO_CORSA' | 'EA_WRC' | 'DIRT_RALLY' | 'F1_24' | 'BEAMNG'
+export type Disciplina = 'RALLY' | 'CIRCUITO' | 'DRIFT' | 'KARTCROSS' | 'MONOPLAZA' | 'SUBIDAS'
+export type Simulador = 'ASSETTO_CORSA'
 export type EstadoCampeonato = 'PROXIMO' | 'ACTIVO' | 'FINALIZADO'
 export type EstadoCarrera = 'PROGRAMADA' | 'EN_CURSO' | 'FINALIZADA'
 export type EstadoInscripcion = 'PENDIENTE' | 'CONFIRMADA' | 'CANCELADA'

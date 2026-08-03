@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/prisma'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
+import { getSuscripcionActiva } from '@/lib/suscripciones'
 import { CampeonatosClient } from '@/components/campeonatos/CampeonatosClient'
 
 export const metadata = { title: 'Campeonatos' }
@@ -8,7 +9,7 @@ export const metadata = { title: 'Campeonatos' }
 export default async function CampeonatosPage() {
   const session = await getServerSession(authOptions)
 
-  const [campeonatos, patrocinadores] = await Promise.all([
+  const [campeonatos, patrocinadores, suscripcion] = await Promise.all([
     prisma.campeonato.findMany({
       orderBy: { creadoEn: 'desc' },
       include: {
@@ -23,6 +24,7 @@ export default async function CampeonatosPage() {
       orderBy: [{ orden: 'asc' }, { creadoEn: 'asc' }],
       select: { id: true, nombre: true, descripcion: true, logoUrl: true, linkExterno: true },
     }),
+    session?.user?.id ? getSuscripcionActiva(session.user.id) : null,
   ])
 
   return (
@@ -40,6 +42,7 @@ export default async function CampeonatosPage() {
           inscrito: c.inscripciones?.[0]?.estado || null,
         }))}
         userId={session?.user?.id}
+        userPlan={suscripcion?.plan || null}
         patrocinadores={patrocinadores}
       />
     </div>

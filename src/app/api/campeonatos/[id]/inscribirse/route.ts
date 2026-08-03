@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { sendEmail, emailInscripcionConfirmada } from '@/lib/email'
+import { planSuficiente, PLAN_LABELS } from '@/lib/utils'
 
 export async function POST(_: NextRequest, { params }: { params: { id: string } }) {
   const session = await getServerSession(authOptions)
@@ -27,6 +28,13 @@ export async function POST(_: NextRequest, { params }: { params: { id: string } 
     return NextResponse.json({
       error: 'Necesitas un plan activo para inscribirte en campeonatos',
       code: 'NO_SUBSCRIPTION',
+      redirectTo: '/planes',
+    }, { status: 403 })
+  }
+  if (!planSuficiente(suscripcion!.plan, camp.categoriaMinima)) {
+    return NextResponse.json({
+      error: `Necesitas el plan ${PLAN_LABELS[camp.categoriaMinima]} o superior para inscribirte en esta categoría. Ve a /planes`,
+      code: 'PLAN_INSUFICIENTE',
       redirectTo: '/planes',
     }, { status: 403 })
   }

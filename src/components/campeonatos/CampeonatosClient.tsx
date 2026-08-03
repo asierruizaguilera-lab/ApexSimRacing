@@ -3,20 +3,20 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import toast from 'react-hot-toast'
-import { DISCIPLINA_COLORS, DISCIPLINA_LABELS, SIMULADOR_LABELS, ESTADO_CAMPEONATO_LABELS, formatFecha, cn } from '@/lib/utils'
-import { Users, Calendar, Trophy, ChevronRight } from 'lucide-react'
+import { DISCIPLINA_COLORS, DISCIPLINA_LABELS, ESTADO_CAMPEONATO_LABELS, PLAN_LABELS, PLAN_COLORS, planSuficiente, formatFecha, cn } from '@/lib/utils'
+import { Users, Calendar, Trophy, ChevronRight, Lock } from 'lucide-react'
 
 interface Campeonato {
   id: string
   nombre: string
   disciplina: string
-  simulador: string
   descripcion: string
   estado: string
   fechaInicio: string
   fechaFin: string
   maxPilotos: number
   imagen?: string | null
+  categoriaMinima: string
   _count: { inscripciones: number; carreras: number }
   inscrito?: string | null
 }
@@ -35,9 +35,10 @@ interface Patrocinador {
   linkExterno: string | null
 }
 
-export function CampeonatosClient({ campeonatos, userId, patrocinadores = [] }: {
+export function CampeonatosClient({ campeonatos, userId, userPlan, patrocinadores = [] }: {
   campeonatos: Campeonato[]
   userId?: string
+  userPlan?: string | null
   patrocinadores?: Patrocinador[]
 }) {
   const [filtroEstado, setFiltroEstado] = useState('TODOS')
@@ -62,8 +63,8 @@ export function CampeonatosClient({ campeonatos, userId, patrocinadores = [] }: 
       if (res.ok) {
         setInscripciones(prev => ({ ...prev, [campeonatoId]: 'PENDIENTE' }))
         toast.success('Inscripción enviada. Pendiente de confirmación.')
-      } else if (data.code === 'NO_SUBSCRIPTION') {
-        toast.error('Necesitas un plan activo para inscribirte')
+      } else if (data.code === 'NO_SUBSCRIPTION' || data.code === 'PLAN_INSUFICIENTE') {
+        toast.error(data.error || 'Necesitas un plan activo para inscribirte')
         setTimeout(() => { window.location.href = '/planes' }, 1500)
       } else {
         toast.error(data.error || 'Error al inscribirse')
@@ -76,7 +77,7 @@ export function CampeonatosClient({ campeonatos, userId, patrocinadores = [] }: 
   }
 
   const estados = ['TODOS', 'ACTIVO', 'PROXIMO', 'FINALIZADO']
-  const disciplinas = ['TODOS', 'CIRCUITO', 'RALLY', 'DRIFT', 'KARTCROSS', 'MONOPLAZA']
+  const disciplinas = ['TODOS', 'CIRCUITO', 'RALLY', 'DRIFT', 'KARTCROSS', 'MONOPLAZA', 'SUBIDAS']
 
   return (
     <div>
@@ -144,6 +145,7 @@ export function CampeonatosClient({ campeonatos, userId, patrocinadores = [] }: 
           {filtrados.map(c => {
             const estado = inscripciones[c.id]
             const lleno = c._count.inscripciones >= c.maxPilotos
+            const planOk = userPlan ? planSuficiente(userPlan, c.categoriaMinima) : true
             return (
               <div key={c.id} className="bg-apex-card border border-apex-border rounded-xl overflow-hidden hover:border-apex-red/30 transition-all group">
                 {/* Header colored bar */}
@@ -162,12 +164,14 @@ export function CampeonatosClient({ campeonatos, userId, patrocinadores = [] }: 
                     <span className={cn('text-xs px-2 py-0.5 rounded-full border', ESTADO_COLORS[c.estado])}>
                       {ESTADO_CAMPEONATO_LABELS[c.estado]}
                     </span>
+                    <span className={cn('text-xs px-2 py-0.5 rounded-full border', PLAN_COLORS[c.categoriaMinima])}>
+                      Desde {PLAN_LABELS[c.categoriaMinima]}
+                    </span>
                   </div>
 
                   <h3 className="font-bold text-lg mb-1 group-hover:text-apex-red transition-colors line-clamp-2">
                     {c.nombre}
                   </h3>
-                  <p className="text-apex-muted text-xs mb-1">{SIMULADOR_LABELS[c.simulador]}</p>
                   <p className="text-apex-muted text-sm line-clamp-2 mb-4">{c.descripcion}</p>
 
                   {/* Meta */}
@@ -201,6 +205,12 @@ export function CampeonatosClient({ campeonatos, userId, patrocinadores = [] }: 
                         <span className="px-3 py-2 bg-gray-500/20 text-gray-400 border border-gray-500/30 rounded-lg text-xs">
                           Lleno
                         </span>
+                      ) : !planOk ? (
+                        <Link href="/planes"
+                          title={`Necesitas el plan ${PLAN_LABELS[c.categoriaMinima]} para esta categoría`}
+                          className="flex items-center gap-1 px-3 py-2 bg-apex-surface border border-apex-border text-apex-muted rounded-lg text-xs font-medium whitespace-nowrap hover:border-apex-red/30 transition-colors">
+                          <Lock size={11} />Plan {PLAN_LABELS[c.categoriaMinima]}
+                        </Link>
                       ) : (
                         <button onClick={() => inscribirse(c.id)}
                           disabled={loading === c.id}

@@ -11,6 +11,7 @@ export const DISCIPLINA_COLORS: Record<string, string> = {
   DRIFT: 'bg-purple-500/20 text-purple-400 border-purple-500/30',
   KARTCROSS: 'bg-green-500/20 text-green-400 border-green-500/30',
   MONOPLAZA: 'bg-red-500/20 text-red-400 border-red-500/30',
+  SUBIDAS: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
 }
 
 export const DISCIPLINA_LABELS: Record<string, string> = {
@@ -19,14 +20,7 @@ export const DISCIPLINA_LABELS: Record<string, string> = {
   DRIFT: 'Drift',
   KARTCROSS: 'Kartcross',
   MONOPLAZA: 'Monoplaza',
-}
-
-export const SIMULADOR_LABELS: Record<string, string> = {
-  ASSETTO_CORSA: 'Assetto Corsa',
-  EA_WRC: 'EA WRC',
-  DIRT_RALLY: 'Dirt Rally 2.0',
-  F1_24: 'F1 24',
-  BEAMNG: 'BeamNG.drive',
+  SUBIDAS: 'Subidas',
 }
 
 export const ESTADO_CAMPEONATO_LABELS: Record<string, string> = {
@@ -141,13 +135,6 @@ export function generateInitialsAvatar(username: string): string {
   return `data:image/svg+xml;base64,${Buffer.from(svg).toString('base64')}`
 }
 
-export const PUNTOS_SISTEMA = [25, 18, 15, 12, 10, 8, 6, 4, 2, 1]
-
-export function calcularPuntos(posicion: number, vueltaRapida: boolean = false): number {
-  const pts = PUNTOS_SISTEMA[posicion - 1] || 0
-  return pts + (vueltaRapida ? 1 : 0)
-}
-
 // --- Suscripciones ---
 
 export const PLAN_LABELS: Record<string, string> = {
@@ -203,6 +190,10 @@ export const PLAN_FEATURES: Record<string, string[]> = {
 }
 
 export const PLAN_ORDER = ['ROOKIE', 'AMATEUR', 'PRO', 'ELITE']
+
+export function planSuficiente(planUsuario: string, planMinimo: string): boolean {
+  return PLAN_ORDER.indexOf(planUsuario) >= PLAN_ORDER.indexOf(planMinimo)
+}
 
 export const ESTADO_SUSCRIPCION_LABELS: Record<string, string> = {
   ACTIVA: 'Activa',
