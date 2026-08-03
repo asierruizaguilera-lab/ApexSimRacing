@@ -21,10 +21,6 @@ enum Disciplina {
   SUBIDAS
 }
 
-enum Simulador {
-  ASSETTO_CORSA
-}
-
 enum EstadoCampeonato {
   PROXIMO
   ACTIVO
@@ -185,7 +181,6 @@ model Campeonato {
   id              String           @id @default(cuid())
   nombre          String
   disciplina      Disciplina
-  simulador       Simulador        @default(ASSETTO_CORSA)
   descripcion     String
   estado          EstadoCampeonato @default(PROXIMO)
   fechaInicio     DateTime

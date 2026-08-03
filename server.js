@@ -17,17 +17,19 @@ async function runSeedOnStartIfRequested() {
 
   console.log('[BOOT] RUN_SEED_ON_START=true — ejecutando prisma db push y seed...')
 
-  // El enum Simulador se ha reducido a solo ASSETTO_CORSA. Normaliza los datos existentes
-  // ANTES de que `db push` intente estrechar el tipo — si no, el push fallaría (a propósito,
-  // por no usar --accept-data-loss) al encontrar filas con valores fuera del nuevo enum.
+  // El campo `simulador` (y su enum) se eliminaron del schema — APEX solo usa Assetto Corsa,
+  // así que ya no aporta información y se retiró en vez de mantenerlo forzado a un solo valor.
+  // Se elimina aquí ANTES de `db push` (con IF EXISTS, así que es un no-op en despliegues futuros)
+  // para que `db push` no encuentre ninguna columna/tipo que "perder" y nunca necesite
+  // --accept-data-loss — ese flag se mantiene deliberadamente fuera del comando de abajo.
   try {
     execSync('npx prisma db execute --stdin --schema=prisma/schema.prisma', {
-      input: "UPDATE campeonatos SET simulador = 'ASSETTO_CORSA' WHERE simulador <> 'ASSETTO_CORSA';",
+      input: 'ALTER TABLE "campeonatos" DROP COLUMN IF EXISTS "simulador"; DROP TYPE IF EXISTS "Simulador";',
       stdio: ['pipe', 'inherit', 'inherit'],
     })
-    console.log('[BOOT] ✅ Campeonatos normalizados a ASSETTO_CORSA')
+    console.log('[BOOT] ✅ Columna simulador y su enum eliminados (o ya no existían)')
   } catch (err) {
-    console.error('[BOOT] ❌ Error normalizando simulador (no crítico si la tabla aún no existe):', err.message)
+    console.error('[BOOT] ❌ Error eliminando columna simulador (no crítico si la tabla aún no existe):', err.message)
   }
 
   try {

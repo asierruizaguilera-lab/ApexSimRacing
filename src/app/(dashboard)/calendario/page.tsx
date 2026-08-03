@@ -12,7 +12,7 @@ export default async function CalendarioPage() {
     orderBy: { fecha: 'asc' },
     include: {
       campeonato: {
-        select: { id: true, nombre: true, disciplina: true, simulador: true },
+        select: { id: true, nombre: true, disciplina: true },
       },
     },
   })

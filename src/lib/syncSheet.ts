@@ -119,7 +119,6 @@ export async function syncCarrerasDesdeSheet(tipo: 'AUTOMATICA' | 'MANUAL' = 'AU
             data: {
               nombre: fila.campeonato,
               disciplina: fila.disciplina as Disciplina,
-              simulador: 'ASSETTO_CORSA',
               descripcion: fila.descripcion || 'Campeonato creado automáticamente desde Google Sheets',
               estado: 'ACTIVO',
               fechaInicio: fechaCarrera,

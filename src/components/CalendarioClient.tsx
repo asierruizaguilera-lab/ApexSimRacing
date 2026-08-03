@@ -9,7 +9,7 @@ interface Carrera {
   id: string; nombre: string; circuito: string; fecha: string; duracionMin: number
   estado: string; servidorIP?: string | null; servidorPassword?: string | null
   transmisionUrl?: string | null; modsRequeridos?: string | null
-  campeonato: { id: string; nombre: string; disciplina: string; simulador: string }
+  campeonato: { id: string; nombre: string; disciplina: string }
 }
 
 const MESES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
