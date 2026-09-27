@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
     where: { canal: canal as any, eliminado: false },
     orderBy: { creadoEn: 'desc' },
     take: limit,
-    include: { user: { select: { id: true, username: true, avatar: true, role: true } } },
+    include: { user: { select: { id: true, username: true, avatar: true, role: true, esFounder: true, suscripcion: { select: { plan: true, estado: true } } } } },
   })
 
   return NextResponse.json(mensajes.reverse())
@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
       canal: canal || 'GENERAL',
       contenido: contenido.trim(),
     },
-    include: { user: { select: { id: true, username: true, avatar: true, role: true } } },
+    include: { user: { select: { id: true, username: true, avatar: true, role: true, esFounder: true, suscripcion: { select: { plan: true, estado: true } } } } },
   })
 
   return NextResponse.json(mensaje, { status: 201 })

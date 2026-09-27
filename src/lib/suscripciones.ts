@@ -1,8 +1,10 @@
 import { prisma } from './prisma'
 import { PlanSuscripcion } from '@prisma/client'
+import { PLAN_PRECIOS_NORMAL, DESCUENTO_MERCH_POR_PLAN } from './utils'
 
 export const PLAN_ORDER: PlanSuscripcion[] = ['ROOKIE', 'AMATEUR', 'PRO', 'ELITE']
 
+// Precios Fundador (congelados de por vida para los primeros 60 pagadores)
 export const PLAN_PRECIOS: Record<PlanSuscripcion, number> = {
   ROOKIE: 5,
   AMATEUR: 10,
@@ -42,12 +44,25 @@ export async function activarPlan(
     paypalSubscriptionId?: string
     paypalOrderId?: string
     esGratuita?: boolean
+    esFounder?: boolean
     fechaExpiracionManual?: Date
     planAnterior?: PlanSuscripcion
     notasAdmin?: string
   } = {}
-): Promise<void> {
-  const precio = opts.esGratuita ? 0 : PLAN_PRECIOS[plan]
+): Promise<{ precio: number; fechaRenovacion: Date; esFounder: boolean }> {
+  // El precio fundador solo aplica a suscripciones de pago real (nunca a accesos gratuitos otorgados por admin)
+  const esFounderPago = !opts.esGratuita && !!opts.esFounder
+
+  const suscripcionAnterior = await prisma.suscripcion.findUnique({ where: { userId } })
+  // Una vez fundador, la suscripción sigue marcada como fundadora al cambiar de plan (precio congelado de por vida)
+  const marcarComoFounder = esFounderPago || (suscripcionAnterior?.esFounder ?? false)
+
+  const precio = opts.esGratuita
+    ? 0
+    : marcarComoFounder
+      ? PLAN_PRECIOS[plan]
+      : PLAN_PRECIOS_NORMAL[plan]
+
   const fechaRenovacion = new Date()
   fechaRenovacion.setMonth(fechaRenovacion.getMonth() + 1)
   const estado = opts.esGratuita ? 'GRATUITA' : 'ACTIVA'
@@ -62,6 +77,8 @@ export async function activarPlan(
       fechaRenovacion,
       fechaCancelacion: null,
       esGratuita: opts.esGratuita ?? false,
+      esFounder: marcarComoFounder,
+      precioFounder: marcarComoFounder ? PLAN_PRECIOS[plan] : null,
       fechaExpiracionManual: opts.fechaExpiracionManual ?? null,
       planAnterior: opts.planAnterior ?? null,
       notasAdmin: opts.notasAdmin ?? null,
@@ -75,6 +92,8 @@ export async function activarPlan(
       precioMensual: precio,
       fechaRenovacion,
       esGratuita: opts.esGratuita ?? false,
+      esFounder: marcarComoFounder,
+      precioFounder: marcarComoFounder ? PLAN_PRECIOS[plan] : null,
       fechaExpiracionManual: opts.fechaExpiracionManual ?? null,
       planAnterior: opts.planAnterior ?? null,
       notasAdmin: opts.notasAdmin ?? null,
@@ -83,16 +102,54 @@ export async function activarPlan(
     },
   })
 
+  // Badge de fundador permanente — solo se otorga una vez y nunca se revoca
+  if (esFounderPago) {
+    await prisma.user.updateMany({
+      where: { id: userId, esFounder: false },
+      data: { esFounder: true, fechaFounder: new Date() },
+    })
+  }
+
+  // Descuento de merch según el plan activo (se actualiza en cada cambio de plan)
+  await prisma.user.update({
+    where: { id: userId },
+    data: { descuentoMerch: DESCUENTO_MERCH_POR_PLAN[plan] ?? 0 },
+  })
+
   await desbloquearCoches(userId, plan)
+
+  const mensaje = plan === 'ELITE'
+    ? '¡Bienvenido al plan Elite! Tu kit de bienvenida APEX está en camino. Te contactaremos por email para la dirección de envío.'
+    : `¡Tu plan ${plan} está activo! Ya puedes inscribirte en campeonatos.`
 
   await prisma.notificacion.create({
     data: {
       userId,
       tipo: 'SUSCRIPCION_ACTIVA',
-      mensaje: `¡Tu plan ${plan} está activo! Ya puedes inscribirte en campeonatos.`,
+      mensaje,
       link: '/mi-garaje',
     },
   })
+
+  // Notificar a los admins cuando alguien activa o mejora a Elite (nuevo o upgrade) para enviar el welcome kit
+  if (plan === 'ELITE' && suscripcionAnterior?.plan !== 'ELITE') {
+    const [user, admins] = await Promise.all([
+      prisma.user.findUnique({ where: { id: userId }, select: { username: true } }),
+      prisma.user.findMany({ where: { role: 'ADMIN' }, select: { id: true } }),
+    ])
+    if (admins.length > 0) {
+      await prisma.notificacion.createMany({
+        data: admins.map(a => ({
+          userId: a.id,
+          tipo: 'NUEVO_ELITE' as const,
+          mensaje: `🎁 Nuevo suscriptor Elite: ${user?.username ?? 'un piloto'} — enviar welcome kit`,
+          link: '/admin/usuarios',
+        })),
+      })
+    }
+  }
+
+  return { precio, fechaRenovacion, esFounder: marcarComoFounder }
 }
 
 export async function cancelarSuscripcion(userId: string): Promise<void> {

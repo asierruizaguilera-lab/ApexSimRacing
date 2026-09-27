@@ -3,7 +3,7 @@ import { authOptions } from '@/lib/auth'
 import { redirect } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
 import Link from 'next/link'
-import { Users, Trophy, Calendar, MessageSquare, Plus, ChevronRight } from 'lucide-react'
+import { Users, Trophy, Calendar, MessageSquare, Plus, ChevronRight, Award } from 'lucide-react'
 import { formatFecha, DISCIPLINA_LABELS, DISCIPLINA_COLORS, cn } from '@/lib/utils'
 
 export const metadata = { title: 'Panel Admin' }
@@ -12,8 +12,9 @@ export default async function AdminPage() {
   const session = await getServerSession(authOptions)
   if (session?.user?.role !== 'ADMIN') redirect('/dashboard')
 
-  const [totalUsuarios, campeonatosActivos, carrerasEsteMes, totalMensajes, ultimosRegistros, campeonatos] = await Promise.all([
+  const [totalUsuarios, totalFundadores, campeonatosActivos, carrerasEsteMes, totalMensajes, ultimosRegistros, campeonatos] = await Promise.all([
     prisma.user.count({ where: { role: 'PILOTO' } }),
+    prisma.user.count({ where: { esFounder: true } }),
     prisma.campeonato.count({ where: { estado: 'ACTIVO' } }),
     prisma.carrera.count({
       where: {
@@ -40,6 +41,7 @@ export default async function AdminPage() {
 
   const stats = [
     { label: 'Total Pilotos', value: totalUsuarios, icon: Users, color: 'text-blue-400', bg: 'bg-blue-400/10' },
+    { label: 'Plazas Fundadoras', value: `${totalFundadores}/60`, icon: Award, color: 'text-yellow-400', bg: 'bg-yellow-400/10' },
     { label: 'Campeonatos Activos', value: campeonatosActivos, icon: Trophy, color: 'text-apex-red', bg: 'bg-apex-red/10' },
     { label: 'Carreras este Mes', value: carrerasEsteMes, icon: Calendar, color: 'text-green-400', bg: 'bg-green-400/10' },
     { label: 'Mensajes en Chat', value: totalMensajes, icon: MessageSquare, color: 'text-purple-400', bg: 'bg-purple-400/10' },
@@ -59,7 +61,7 @@ export default async function AdminPage() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
         {stats.map(s => (
           <div key={s.label} className="bg-apex-card border border-apex-border rounded-xl p-5">
             <div className={cn('w-10 h-10 rounded-lg flex items-center justify-center mb-3', s.bg)}>

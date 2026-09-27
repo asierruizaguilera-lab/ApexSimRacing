@@ -1,10 +1,16 @@
 'use client'
 
 import Link from 'next/link'
-import { Check, Star } from 'lucide-react'
-import { PLAN_LABELS, PLAN_PRECIOS, PLAN_FEATURES, DISCIPLINA_COLORS, DISCIPLINA_LABELS, cn } from '@/lib/utils'
+import { Check, Star, Trophy } from 'lucide-react'
+import { PLAN_LABELS, PLAN_PRECIOS, PLAN_PRECIOS_NORMAL, PLAN_FEATURES, DISCIPLINA_COLORS, DISCIPLINA_LABELS, cn } from '@/lib/utils'
 import { useEffect, useState } from 'react'
 import type { Patrocinador } from '@/components/patrocinadores/PatrocinadoresStrip'
+
+interface FounderInfo {
+  plazasRestantes: number
+  totalPlazas: number
+  modoPrecio: 'FOUNDER' | 'NORMAL'
+}
 
 const PLAN_ICONS: Record<string, string> = {
   ROOKIE: '🏁', AMATEUR: '⚡', PRO: '🏆', ELITE: '👑',
@@ -30,13 +36,22 @@ const PLANES = ['ROOKIE', 'AMATEUR', 'PRO', 'ELITE']
 
 export function LandingClient() {
   const [sponsors, setSponsors] = useState<Patrocinador[]>([])
+  const [founderInfo, setFounderInfo] = useState<FounderInfo | null>(null)
 
   useEffect(() => {
     fetch('/api/patrocinadores?ubicacion=LANDING&public=1')
       .then(r => r.ok ? r.json() : [])
       .then(setSponsors)
       .catch(() => {})
+
+    fetch('/api/paypal/check-founder')
+      .then(r => r.ok ? r.json() : null)
+      .then(setFounderInfo)
+      .catch(() => {})
   }, [])
+
+  const quedanPlazas = (founderInfo?.plazasRestantes ?? 0) > 0
+  const precioDe = (plan: string) => quedanPlazas ? PLAN_PRECIOS[plan] : PLAN_PRECIOS_NORMAL[plan]
 
   return (
     <div className="min-h-screen bg-apex-bg font-sans">
@@ -170,9 +185,23 @@ export function LandingClient() {
       <section id="planes" className="py-24 px-6 bg-apex-bg">
         <div className="max-w-6xl mx-auto">
           <h2 className="text-3xl sm:text-4xl font-bold text-center mb-4">Los planes</h2>
-          <p className="text-apex-muted text-center mb-14 max-w-xl mx-auto">
+          <p className="text-apex-muted text-center mb-8 max-w-xl mx-auto">
             Sin permanencia. Sin letra pequeña. Cancela cuando quieras.
           </p>
+
+          {founderInfo && quedanPlazas && (
+            <div className={cn(
+              'flex items-center justify-center gap-2 rounded-xl border px-4 py-3 mb-8 max-w-xl mx-auto text-center font-semibold',
+              founderInfo.plazasRestantes < 10
+                ? 'bg-red-500/10 border-red-500/40 text-red-400'
+                : 'bg-yellow-500/10 border-yellow-500/30 text-yellow-400'
+            )}>
+              <Trophy size={18} />
+              🏆 PLAZAS FUNDADORAS: {founderInfo.plazasRestantes} de {founderInfo.totalPlazas} disponibles
+              {founderInfo.plazasRestantes < 10 && ' — ¡Últimas plazas!'}
+            </div>
+          )}
+
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-10">
             {PLANES.map((plan) => {
               const isPro = plan === 'PRO'
@@ -191,7 +220,7 @@ export function LandingClient() {
                   <div className="text-3xl mb-3">{PLAN_ICONS[plan]}</div>
                   <h3 className="text-xl font-bold mb-1">{PLAN_LABELS[plan]}</h3>
                   <div className="flex items-end gap-1 mb-5">
-                    <span className="text-3xl font-bold">{PLAN_PRECIOS[plan]}€</span>
+                    <span className="text-3xl font-bold">{precioDe(plan)}€</span>
                     <span className="text-apex-muted text-sm mb-0.5">/mes</span>
                   </div>
                   <ul className="space-y-2 flex-1 mb-6">

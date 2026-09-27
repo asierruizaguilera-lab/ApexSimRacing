@@ -26,6 +26,7 @@ export function AdminCampeonatoClient({ campeonato }: { campeonato: any }) {
     modsReq: campeonato?.modsReq || '',
     numEtapas: campeonato?.numEtapas || 1,
     categoriaMinima: campeonato?.categoriaMinima || 'ROOKIE',
+    soloElite: campeonato?.soloElite || false,
   })
   const [loading, setLoading] = useState(false)
   const [tab, setTab] = useState<'info' | 'carreras' | 'inscripciones' | 'resultados'>('info')
@@ -163,6 +164,14 @@ export function AdminCampeonatoClient({ campeonato }: { campeonato: any }) {
                 {PLANES.map(p => <option key={p} value={p}>{PLAN_LABELS[p]}</option>)}
               </select>
               <p className="text-xs text-apex-muted mt-1">Los pilotos necesitarán este plan o superior para inscribirse</p>
+            </div>
+            <div className="flex items-end">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" checked={form.soloElite}
+                  onChange={e => setForm(f => ({ ...f, soloElite: e.target.checked }))}
+                  className="w-4 h-4 accent-red-700" />
+                <span className="text-sm">Campeonato exclusivo Elite</span>
+              </label>
             </div>
             {form.disciplina === 'RALLY' && (
               <div>

@@ -14,6 +14,8 @@ export default async function RankingPage() {
     select: {
       id: true, username: true, avatar: true, pais: true,
       totalPuntos: true, totalCarreras: true, totalVictorias: true, totalPodios: true,
+      esFounder: true,
+      suscripcion: { select: { plan: true, estado: true } },
     },
   })
 

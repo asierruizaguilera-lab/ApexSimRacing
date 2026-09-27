@@ -21,6 +21,7 @@ export default async function AdminUsuariosPage() {
       baneado: true,
       motivoBan: true,
       fechaRegistro: true,
+      esFounder: true,
       suscripcion: {
         select: {
           id: true,

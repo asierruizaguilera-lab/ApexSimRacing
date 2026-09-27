@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { activarPlan, cancelarSuscripcion } from '@/lib/suscripciones'
+import { getPlanId } from '@/lib/paypal'
 import { sendEmail, emailSuscripcionActiva, emailSuscripcionCancelada } from '@/lib/email'
-import { PLAN_PRECIOS } from '@/lib/utils'
 import type { PlanSuscripcion } from '@prisma/client'
 
 export const dynamic = 'force-dynamic'
@@ -41,15 +41,19 @@ export async function POST(req: NextRequest) {
         }
 
         if (userId && plan) {
-          await activarPlan(userId, plan as PlanSuscripcion, {
+          // Recalculamos el estado fundador en el momento de la activación (idempotente: si el
+          // usuario ya es fundador, getPlanId siempre devuelve esFounder=true independientemente de las plazas restantes).
+          const { esFounder } = await getPlanId(plan, userId)
+          const { precio, fechaRenovacion } = await activarPlan(userId, plan as PlanSuscripcion, {
             paypalSubscriptionId: resource.id,
+            esFounder,
           })
           const user = await getUserForNotification(userId)
           if (user) {
             sendEmail({
               to: user.email,
               subject: `Tu plan ${plan} está activo — ¡A competir!`,
-              html: emailSuscripcionActiva(user.username, plan, PLAN_PRECIOS[plan] ?? 0),
+              html: emailSuscripcionActiva(user.username, plan, precio, fechaRenovacion.toLocaleDateString('es-ES'), esFounder),
             }).catch(() => null)
           }
         }

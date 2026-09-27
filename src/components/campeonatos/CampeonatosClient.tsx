@@ -17,6 +17,7 @@ interface Campeonato {
   maxPilotos: number
   imagen?: string | null
   categoriaMinima: string
+  soloElite?: boolean
   _count: { inscripciones: number; carreras: number }
   inscrito?: string | null
 }
@@ -63,7 +64,7 @@ export function CampeonatosClient({ campeonatos, userId, userPlan, patrocinadore
       if (res.ok) {
         setInscripciones(prev => ({ ...prev, [campeonatoId]: 'PENDIENTE' }))
         toast.success('Inscripción enviada. Pendiente de confirmación.')
-      } else if (data.code === 'NO_SUBSCRIPTION' || data.code === 'PLAN_INSUFICIENTE') {
+      } else if (data.code === 'NO_SUBSCRIPTION' || data.code === 'PLAN_INSUFICIENTE' || data.code === 'SOLO_ELITE') {
         toast.error(data.error || 'Necesitas un plan activo para inscribirte')
         setTimeout(() => { window.location.href = '/planes' }, 1500)
       } else {
@@ -145,7 +146,7 @@ export function CampeonatosClient({ campeonatos, userId, userPlan, patrocinadore
           {filtrados.map(c => {
             const estado = inscripciones[c.id]
             const lleno = c._count.inscripciones >= c.maxPilotos
-            const planOk = userPlan ? planSuficiente(userPlan, c.categoriaMinima) : true
+            const planOk = (userPlan ? planSuficiente(userPlan, c.categoriaMinima) : true) && (!c.soloElite || userPlan === 'ELITE')
             return (
               <div key={c.id} className="bg-apex-card border border-apex-border rounded-xl overflow-hidden hover:border-apex-red/30 transition-all group">
                 {/* Header colored bar */}
@@ -167,6 +168,11 @@ export function CampeonatosClient({ campeonatos, userId, userPlan, patrocinadore
                     <span className={cn('text-xs px-2 py-0.5 rounded-full border', PLAN_COLORS[c.categoriaMinima])}>
                       Desde {PLAN_LABELS[c.categoriaMinima]}
                     </span>
+                    {c.soloElite && (
+                      <span className="text-xs px-2 py-0.5 rounded-full border bg-red-950 text-red-300 border-red-800 font-semibold">
+                        ELITE
+                      </span>
+                    )}
                   </div>
 
                   <h3 className="font-bold text-lg mb-1 group-hover:text-apex-red transition-colors line-clamp-2">
@@ -207,9 +213,9 @@ export function CampeonatosClient({ campeonatos, userId, userPlan, patrocinadore
                         </span>
                       ) : !planOk ? (
                         <Link href="/planes"
-                          title={`Necesitas el plan ${PLAN_LABELS[c.categoriaMinima]} para esta categoría`}
+                          title={c.soloElite ? 'Este campeonato es exclusivo para pilotos Elite' : `Necesitas el plan ${PLAN_LABELS[c.categoriaMinima]} para esta categoría`}
                           className="flex items-center gap-1 px-3 py-2 bg-apex-surface border border-apex-border text-apex-muted rounded-lg text-xs font-medium whitespace-nowrap hover:border-apex-red/30 transition-colors">
-                          <Lock size={11} />Plan {PLAN_LABELS[c.categoriaMinima]}
+                          <Lock size={11} />{c.soloElite ? 'Solo Elite' : `Plan ${PLAN_LABELS[c.categoriaMinima]}`}
                         </Link>
                       ) : (
                         <button onClick={() => inscribirse(c.id)}

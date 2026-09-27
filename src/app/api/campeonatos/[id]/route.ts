@@ -21,7 +21,7 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
   if (session?.user?.role !== 'ADMIN') return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
 
   const body = await req.json()
-  const { nombre, disciplina, descripcion, estado, fechaInicio, fechaFin, maxPilotos, modsReq, numEtapas, categoriaMinima } = body
+  const { nombre, disciplina, descripcion, estado, fechaInicio, fechaFin, maxPilotos, modsReq, numEtapas, categoriaMinima, soloElite } = body
 
   const camp = await prisma.campeonato.update({
     where: { id: params.id },
@@ -33,6 +33,7 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
       modsReq,
       numEtapas: parseInt(numEtapas) || 1,
       categoriaMinima: categoriaMinima || 'ROOKIE',
+      soloElite: !!soloElite,
     },
   })
   return NextResponse.json(camp)

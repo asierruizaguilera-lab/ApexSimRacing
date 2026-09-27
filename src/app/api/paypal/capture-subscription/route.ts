@@ -2,10 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { getPayPalSubscription } from '@/lib/paypal'
+import { getPayPalSubscription, getPlanId } from '@/lib/paypal'
 import { activarPlan } from '@/lib/suscripciones'
 import { sendEmail, emailSuscripcionActiva } from '@/lib/email'
-import { PLAN_PRECIOS } from '@/lib/utils'
 import type { PlanSuscripcion } from '@prisma/client'
 
 export async function POST(req: NextRequest) {
@@ -24,8 +23,13 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    await activarPlan(session.user.id, plan as PlanSuscripcion, {
+    // Re-verificamos las plazas fundadoras en el momento de la confirmación (protección de condición de carrera).
+    // Si alguien se adelantó y ya no quedan plazas, se activa igual pero con precio normal.
+    const { esFounder } = await getPlanId(plan, session.user.id)
+
+    const { precio, fechaRenovacion } = await activarPlan(session.user.id, plan as PlanSuscripcion, {
       paypalSubscriptionId: subscriptionId,
+      esFounder,
     })
 
     // Email de confirmación (async, no bloquea)
@@ -34,21 +38,20 @@ export async function POST(req: NextRequest) {
       select: { email: true, username: true },
     })
     if (user) {
-      const fechaRenovacion = new Date()
-      fechaRenovacion.setMonth(fechaRenovacion.getMonth() + 1)
       sendEmail({
         to: user.email,
         subject: `Tu plan ${plan} está activo — ¡A competir!`,
         html: emailSuscripcionActiva(
           user.username,
           plan,
-          PLAN_PRECIOS[plan] ?? 0,
-          fechaRenovacion.toLocaleDateString('es-ES')
+          precio,
+          fechaRenovacion.toLocaleDateString('es-ES'),
+          esFounder
         ),
       }).catch(() => null)
     }
 
-    return NextResponse.json({ ok: true, plan })
+    return NextResponse.json({ ok: true, plan, esFounder })
   } catch (err) {
     console.error('[PayPal capture-subscription]', err)
     return NextResponse.json({ error: 'Error al activar la suscripción' }, { status: 500 })

@@ -66,11 +66,17 @@ export function emailSuscripcionActiva(
   username: string,
   plan: string,
   precio: number,
-  fechaRenovacion?: string
+  fechaRenovacion?: string,
+  esFounder?: boolean
 ): string {
   return baseWrapper(`
     <h2 style="color:#F5F5F5;font-size:22px;margin:0 0 16px;">¡Tu plan ${plan} está activo! ⚡</h2>
     <p style="color:#AAAAAA;line-height:1.6;margin:0 0 16px;">Hola <strong style="color:#F5F5F5;">${username}</strong>,</p>
+    ${esFounder ? `
+    <div style="background:#3d2e0a;border:1px solid #C0392B;padding:14px 16px;border-radius:8px;margin:0 0 16px;">
+      <p style="margin:0;color:#F5C542;font-weight:700;">🏆 ¡Eres Piloto Fundador APEX!</p>
+      <p style="margin:6px 0 0;color:#F5F5F5;font-size:13px;">Tu precio queda congelado de por vida y llevarás el badge Fundador en tu perfil para siempre.</p>
+    </div>` : ''}
     <div style="background:#2A2A2A;padding:16px;border-radius:8px;margin:0 0 20px;">
       <p style="margin:0;color:#F5F5F5;">✅ Plan: <strong style="color:#C0392B;">${plan}</strong> — ${precio}€/mes</p>
       ${fechaRenovacion ? `<p style="margin:8px 0 0;color:#AAAAAA;">📅 Próxima renovación: ${fechaRenovacion}</p>` : ''}

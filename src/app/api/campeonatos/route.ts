@@ -18,7 +18,7 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json()
-  const { nombre, disciplina, descripcion, estado, fechaInicio, fechaFin, maxPilotos, modsReq, numEtapas, categoriaMinima } = body
+  const { nombre, disciplina, descripcion, estado, fechaInicio, fechaFin, maxPilotos, modsReq, numEtapas, categoriaMinima, soloElite } = body
 
   if (!nombre || !disciplina || !descripcion || !fechaInicio || !fechaFin) {
     return NextResponse.json({ error: 'Campos requeridos faltantes' }, { status: 400 })
@@ -33,6 +33,7 @@ export async function POST(req: NextRequest) {
       modsReq,
       numEtapas: parseInt(numEtapas) || 1,
       categoriaMinima: categoriaMinima || 'ROOKIE',
+      soloElite: !!soloElite,
     },
   })
 

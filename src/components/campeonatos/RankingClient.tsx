@@ -8,6 +8,12 @@ import { Trophy, Medal } from 'lucide-react'
 interface Piloto {
   id: string; username: string; avatar: string | null; pais: string | null
   totalPuntos: number; totalCarreras: number; totalVictorias: number; totalPodios: number
+  esFounder?: boolean
+  suscripcion?: { plan: string; estado: string } | null
+}
+
+function esEliteActivo(p: Piloto): boolean {
+  return !!p.suscripcion && ['ACTIVA', 'GRATUITA'].includes(p.suscripcion.estado) && p.suscripcion.plan === 'ELITE'
 }
 
 const PAGE_SIZE = 25
@@ -45,7 +51,11 @@ export function RankingClient({ pilotos, currentUserId }: { pilotos: Piloto[]; c
                   isFirst ? 'bg-yellow-500' : rank === 2 ? 'bg-gray-500' : 'bg-amber-700')}>
                   {p.username.slice(0, 2).toUpperCase()}
                 </div>
-                <div className="font-bold text-sm truncate w-full">{p.username}</div>
+                <div className="font-bold text-sm truncate w-full flex items-center justify-center gap-1">
+                  {p.username}
+                  {p.esFounder && <span title="Piloto Fundador APEX — uno de los primeros 60">⚡</span>}
+                  {esEliteActivo(p) && <span title="Piloto Elite APEX">👑</span>}
+                </div>
                 <div className="text-sm mt-0.5">{getPaisFlag(p.pais)}</div>
                 <div className={cn('text-lg font-bold mt-1', isFirst ? 'text-yellow-400' : rank === 2 ? 'text-gray-300' : 'text-amber-600')}>
                   {p.totalPuntos} pts
@@ -106,6 +116,16 @@ export function RankingClient({ pilotos, currentUserId }: { pilotos: Piloto[]; c
                       <div>
                         <div className="font-medium text-sm flex items-center gap-1">
                           {p.username}
+                          {p.esFounder && (
+                            <span title="Piloto Fundador APEX — uno de los primeros 60" className="text-[10px] bg-yellow-500/20 text-yellow-400 border border-yellow-500/30 px-1.5 py-0.5 rounded-full">
+                              ⚡ Fundador
+                            </span>
+                          )}
+                          {esEliteActivo(p) && (
+                            <span title="Piloto Elite APEX" className="text-[10px] bg-red-950 text-red-300 border border-red-800 px-1.5 py-0.5 rounded-full">
+                              👑 Elite
+                            </span>
+                          )}
                           {isCurrentUser && <span className="text-xs bg-apex-red/20 text-apex-red px-1.5 py-0.5 rounded-full">Tú</span>}
                         </div>
                         <div className="text-xs text-apex-muted">{getPaisFlag(p.pais)} {getPaisNombre(p.pais)}</div>

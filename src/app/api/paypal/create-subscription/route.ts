@@ -1,14 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { PAYPAL_BASE, PAYPAL_PLAN_IDS, getPayPalAccessToken } from '@/lib/paypal'
+import { PAYPAL_BASE, getPayPalAccessToken, getPlanId } from '@/lib/paypal'
 
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions)
   if (!session?.user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
 
   const { plan } = await req.json()
-  const planId = PAYPAL_PLAN_IDS[plan]
+  const { planId, esFounder } = await getPlanId(plan, session.user.id)
   if (!planId) return NextResponse.json({ error: 'Plan de PayPal no configurado' }, { status: 400 })
 
   try {
@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
       },
       body: JSON.stringify({
         plan_id: planId,
-        custom_id: JSON.stringify({ userId: session.user.id, plan }),
+        custom_id: JSON.stringify({ userId: session.user.id, plan, esFounder }),
         application_context: {
           brand_name: 'APEX SimRacing',
           locale: 'es-ES',

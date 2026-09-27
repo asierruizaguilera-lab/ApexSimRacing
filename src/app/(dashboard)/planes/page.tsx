@@ -34,6 +34,7 @@ export default async function PlanesPage() {
           plan: suscripcion.plan,
           estado: suscripcion.estado,
           fechaRenovacion: suscripcion.fechaRenovacion.toISOString(),
+          esFounder: suscripcion.esFounder,
         } : null}
         userId={session?.user?.id}
       />

@@ -8,7 +8,15 @@ import { formatTimeAgo, cn } from '@/lib/utils'
 
 type Canal = 'GENERAL' | 'RALLY' | 'CIRCUITO' | 'DRIFT' | 'ANUNCIOS'
 
-interface User { id: string; username: string; avatar: string | null; role: string }
+interface User {
+  id: string; username: string; avatar: string | null; role: string
+  esFounder?: boolean
+  suscripcion?: { plan: string; estado: string } | null
+}
+
+function esEliteActivo(u: User): boolean {
+  return !!u.suscripcion && ['ACTIVA', 'GRATUITA'].includes(u.suscripcion.estado) && u.suscripcion.plan === 'ELITE'
+}
 interface Mensaje {
   id: string; userId: string; canal: Canal; contenido: string; creadoEn: string; eliminado: boolean; user: User
 }
@@ -192,6 +200,16 @@ export function ChatWindow({ initialMessages, currentUser }: Props) {
                       {m.user.role === 'ADMIN' && (
                         <span className="flex items-center gap-0.5 text-[10px] bg-apex-red/20 text-apex-red px-1.5 py-0.5 rounded-full">
                           <Shield size={10} />ADMIN
+                        </span>
+                      )}
+                      {m.user.esFounder && (
+                        <span title="Piloto Fundador APEX — uno de los primeros 60" className="text-[10px] bg-yellow-500/20 text-yellow-400 border border-yellow-500/30 px-1.5 py-0.5 rounded-full">
+                          ⚡ Fundador
+                        </span>
+                      )}
+                      {esEliteActivo(m.user) && (
+                        <span title="Piloto Elite APEX" className="text-[10px] bg-red-950 text-red-300 border border-red-800 px-1.5 py-0.5 rounded-full">
+                          👑 Elite
                         </span>
                       )}
                       <span className="text-xs text-apex-muted">{formatTimeAgo(m.creadoEn)}</span>

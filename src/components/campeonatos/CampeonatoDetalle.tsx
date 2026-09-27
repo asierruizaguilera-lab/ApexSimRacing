@@ -51,7 +51,7 @@ export function CampeonatoDetalle({ campeonato: c, clasificacion, inscripcionAct
   const [expandedRace, setExpandedRace] = useState<string | null>(null)
   const [raceResults, setRaceResults] = useState<Record<string, ResultadoCarrera[]>>({})
   const [loadingResults, setLoadingResults] = useState<string | null>(null)
-  const planOk = userPlan ? planSuficiente(userPlan, c.categoriaMinima) : true
+  const planOk = (userPlan ? planSuficiente(userPlan, c.categoriaMinima) : true) && (!c.soloElite || userPlan === 'ELITE')
 
   async function inscribirse() {
     if (!userId) { toast.error('Debes iniciar sesión'); return }
@@ -62,7 +62,7 @@ export function CampeonatoDetalle({ campeonato: c, clasificacion, inscripcionAct
     if (res.ok) {
       setInscrito('PENDIENTE')
       toast.success('Inscripción enviada. Pendiente de confirmación.')
-    } else if (data.code === 'NO_SUBSCRIPTION' || data.code === 'PLAN_INSUFICIENTE') {
+    } else if (data.code === 'NO_SUBSCRIPTION' || data.code === 'PLAN_INSUFICIENTE' || data.code === 'SOLO_ELITE') {
       toast.error(data.error || 'Necesitas un plan activo para inscribirte')
       setTimeout(() => { window.location.href = '/planes' }, 1500)
     } else {
@@ -123,6 +123,11 @@ export function CampeonatoDetalle({ campeonato: c, clasificacion, inscripcionAct
               <span className={cn('text-xs px-2 py-1 rounded-full border', PLAN_COLORS[c.categoriaMinima])}>
                 Desde Plan {PLAN_LABELS[c.categoriaMinima]}
               </span>
+              {c.soloElite && (
+                <span className="text-xs px-2 py-1 rounded-full border bg-red-950 text-red-300 border-red-800 font-semibold">
+                  ELITE
+                </span>
+              )}
               <span className={cn('text-xs px-2 py-1 rounded-full border', {
                 'bg-green-500/20 text-green-400 border-green-500/30': c.estado === 'ACTIVO',
                 'bg-blue-500/20 text-blue-400 border-blue-500/30': c.estado === 'PROXIMO',
@@ -157,7 +162,7 @@ export function CampeonatoDetalle({ campeonato: c, clasificacion, inscripcionAct
               ) : !planOk ? (
                 <Link href="/planes"
                   className="flex items-center gap-2 px-4 py-2 bg-apex-surface border border-apex-border text-apex-muted rounded-xl font-medium hover:border-apex-red/30 transition-colors">
-                  <Lock size={14} />Necesitas el plan {PLAN_LABELS[c.categoriaMinima]}
+                  <Lock size={14} />{c.soloElite ? 'Campeonato exclusivo Elite' : `Necesitas el plan ${PLAN_LABELS[c.categoriaMinima]}`}
                 </Link>
               ) : (
                 <button onClick={inscribirse} disabled={loading}

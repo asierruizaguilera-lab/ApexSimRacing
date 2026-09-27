@@ -175,6 +175,20 @@ export function PerfilClient({ piloto: initialPiloto, rankingGlobal, chartData, 
                   ADMIN
                 </span>
               )}
+              {piloto.esFounder && (
+                <span
+                  title="Piloto Fundador APEX — uno de los primeros 60"
+                  className="text-xs bg-yellow-500/20 text-yellow-400 border border-yellow-500/30 px-2 py-0.5 rounded-full flex items-center gap-1">
+                  ⚡ Fundador
+                </span>
+              )}
+              {['ACTIVA', 'GRATUITA'].includes(piloto.suscripcion?.estado) && piloto.suscripcion?.plan === 'ELITE' && (
+                <span
+                  title="Piloto Elite APEX"
+                  className="text-xs bg-red-950 text-red-300 border border-red-800 px-2 py-0.5 rounded-full flex items-center gap-1">
+                  👑 Elite
+                </span>
+              )}
               {piloto.suscripcion?.plan && (
                 <span className={cn('text-xs px-2 py-0.5 rounded-full border flex items-center gap-1', PLAN_COLORS[piloto.suscripcion.plan])}>
                   <CreditCard size={10} />

@@ -21,6 +21,7 @@ const TIPO_ICONS: Record<string, string> = {
   INSCRIPCION_CONFIRMADA: '✅',
   NUEVA_CARRERA: '📅',
   NUEVO_CAMPEONATO: '🏆',
+  NUEVO_ELITE: '🎁',
 }
 
 export function Header() {

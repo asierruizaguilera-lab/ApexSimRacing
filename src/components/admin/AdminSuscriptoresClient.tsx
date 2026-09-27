@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import toast from 'react-hot-toast'
-import { PLAN_LABELS, PLAN_COLORS, PLAN_PRECIOS, PLAN_ORDER, getPaisFlag, formatFecha, cn } from '@/lib/utils'
+import { PLAN_LABELS, PLAN_COLORS, PLAN_ORDER, getPaisFlag, formatFecha, cn } from '@/lib/utils'
 import { Users, TrendingUp } from 'lucide-react'
 
 interface Suscripcion {
@@ -60,8 +60,9 @@ export function AdminSuscriptoresClient({ suscripciones, stats }: Props) {
           <div className="text-apex-red text-xs mt-0.5 font-medium">{ingresosTotal.toFixed(0)}€/mes</div>
         </div>
         {PLAN_ORDER.map(plan => {
-          const count = suscripciones.filter(s => s.plan === plan && s.estado === 'ACTIVA').length
-          const ingresos = count * PLAN_PRECIOS[plan]
+          const activasPlan = suscripciones.filter(s => s.plan === plan && s.estado === 'ACTIVA')
+          const count = activasPlan.length
+          const ingresos = activasPlan.reduce((sum, s) => sum + s.precioMensual, 0)
           return (
             <div key={plan} className="bg-apex-card border border-apex-border rounded-xl p-4">
               <div className="text-apex-muted text-xs mb-1">{PLAN_LABELS[plan]}</div>

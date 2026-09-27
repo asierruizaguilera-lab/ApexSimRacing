@@ -1,11 +1,11 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { PayPalButtons, PayPalScriptProvider } from '@paypal/react-paypal-js'
 import toast from 'react-hot-toast'
-import { X, Check, Loader2 } from 'lucide-react'
-import { PLAN_LABELS, PLAN_PRECIOS, PLAN_FEATURES, cn } from '@/lib/utils'
+import { X, Check, Loader2, Trophy } from 'lucide-react'
+import { PLAN_LABELS, PLAN_PRECIOS, PLAN_PRECIOS_NORMAL, PLAN_FEATURES, cn } from '@/lib/utils'
 
 type Paso = 'resumen' | 'pago' | 'exito'
 
@@ -15,24 +15,31 @@ interface Props {
   onClose: () => void
 }
 
-const PAYPAL_PLAN_IDS: Record<string, string> = {
-  ROOKIE: process.env.NEXT_PUBLIC_PAYPAL_ROOKIE_PLAN_ID ?? '',
-  AMATEUR: process.env.NEXT_PUBLIC_PAYPAL_AMATEUR_PLAN_ID ?? '',
-  PRO: process.env.NEXT_PUBLIC_PAYPAL_PRO_PLAN_ID ?? '',
-  ELITE: process.env.NEXT_PUBLIC_PAYPAL_ELITE_PLAN_ID ?? '',
-}
-
 export function ModalPago({ plan, isLoggedIn = true, onClose }: Props) {
   const router = useRouter()
   const [paso, setPaso] = useState<Paso>('resumen')
   const [errorMsg, setErrorMsg] = useState('')
+  const [planId, setPlanId] = useState('')
+  const [esFounder, setEsFounder] = useState(false)
+  const [loadingPlanId, setLoadingPlanId] = useState(true)
 
-  const precio = PLAN_PRECIOS[plan]
+  useEffect(() => {
+    if (!isLoggedIn) { setLoadingPlanId(false); return }
+    fetch(`/api/paypal/check-founder?plan=${plan}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (data?.planId) setPlanId(data.planId)
+        setEsFounder(!!data?.esFounderParaEstaCompra)
+      })
+      .catch(() => {})
+      .finally(() => setLoadingPlanId(false))
+  }, [plan, isLoggedIn])
+
+  const precio = esFounder ? PLAN_PRECIOS[plan] : PLAN_PRECIOS_NORMAL[plan]
   const label = PLAN_LABELS[plan]
   const features = PLAN_FEATURES[plan] || []
 
   const paypalClientId = process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID ?? ''
-  const planId = PAYPAL_PLAN_IDS[plan] ?? ''
   const paypalConfigurado = !!(paypalClientId && planId)
 
   async function onPayPalApprove(data: { subscriptionID?: string | null }) {
@@ -111,6 +118,14 @@ export function ModalPago({ plan, isLoggedIn = true, onClose }: Props) {
             {/* Paso 1: Resumen */}
             {paso === 'resumen' && (
               <div>
+                {esFounder && (
+                  <div className="flex items-start gap-2 bg-yellow-500/10 border border-yellow-500/30 rounded-xl px-4 py-3 mb-5">
+                    <Trophy size={16} className="text-yellow-400 flex-shrink-0 mt-0.5" />
+                    <p className="text-sm text-yellow-400">
+                      <strong>Estás a punto de convertirte en Fundador APEX</strong> — precio congelado de por vida y badge permanente.
+                    </p>
+                  </div>
+                )}
                 <div className="flex items-end gap-1 mb-6">
                   <span className="text-4xl font-bold text-white">{precio}€</span>
                   <span className="text-apex-muted mb-1">/mes</span>
@@ -154,7 +169,11 @@ export function ModalPago({ plan, isLoggedIn = true, onClose }: Props) {
                   </div>
                 )}
 
-                {paypalConfigurado ? (
+                {loadingPlanId ? (
+                  <div className="flex items-center justify-center gap-2 py-6 text-apex-muted text-sm">
+                    <Loader2 size={16} className="animate-spin" />Preparando pago...
+                  </div>
+                ) : paypalConfigurado ? (
                   <PayPalButtons
                     style={{ layout: 'vertical', color: 'gold', shape: 'rect', label: 'subscribe' }}
                     createSubscription={(_data, actions) =>
@@ -171,7 +190,7 @@ export function ModalPago({ plan, isLoggedIn = true, onClose }: Props) {
                   <div className="text-center py-6 bg-apex-surface rounded-xl border border-apex-border">
                     <p className="text-apex-muted text-sm mb-2">PayPal no está configurado en este entorno.</p>
                     <p className="text-xs text-apex-muted">
-                      Añade NEXT_PUBLIC_PAYPAL_CLIENT_ID y NEXT_PUBLIC_PAYPAL_{plan}_PLAN_ID al entorno.
+                      Añade NEXT_PUBLIC_PAYPAL_CLIENT_ID y el Plan ID de PayPal correspondiente al entorno.
                     </p>
                   </div>
                 )}

@@ -55,6 +55,7 @@ enum TipoNotificacion {
   NUEVO_CAMPEONATO
   SUSCRIPCION_ACTIVA
   SUSCRIPCION_CANCELADA
+  NUEVO_ELITE
 }
 
 enum PlanSuscripcion {
@@ -118,6 +119,10 @@ model User {
   totalCarreras  Int       @default(0)
   totalVictorias Int       @default(0)
   totalPodios    Int       @default(0)
+
+  esFounder      Boolean   @default(false) // true si fue uno de los primeros 60 en pagar
+  fechaFounder   DateTime? // cuando se convirtió en fundador
+  descuentoMerch Int       @default(0) // % de descuento en merch según plan: 0, 10, 15 o 25
 
   accounts            Account[]
   sessions            Session[]
@@ -190,6 +195,7 @@ model Campeonato {
   modsReq         String?
   numEtapas       Int              @default(1)
   categoriaMinima PlanSuscripcion  @default(ROOKIE)
+  soloElite       Boolean          @default(false) // si true, solo usuarios con plan Elite activo pueden inscribirse
   creadoEn        DateTime         @default(now())
 
   carreras      Carrera[]
@@ -311,6 +317,8 @@ model Suscripcion {
   notasAdmin            String?
   paypalSubscriptionId  String?           @unique
   paypalOrderId         String?
+  esFounder             Boolean           @default(false) // precio fundador congelado de por vida
+  precioFounder         Float? // precio fundador original guardado (para referencia histórica)
   creadoEn              DateTime          @default(now())
   actualizadoEn         DateTime          @updatedAt
 

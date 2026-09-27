@@ -38,6 +38,13 @@ export async function POST(_: NextRequest, { params }: { params: { id: string } 
       redirectTo: '/planes',
     }, { status: 403 })
   }
+  if (camp.soloElite && suscripcion!.plan !== 'ELITE') {
+    return NextResponse.json({
+      error: 'Este campeonato es exclusivo para pilotos Elite. Mejora tu plan en /planes',
+      code: 'SOLO_ELITE',
+      redirectTo: '/planes',
+    }, { status: 403 })
+  }
   if (camp.estado === 'FINALIZADO') return NextResponse.json({ error: 'Este campeonato ya ha finalizado' }, { status: 400 })
   if (camp._count.inscripciones >= camp.maxPilotos) return NextResponse.json({ error: 'Campeonato lleno' }, { status: 400 })
 

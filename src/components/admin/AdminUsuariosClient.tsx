@@ -3,7 +3,7 @@
 import { useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import toast from 'react-hot-toast'
-import { Search, X, Save, Ban, ShieldCheck, History } from 'lucide-react'
+import { Search, X, Save, Ban, ShieldCheck, History, Trophy } from 'lucide-react'
 import { PLAN_LABELS, PLAN_COLORS, PLAN_ORDER, PLAN_PRECIOS, getPaisFlag, formatFecha, formatTimeAgo, cn } from '@/lib/utils'
 
 interface Suscripcion {
@@ -14,6 +14,7 @@ interface Suscripcion {
 interface Usuario {
   id: string; username: string; email: string; pais: string | null; role: string
   baneado: boolean; motivoBan: string | null; fechaRegistro: string
+  esFounder?: boolean
   suscripcion: Suscripcion | null
 }
 
@@ -36,6 +37,7 @@ export function AdminUsuariosClient({ usuarios: initial }: { usuarios: Usuario[]
   const [busqueda, setBusqueda] = useState('')
   const [filtroPlan, setFiltroPlan] = useState('TODOS')
   const [filtroBan, setFiltroBan] = useState(false)
+  const [filtroFounder, setFiltroFounder] = useState(false)
   const [selectedUser, setSelectedUser] = useState<Usuario | null>(null)
   const [logs, setLogs] = useState<Log[]>([])
   const [showLogs, setShowLogs] = useState(false)
@@ -51,6 +53,7 @@ export function AdminUsuariosClient({ usuarios: initial }: { usuarios: Usuario[]
   const filtrados = useMemo(() => {
     return usuarios.filter(u => {
       if (filtroBan && !u.baneado) return false
+      if (filtroFounder && !u.esFounder) return false
       if (filtroPlan !== 'TODOS' && u.suscripcion?.plan !== filtroPlan) return false
       if (busqueda) {
         const q = busqueda.toLowerCase()
@@ -58,7 +61,7 @@ export function AdminUsuariosClient({ usuarios: initial }: { usuarios: Usuario[]
       }
       return true
     })
-  }, [usuarios, busqueda, filtroPlan, filtroBan])
+  }, [usuarios, busqueda, filtroPlan, filtroBan, filtroFounder])
 
   async function abrirFicha(user: Usuario) {
     setSelectedUser(user)
@@ -98,6 +101,7 @@ export function AdminUsuariosClient({ usuarios: initial }: { usuarios: Usuario[]
   const totalActivos = usuarios.filter(u => u.suscripcion?.estado === 'ACTIVA').length
   const totalGratuitos = usuarios.filter(u => u.suscripcion?.estado === 'GRATUITA').length
   const totalBaneados = usuarios.filter(u => u.baneado).length
+  const totalFundadores = usuarios.filter(u => u.esFounder).length
   const ingresosMes = usuarios
     .filter(u => u.suscripcion?.estado === 'ACTIVA' && !u.suscripcion.esGratuita)
     .reduce((s, u) => s + (u.suscripcion?.precioMensual || 0), 0)
@@ -105,10 +109,11 @@ export function AdminUsuariosClient({ usuarios: initial }: { usuarios: Usuario[]
   return (
     <div>
       {/* Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
         {[
           { label: 'Activos', value: totalActivos, sub: `${ingresosMes}€/mes` },
           { label: 'Gratuitos', value: totalGratuitos, sub: 'Sin cobro' },
+          { label: 'Fundadores', value: `${totalFundadores}/60`, sub: 'Plazas ocupadas' },
           { label: 'Total usuarios', value: usuarios.length, sub: 'Registrados' },
           { label: 'Baneados', value: totalBaneados, sub: 'Suspendidos', red: true },
         ].map(s => (
@@ -142,6 +147,11 @@ export function AdminUsuariosClient({ usuarios: initial }: { usuarios: Usuario[]
             filtroBan ? 'bg-red-500/20 text-red-400 border-red-500/30' : 'bg-apex-card border-apex-border text-apex-muted hover:text-apex-text')}>
           <Ban size={12} />Baneados
         </button>
+        <button onClick={() => setFiltroFounder(!filtroFounder)}
+          className={cn('flex items-center gap-1 px-3 py-2 rounded-lg text-xs font-medium border transition-colors',
+            filtroFounder ? 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30' : 'bg-apex-card border-apex-border text-apex-muted hover:text-apex-text')}>
+          <Trophy size={12} />Fundadores
+        </button>
       </div>
 
       {/* Tabla */}
@@ -150,6 +160,7 @@ export function AdminUsuariosClient({ usuarios: initial }: { usuarios: Usuario[]
           <thead>
             <tr className="border-b border-apex-border text-left">
               <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-apex-muted">Usuario</th>
+              <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-apex-muted hidden sm:table-cell">Fundador</th>
               <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-apex-muted hidden sm:table-cell">Plan</th>
               <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-apex-muted hidden md:table-cell">Estado</th>
               <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-apex-muted hidden lg:table-cell">Renovación</th>
@@ -158,7 +169,7 @@ export function AdminUsuariosClient({ usuarios: initial }: { usuarios: Usuario[]
           </thead>
           <tbody className="divide-y divide-apex-border/50">
             {filtrados.length === 0 && (
-              <tr><td colSpan={5} className="px-4 py-10 text-center text-apex-muted text-sm">Sin resultados</td></tr>
+              <tr><td colSpan={6} className="px-4 py-10 text-center text-apex-muted text-sm">Sin resultados</td></tr>
             )}
             {filtrados.map(u => (
               <tr key={u.id} className={cn(u.baneado && 'opacity-60 bg-red-500/5')}>
@@ -177,6 +188,15 @@ export function AdminUsuariosClient({ usuarios: initial }: { usuarios: Usuario[]
                       <div className="text-xs text-apex-muted">{getPaisFlag(u.pais)} {u.email}</div>
                     </div>
                   </div>
+                </td>
+                <td className="px-4 py-3 hidden sm:table-cell">
+                  {u.esFounder ? (
+                    <span className="text-[10px] bg-yellow-500/20 text-yellow-400 border border-yellow-500/30 px-1.5 py-0.5 rounded-full flex items-center gap-1 w-fit">
+                      <Trophy size={10} />Fundador
+                    </span>
+                  ) : (
+                    <span className="text-xs text-apex-muted">—</span>
+                  )}
                 </td>
                 <td className="px-4 py-3 hidden sm:table-cell">
                   {u.suscripcion ? (
