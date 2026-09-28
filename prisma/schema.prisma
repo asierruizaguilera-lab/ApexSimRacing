@@ -328,15 +328,17 @@ model Suscripcion {
 }
 
 model Coche {
-  id          String          @id @default(cuid())
-  nombre      String
-  disciplina  Disciplina
-  planMinimo  PlanSuscripcion
-  descripcion String?
-  imagen      String?
-  modAC       String?
-  activo      Boolean         @default(true)
-  creadoEn    DateTime        @default(now())
+  id           String          @id @default(cuid())
+  nombre       String
+  disciplina   Disciplina
+  planMinimo   PlanSuscripcion
+  descripcion  String? // descripción con humor del coche
+  imagen       String? // legacy — usar imagenUrl
+  imagenUrl    String? // URL de imagen genérica del coche
+  linkDescarga String? // URL de Google Drive del mod
+  modAC        String?
+  activo       Boolean         @default(true)
+  creadoEn     DateTime        @default(now())
 
   desbloqueos CocheDesbloqueado[]
 

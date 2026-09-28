@@ -1,8 +1,9 @@
 'use client'
 
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { DISCIPLINA_COLORS, DISCIPLINA_LABELS, PLAN_LABELS, PLAN_COLORS, formatFechaHora, cn } from '@/lib/utils'
-import { Car, Lock, Star, Download, Flag } from 'lucide-react'
+import { Car, Lock, Star, Download, Flag, Clock, X, FolderOpen } from 'lucide-react'
 
 interface Coche {
   id: string
@@ -11,7 +12,8 @@ interface Coche {
   planMinimo: string
   descripcion: string | null
   imagen: string | null
-  modAC: string | null
+  imagenUrl: string | null
+  linkDescarga: string | null
 }
 
 interface CarreraMods {
@@ -27,6 +29,167 @@ interface Props {
 }
 
 const DISCIPLINAS_ORDER = ['CIRCUITO', 'RALLY', 'DRIFT', 'KARTCROSS', 'MONOPLAZA']
+const PLACEHOLDER = '/placeholder-car.jpg'
+
+function CocheImagen({ coche, className }: { coche: Coche; className?: string }) {
+  return (
+    <img
+      src={coche.imagenUrl || coche.imagen || PLACEHOLDER}
+      alt={coche.nombre}
+      loading="lazy"
+      width={400}
+      height={300}
+      onError={e => { if (!e.currentTarget.src.endsWith(PLACEHOLDER)) e.currentTarget.src = PLACEHOLDER }}
+      className={cn('w-full aspect-[4/3] object-cover bg-apex-surface', className)}
+    />
+  )
+}
+
+function Badges({ coche }: { coche: Coche }) {
+  return (
+    <div className="flex items-center gap-2 flex-wrap">
+      <span className={cn('text-xs px-2 py-0.5 rounded-full border', DISCIPLINA_COLORS[coche.disciplina])}>
+        {DISCIPLINA_LABELS[coche.disciplina]}
+      </span>
+      <span className={cn('text-xs px-2 py-0.5 rounded-full border', PLAN_COLORS[coche.planMinimo])}>
+        {PLAN_LABELS[coche.planMinimo]}
+      </span>
+    </div>
+  )
+}
+
+function CocheCard({ coche, onOpen }: { coche: Coche; onOpen: () => void }) {
+  const [expandida, setExpandida] = useState(false)
+  const larga = (coche.descripcion?.length ?? 0) > 90
+
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={onOpen}
+      onKeyDown={e => { if (e.key === 'Enter') onOpen() }}
+      className="bg-apex-card border border-apex-border rounded-xl overflow-hidden hover:border-apex-red/30 transition-all group cursor-pointer flex flex-col"
+    >
+      <div className="overflow-hidden">
+        <CocheImagen coche={coche} className="group-hover:scale-[1.03] transition-transform duration-300" />
+      </div>
+
+      <div className="p-4 flex flex-col flex-1">
+        <h3 className="font-bold text-lg leading-tight mb-2 group-hover:text-apex-red transition-colors">
+          {coche.nombre}
+        </h3>
+        <div className="mb-3"><Badges coche={coche} /></div>
+
+        {coche.descripcion && (
+          <div className="mb-4">
+            <p className={cn('text-sm text-apex-muted italic', !expandida && 'line-clamp-2')}>{coche.descripcion}</p>
+            {larga && (
+              <button
+                type="button"
+                onClick={e => { e.stopPropagation(); setExpandida(v => !v) }}
+                className="text-xs text-apex-red hover:underline mt-1"
+              >
+                {expandida ? 'ver menos' : 'ver más'}
+              </button>
+            )}
+          </div>
+        )}
+
+        <div className="mt-auto">
+          {coche.linkDescarga ? (
+            <a
+              href={coche.linkDescarga}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={e => e.stopPropagation()}
+              className="flex items-center justify-center gap-2 w-full px-3 py-2 bg-apex-red hover:bg-apex-red-dark text-white rounded-lg text-sm font-semibold transition-colors"
+            >
+              <Download size={14} />Descargar mod
+            </a>
+          ) : (
+            <button
+              type="button"
+              disabled
+              className="flex items-center justify-center gap-2 w-full px-3 py-2 bg-apex-surface border border-apex-border text-apex-muted rounded-lg text-sm font-semibold cursor-not-allowed opacity-70"
+            >
+              <Clock size={14} />Próximamente
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function CocheModal({ coche, onClose }: { coche: Coche; onClose: () => void }) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    document.addEventListener('keydown', onKey)
+    const overflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => { document.removeEventListener('keydown', onKey); document.body.style.overflow = overflow }
+  }, [onClose])
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm" onClick={onClose}>
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={coche.nombre}
+        onClick={e => e.stopPropagation()}
+        className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto bg-apex-card border border-apex-border rounded-2xl shadow-2xl"
+      >
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Cerrar"
+          className="absolute top-3 right-3 z-10 p-2 rounded-full bg-black/60 text-white hover:bg-black/80 transition-colors"
+        >
+          <X size={18} />
+        </button>
+
+        <CocheImagen coche={coche} className="rounded-t-2xl" />
+
+        <div className="p-6 space-y-5">
+          <div>
+            <h2 className="text-2xl font-bold mb-3">{coche.nombre}</h2>
+            <Badges coche={coche} />
+          </div>
+
+          {coche.descripcion && (
+            <p className="text-apex-muted italic leading-relaxed">{coche.descripcion}</p>
+          )}
+
+          <div className="bg-apex-surface border border-apex-border rounded-xl p-4">
+            <div className="flex items-center gap-2 text-sm font-semibold mb-1">
+              <FolderOpen size={15} className="text-apex-red" />Instalación
+            </div>
+            <p className="text-sm text-apex-muted">
+              Descarga el mod, extrae el contenido en la carpeta{' '}
+              <code className="text-apex-text bg-apex-card px-1.5 py-0.5 rounded text-xs">assettocorsa/content/cars/</code>{' '}
+              y reinicia el juego.
+            </p>
+          </div>
+
+          {coche.linkDescarga ? (
+            <a
+              href={coche.linkDescarga}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center justify-center gap-2 w-full px-6 py-3.5 bg-apex-red hover:bg-apex-red-dark text-white rounded-xl font-bold transition-colors"
+            >
+              <Download size={18} />Descargar mod de Google Drive
+            </a>
+          ) : (
+            <div className="flex items-center justify-center gap-2 w-full px-6 py-3.5 bg-apex-surface border border-apex-border text-apex-muted rounded-xl text-sm text-center">
+              <Clock size={16} className="shrink-0" />El mod de este coche estará disponible próximamente.
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
 
 function ModsCarrerasSection({ carreras }: { carreras: CarreraMods[] }) {
   if (carreras.length === 0) return null
@@ -69,6 +232,8 @@ function ModsCarrerasSection({ carreras }: { carreras: CarreraMods[] }) {
 }
 
 export function GarajeClient({ coches, suscripcionActual, carrerasConMods = [] }: Props) {
+  const [seleccionado, setSeleccionado] = useState<Coche | null>(null)
+
   if (!suscripcionActual) {
     return (
       <div className="flex flex-col items-center justify-center py-20 text-center">
@@ -139,39 +304,13 @@ export function GarajeClient({ coches, suscripcionActual, carrerasConMods = [] }
           </div>
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {lista.map(coche => (
-              <div key={coche.id} className="bg-apex-card border border-apex-border rounded-xl p-4 hover:border-apex-red/30 transition-all group">
-                {/* Imagen placeholder */}
-                <div className="w-full h-28 bg-apex-surface rounded-lg mb-3 flex items-center justify-center overflow-hidden">
-                  {coche.imagen ? (
-                    <img src={coche.imagen} alt={coche.nombre} className="w-full h-full object-cover" />
-                  ) : (
-                    <Car size={36} className="text-apex-border" />
-                  )}
-                </div>
-
-                <h3 className="font-semibold text-sm mb-1 group-hover:text-apex-red transition-colors">
-                  {coche.nombre}
-                </h3>
-
-                {coche.descripcion && (
-                  <p className="text-xs text-apex-muted mb-2 line-clamp-2">{coche.descripcion}</p>
-                )}
-
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className={cn('text-xs px-1.5 py-0.5 rounded-full border', PLAN_COLORS[coche.planMinimo])}>
-                    {PLAN_LABELS[coche.planMinimo]}
-                  </span>
-                  {coche.modAC && (
-                    <span className="text-xs text-apex-muted bg-apex-surface px-2 py-0.5 rounded-full truncate max-w-[120px]" title={coche.modAC}>
-                      AC: {coche.modAC}
-                    </span>
-                  )}
-                </div>
-              </div>
+              <CocheCard key={coche.id} coche={coche} onOpen={() => setSeleccionado(coche)} />
             ))}
           </div>
         </div>
       ))}
+
+      {seleccionado && <CocheModal coche={seleccionado} onClose={() => setSeleccionado(null)} />}
     </div>
   )
 }

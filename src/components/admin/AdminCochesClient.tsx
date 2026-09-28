@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import toast from 'react-hot-toast'
-import { Plus, Trash2, Edit2, Save, X } from 'lucide-react'
+import { Plus, Trash2, Edit2, Save, X, Download } from 'lucide-react'
 import { DISCIPLINA_COLORS, DISCIPLINA_LABELS, PLAN_COLORS, PLAN_LABELS, cn } from '@/lib/utils'
 
 const DISCIPLINAS = ['CIRCUITO', 'RALLY', 'DRIFT', 'KARTCROSS', 'MONOPLAZA']
@@ -12,13 +12,16 @@ const PLANES = ['ROOKIE', 'AMATEUR', 'PRO', 'ELITE']
 interface Coche {
   id: string; nombre: string; disciplina: string; planMinimo: string
   descripcion: string | null; modAC: string | null; activo: boolean
+  linkDescarga: string | null; imagenUrl: string | null
   _count?: { desbloqueos: number }
 }
 
 const EMPTY: Omit<Coche, 'id' | '_count'> = {
   nombre: '', disciplina: 'CIRCUITO', planMinimo: 'ROOKIE',
-  descripcion: '', modAC: '', activo: true,
+  descripcion: '', modAC: '', activo: true, linkDescarga: '', imagenUrl: '',
 }
+
+const PLACEHOLDER = '/placeholder-car.jpg'
 
 export function AdminCochesClient({ coches: initial }: { coches: Coche[] }) {
   const router = useRouter()
@@ -40,7 +43,7 @@ export function AdminCochesClient({ coches: initial }: { coches: Coche[] }) {
 
   function startEdit(coche: Coche) {
     setEditingId(coche.id)
-    setForm({ nombre: coche.nombre, disciplina: coche.disciplina, planMinimo: coche.planMinimo, descripcion: coche.descripcion || '', modAC: coche.modAC || '', activo: coche.activo })
+    setForm({ nombre: coche.nombre, disciplina: coche.disciplina, planMinimo: coche.planMinimo, descripcion: coche.descripcion || '', modAC: coche.modAC || '', activo: coche.activo, linkDescarga: coche.linkDescarga || '', imagenUrl: coche.imagenUrl || '' })
     setShowForm(false)
   }
 
@@ -73,7 +76,8 @@ export function AdminCochesClient({ coches: initial }: { coches: Coche[] }) {
   const InputClass = 'w-full bg-apex-surface border border-apex-border rounded-lg px-3 py-2 text-sm focus:border-apex-red focus:outline-none'
   const LabelClass = 'block text-xs font-medium text-apex-muted mb-1'
 
-  const FormCoches = () => (
+  // Se invoca como función (no como <Componente />) para que los inputs no pierdan el foco en cada render
+  const renderForm = () => (
     <form onSubmit={guardar} className="bg-apex-card border border-apex-border rounded-xl p-5 mb-6">
       <h3 className="font-semibold mb-4">{editingId ? 'Editar Coche' : 'Nuevo Coche'}</h3>
       <div className="grid sm:grid-cols-2 gap-3">
@@ -89,7 +93,18 @@ export function AdminCochesClient({ coches: initial }: { coches: Coche[] }) {
           </select>
         </div>
         <div><label className={LabelClass}>Mod AC (nombre)</label><input type="text" value={form.modAC || ''} onChange={set('modAC')} placeholder="kunos_porsche_911_gt3_r" className={InputClass} /></div>
-        <div className="sm:col-span-2"><label className={LabelClass}>Descripción</label><input type="text" value={form.descripcion || ''} onChange={set('descripcion')} placeholder="Descripción breve del coche" className={InputClass} /></div>
+        <div className="sm:col-span-2"><label className={LabelClass}>Link de descarga (Google Drive)</label><input type="url" value={form.linkDescarga || ''} onChange={set('linkDescarga')} placeholder="https://drive.google.com/drive/folders/..." className={InputClass} /></div>
+        <div className="sm:col-span-2"><label className={LabelClass}>Descripción</label><textarea value={form.descripcion || ''} onChange={set('descripcion')} rows={3} placeholder="Descripción con humor del coche" className={cn(InputClass, 'resize-y')} /></div>
+        <div className="sm:col-span-2 grid sm:grid-cols-[1fr_160px] gap-3 items-start">
+          <div><label className={LabelClass}>URL de imagen</label><input type="url" value={form.imagenUrl || ''} onChange={set('imagenUrl')} placeholder="https://commons.wikimedia.org/wiki/Special:FilePath/...?width=400" className={InputClass} />
+            <p className="text-[11px] text-apex-muted mt-1">Vacío = placeholder APEX</p>
+          </div>
+          <div className="aspect-[4/3] bg-apex-surface border border-apex-border rounded-lg overflow-hidden">
+            <img key={form.imagenUrl || 'ph'} src={form.imagenUrl || PLACEHOLDER} alt="Preview"
+              onError={e => { if (!e.currentTarget.src.endsWith(PLACEHOLDER)) e.currentTarget.src = PLACEHOLDER }}
+              className="w-full h-full object-cover" />
+          </div>
+        </div>
       </div>
       <div className="flex justify-end gap-2 mt-4">
         <button type="button" onClick={() => { setShowForm(false); setEditingId(null); setForm({ ...EMPTY }) }}
@@ -128,7 +143,7 @@ export function AdminCochesClient({ coches: initial }: { coches: Coche[] }) {
         </button>
       </div>
 
-      {(showForm || editingId) && <FormCoches />}
+      {(showForm || editingId) && renderForm()}
 
       <div className="bg-apex-card border border-apex-border rounded-xl overflow-hidden">
         <table className="w-full">
@@ -148,8 +163,17 @@ export function AdminCochesClient({ coches: initial }: { coches: Coche[] }) {
             {filtrados.map(c => (
               <tr key={c.id} className={cn(!c.activo && 'opacity-50')}>
                 <td className="px-4 py-3">
-                  <div className="font-medium text-sm">{c.nombre}</div>
-                  {c.modAC && <div className="text-xs text-apex-muted font-mono">{c.modAC}</div>}
+                  <div className="flex items-center gap-3">
+                    <img src={c.imagenUrl || PLACEHOLDER} alt=""
+                      onError={e => { if (!e.currentTarget.src.endsWith(PLACEHOLDER)) e.currentTarget.src = PLACEHOLDER }}
+                      className="w-14 h-10 rounded object-cover bg-apex-surface shrink-0 hidden sm:block" />
+                    <div className="min-w-0">
+                      <div className="font-medium text-sm">{c.nombre}</div>
+                      {c.linkDescarga
+                        ? <a href={c.linkDescarga} target="_blank" rel="noopener noreferrer" className="text-xs text-green-400 hover:underline inline-flex items-center gap-1"><Download size={10} />Link de descarga</a>
+                        : <div className="text-xs text-apex-muted">Sin link · Próximamente</div>}
+                    </div>
+                  </div>
                 </td>
                 <td className="px-4 py-3 hidden sm:table-cell">
                   <span className={cn('text-xs px-2 py-0.5 rounded-full border', DISCIPLINA_COLORS[c.disciplina])}>

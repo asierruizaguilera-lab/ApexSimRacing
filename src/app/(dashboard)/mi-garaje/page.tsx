@@ -21,7 +21,7 @@ export default async function MiGarajePage() {
           where: { userId: session.user.id },
           include: {
             coche: {
-              select: { id: true, nombre: true, disciplina: true, planMinimo: true, descripcion: true, imagen: true, modAC: true },
+              select: { id: true, nombre: true, disciplina: true, planMinimo: true, descripcion: true, imagen: true, imagenUrl: true, linkDescarga: true },
             },
           },
           orderBy: { creadoEn: 'asc' },
