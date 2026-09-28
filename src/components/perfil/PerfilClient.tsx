@@ -7,6 +7,7 @@ import { formatFecha, getPaisFlag, getPaisNombre, getPositionColor, DISCIPLINA_C
 import { Trophy, Flag, Calendar, Target, TrendingUp, Star, Edit2, Camera, X, Check, CreditCard } from 'lucide-react'
 import Link from 'next/link'
 import toast from 'react-hot-toast'
+import { CambiarPassword } from './CambiarPassword'
 
 interface Badge {
   id: string; icon: string; label: string; desc: string; unlocked: boolean
@@ -339,6 +340,9 @@ export function PerfilClient({ piloto: initialPiloto, rankingGlobal, chartData, 
           </div>
         </div>
       )}
+
+      {/* Cambio de contraseña — solo en tu propio perfil, dentro del modo edición */}
+      {editing && isOwn && <CambiarPassword />}
 
       {/* Gráfica puntos */}
       {chartData.length > 0 && (
