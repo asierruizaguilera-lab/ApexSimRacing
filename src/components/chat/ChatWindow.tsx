@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { io, Socket } from 'socket.io-client'
 import toast from 'react-hot-toast'
-import { Send, Hash, Users, Shield, Trash2 } from 'lucide-react'
+import { Send, Hash, Users, Shield, Trash2, Flag, Ban } from 'lucide-react'
 import { formatTimeAgo, cn } from '@/lib/utils'
 
 type Canal = 'GENERAL' | 'RALLY' | 'CIRCUITO' | 'DRIFT' | 'ANUNCIOS'
@@ -32,9 +32,15 @@ const CANALES: { id: Canal; label: string; icon: string }[] = [
 interface Props {
   initialMessages: Mensaje[]
   currentUser: { id: string; username: string; role: string } | null
+  bloqueadoHastaInicial?: string | null
 }
 
-export function ChatWindow({ initialMessages, currentUser }: Props) {
+function formatCuentaAtras(ms: number) {
+  const total = Math.max(0, Math.ceil(ms / 1000))
+  return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`
+}
+
+export function ChatWindow({ initialMessages, currentUser, bloqueadoHastaInicial = null }: Props) {
   const [canal, setCanal] = useState<Canal>('GENERAL')
   const [mensajes, setMensajes] = useState<Mensaje[]>(initialMessages)
   const [texto, setTexto] = useState('')
@@ -42,11 +48,31 @@ export function ChatWindow({ initialMessages, currentUser }: Props) {
   const [typing, setTyping] = useState('')
   const [socket, setSocket] = useState<Socket | null>(null)
   const [sending, setSending] = useState(false)
+  const [bloqueadoHasta, setBloqueadoHasta] = useState<number | null>(
+    bloqueadoHastaInicial ? new Date(bloqueadoHastaInicial).getTime() : null
+  )
+  const [ahora, setAhora] = useState(() => Date.now())
+  const [confirmarReporte, setConfirmarReporte] = useState<string | null>(null)
+  const [reportados, setReportados] = useState<Set<string>>(new Set())
   const bottomRef = useRef<HTMLDivElement>(null)
   const typingTimer = useRef<NodeJS.Timeout>()
   const isAdmin = currentUser?.role === 'ADMIN'
   const esAnuncios = canal === 'ANUNCIOS'
   const puedeEscribir = currentUser && (!esAnuncios || isAdmin)
+  const restanteBloqueo = bloqueadoHasta ? bloqueadoHasta - ahora : 0
+  const bloqueado = restanteBloqueo > 0
+
+  // Contador del bloqueo anti-spam
+  useEffect(() => {
+    if (!bloqueadoHasta) return
+    setAhora(Date.now())
+    const t = setInterval(() => {
+      const n = Date.now()
+      setAhora(n)
+      if (n >= bloqueadoHasta) { setBloqueadoHasta(null); clearInterval(t) }
+    }, 1000)
+    return () => clearInterval(t)
+  }, [bloqueadoHasta])
 
   // Conectar socket
   useEffect(() => {
@@ -92,7 +118,7 @@ export function ChatWindow({ initialMessages, currentUser }: Props) {
 
   async function enviar(e: React.FormEvent) {
     e.preventDefault()
-    if (!texto.trim() || !currentUser || !puedeEscribir) return
+    if (!texto.trim() || !currentUser || !puedeEscribir || bloqueado) return
     setSending(true)
 
     try {
@@ -101,12 +127,21 @@ export function ChatWindow({ initialMessages, currentUser }: Props) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ contenido: texto.trim(), canal }),
       })
-      const msg = await res.json()
-      if (!res.ok) { toast.error(msg.error || 'Error'); return }
+      const data = await res.json()
+      if (res.status === 429 && data.bloqueadoHasta) {
+        setBloqueadoHasta(new Date(data.bloqueadoHasta).getTime())
+        return
+      }
+      if (!res.ok) { toast.error(data.error || 'Error'); return }
 
-      // Emitir por socket para tiempo real
-      socket?.emit('chat:message', msg)
+      // El servidor difunde el mensaje por socket; lo añadimos ya por si el socket va con retraso
+      const msg: Mensaje = data.mensaje
+      setMensajes(prev => prev.some(m => m.id === msg.id) ? prev : [...prev, msg])
       setTexto('')
+      if (data.bloqueadoHasta) {
+        setBloqueadoHasta(new Date(data.bloqueadoHasta).getTime())
+        toast.error('Demasiados mensajes seguidos: chat bloqueado 5 minutos')
+      }
     } catch {
       toast.error('Error de conexión')
     } finally {
@@ -117,6 +152,19 @@ export function ChatWindow({ initialMessages, currentUser }: Props) {
   function handleTyping() {
     if (socket && currentUser) {
       socket.emit('chat:typing', { canal, username: currentUser.username })
+    }
+  }
+
+  async function reportarMensaje(id: string) {
+    setConfirmarReporte(null)
+    try {
+      const res = await fetch(`/api/chat/messages/${id}/reportar`, { method: 'POST' })
+      const data = await res.json()
+      if (res.ok || res.status === 409) setReportados(prev => new Set(prev).add(id))
+      if (res.ok) toast.success('Mensaje reportado. Los admins lo revisarán.')
+      else toast.error(data.error || 'Error al reportar')
+    } catch {
+      toast.error('Error de conexión')
     }
   }
 
@@ -217,8 +265,29 @@ export function ChatWindow({ initialMessages, currentUser }: Props) {
                   )}
                   <div className="flex items-start gap-2">
                     <p className="text-sm text-apex-text/90 leading-relaxed break-words">{m.contenido}</p>
+                    {currentUser && !isOwn && (
+                      reportados.has(m.id) ? (
+                        <span className="text-[10px] text-apex-muted flex-shrink-0 mt-0.5">Reportado</span>
+                      ) : confirmarReporte === m.id ? (
+                        <span className="flex items-center gap-1 flex-shrink-0">
+                          <button onClick={() => reportarMensaje(m.id)}
+                            className="text-[10px] px-1.5 py-0.5 rounded bg-red-500/20 text-red-400 border border-red-500/30 hover:bg-red-500/30">
+                            Reportar
+                          </button>
+                          <button onClick={() => setConfirmarReporte(null)}
+                            className="text-[10px] px-1.5 py-0.5 rounded text-apex-muted hover:text-apex-text">
+                            Cancelar
+                          </button>
+                        </span>
+                      ) : (
+                        <button onClick={() => setConfirmarReporte(m.id)} title="Reportar mensaje"
+                          className="opacity-0 group-hover:opacity-100 focus:opacity-100 text-apex-muted hover:text-orange-400 transition-all flex-shrink-0 mt-0.5">
+                          <Flag size={13} />
+                        </button>
+                      )
+                    )}
                     {isAdmin && !isOwn && (
-                      <button onClick={() => eliminarMensaje(m.id)}
+                      <button onClick={() => eliminarMensaje(m.id)} title="Eliminar mensaje"
                         className="opacity-0 group-hover:opacity-100 text-apex-muted hover:text-red-400 transition-all flex-shrink-0 mt-0.5">
                         <Trash2 size={13} />
                       </button>
@@ -245,6 +314,14 @@ export function ChatWindow({ initialMessages, currentUser }: Props) {
           ) : !puedeEscribir ? (
             <div className="text-center text-apex-muted text-sm py-2">
               Solo los administradores pueden escribir en #anuncios
+            </div>
+          ) : bloqueado ? (
+            <div role="status" className="flex items-center justify-center gap-2 text-sm py-2 px-3 bg-red-500/10 border border-red-500/30 text-red-400 rounded-lg">
+              <Ban size={15} className="flex-shrink-0" />
+              <span>
+                Has enviado demasiados mensajes seguidos. Podrás volver a escribir en{' '}
+                <span className="font-mono font-bold tabular-nums">{formatCuentaAtras(restanteBloqueo)}</span>
+              </span>
             </div>
           ) : (
             <form onSubmit={enviar} className="flex gap-2">

@@ -3,7 +3,7 @@ const { parse } = require('url')
 const next = require('next')
 const { Server } = require('socket.io')
 const cron = require('node-cron')
-const { execSync } = require('child_process')
+const { execSync, execFileSync } = require('child_process')
 
 const dev = process.env.NODE_ENV !== 'production'
 const hostname = '0.0.0.0'
@@ -47,13 +47,35 @@ async function runSeedOnStartIfRequested() {
   }
 }
 
+// Migración opcional del enum Simulador: si RUN_MIGRATION_SIMULADOR=true, pasa a ASSETTO_CORSA
+// los campeonatos con otro simulador. Se ejecuta ANTES del seed (que elimina la columna) y es
+// best-effort: un fallo se loguea pero no impide arrancar.
+async function runMigrationSimuladorIfRequested() {
+  if (process.env.RUN_MIGRATION_SIMULADOR !== 'true') return
+
+  console.log('[BOOT] RUN_MIGRATION_SIMULADOR=true — ejecutando scripts/migrate-simulador.ts...')
+  try {
+    // Se invoca ts-node con un array de argumentos (sin shell) para que el JSON llegue intacto en Linux y Windows
+    execFileSync(
+      process.execPath,
+      [require.resolve('ts-node/dist/bin.js'), '--compiler-options', '{"module":"CommonJS"}', 'scripts/migrate-simulador.ts'],
+      { stdio: 'inherit' }
+    )
+    console.log('[BOOT] ✅ Migración simulador completada')
+  } catch (err) {
+    console.error('[BOOT] ❌ Error en migración simulador:', err.message)
+  }
+}
+
 const app = next({ dev, hostname, port })
 const handle = app.getRequestHandler()
 
 // Mapa de usuarios conectados: socketId -> { userId, username, canal }
 const usuariosConectados = new Map()
 
-runSeedOnStartIfRequested().then(() => app.prepare()).then(() => {
+runMigrationSimuladorIfRequested()
+  .then(() => runSeedOnStartIfRequested())
+  .then(() => app.prepare()).then(() => {
   const httpServer = createServer(async (req, res) => {
     try {
       const parsedUrl = parse(req.url, true)
@@ -100,17 +122,8 @@ runSeedOnStartIfRequested().then(() => app.prepare()).then(() => {
       }
     })
 
-    // Nuevo mensaje de chat
-    socket.on('chat:message', (mensaje) => {
-      const userData = usuariosConectados.get(socket.id)
-      if (!userData) return
-
-      // Emitir al canal correspondiente
-      io.to(mensaje.canal || 'GENERAL').emit('chat:message', {
-        ...mensaje,
-        socketId: socket.id,
-      })
-    })
+    // Los mensajes de chat NO se reenvían desde el cliente: /api/chat/messages los guarda,
+    // aplica el anti-spam y los difunde con global.io. Así nadie puede saltarse el límite por socket.
 
     // Typing indicator
     socket.on('chat:typing', ({ canal, username }) => {

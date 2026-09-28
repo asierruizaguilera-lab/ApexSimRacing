@@ -2,6 +2,7 @@ import { prisma } from '@/lib/prisma'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { ChatWindow } from '@/components/chat/ChatWindow'
+import { bloqueoSpamHasta } from '@/lib/chatSpam'
 
 export const metadata = { title: 'Chat de Comunidad' }
 
@@ -18,6 +19,11 @@ export default async function ChatPage() {
     },
   })
 
+  // Si el usuario recarga la página durante un bloqueo anti-spam, el contador sigue visible
+  const bloqueadoHasta = session?.user && session.user.role !== 'ADMIN'
+    ? await bloqueoSpamHasta(session.user.id)
+    : null
+
   return (
     <div className="h-[calc(100vh-120px)]">
       <ChatWindow
@@ -30,6 +36,7 @@ export default async function ChatPage() {
           username: session.user.username || session.user.name || '',
           role: session.user.role,
         } : null}
+        bloqueadoHastaInicial={bloqueadoHasta?.toISOString() ?? null}
       />
     </div>
   )

@@ -40,14 +40,7 @@ npm run db:push
 npm run db:seed
 ```
 
-## 4. Discord OAuth (opcional)
-
-1. Ve a https://discord.com/developers/applications
-2. Crea una nueva aplicación
-3. En OAuth2 → Redirects, añade: `http://localhost:3000/api/auth/callback/discord`
-4. Copia Client ID y Client Secret a `.env.local`
-
-## 5. Arrancar en desarrollo
+## 4. Arrancar en desarrollo
 
 ```bash
 npm run dev
@@ -68,5 +61,5 @@ Abre http://localhost:3000
 1. `railway login` y `railway new`
 2. Conecta el repositorio GitHub
 3. Añade PostgreSQL al proyecto
-4. Añade las variables de entorno (NEXTAUTH_SECRET, DISCORD_*)
+4. Añade las variables de entorno (NEXTAUTH_SECRET, PayPal, etc.)
 5. Railway usa `npm run start` (node server.js) automáticamente
