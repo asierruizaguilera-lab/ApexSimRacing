@@ -15,6 +15,7 @@
     "fix:patrocinadores": "npx ts-node --compiler-options {\"module\":\"CommonJS\"} scripts/fix-patrocinadores-ubicaciones.ts",
     "update:cars": "npx ts-node --compiler-options {\"module\":\"CommonJS\"} scripts/update-cars.ts",
     "migrate:simulador": "npx ts-node --compiler-options {\"module\":\"CommonJS\"} scripts/migrate-simulador.ts",
+    "migrate:canal-drift": "npx ts-node --compiler-options {\"module\":\"CommonJS\"} scripts/migrate-canal-drift.ts",
     "recalc:stats": "npx ts-node --compiler-options {\"module\":\"CommonJS\"} scripts/recalcular-stats-individuales.ts"
   },
   "dependencies": {

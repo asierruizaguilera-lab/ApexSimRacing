@@ -33,6 +33,18 @@ async function runSeedOnStartIfRequested() {
     console.error('[BOOT] ❌ Error eliminando columna simulador (no crítico si la tabla aún no existe):', err.message)
   }
 
+  // El canal de chat DRIFT se eliminó del enum CanalChat. Se borran sus mensajes y se recrea el
+  // enum ANTES de `db push` por el mismo motivo (idempotente: no-op si DRIFT ya no existe).
+  try {
+    execFileSync(
+      process.execPath,
+      [require.resolve('ts-node/dist/bin.js'), '--compiler-options', '{"module":"CommonJS"}', 'scripts/migrate-canal-drift.ts'],
+      { stdio: 'inherit' }
+    )
+  } catch (err) {
+    console.error('[BOOT] ❌ Error en la migración del canal DRIFT:', err.message)
+  }
+
   try {
     execSync('npx prisma db push --skip-generate', { stdio: 'inherit' })
     console.log('[BOOT] ✅ prisma db push completado')

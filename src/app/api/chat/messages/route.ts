@@ -4,7 +4,7 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { bloqueoSpamHasta } from '@/lib/chatSpam'
 
-const CANALES = ['GENERAL', 'RALLY', 'CIRCUITO', 'DRIFT', 'ANUNCIOS']
+const CANALES = ['GENERAL', 'RALLY', 'CIRCUITO', 'ANUNCIOS']
 const USER_SELECT = { id: true, username: true, avatar: true, role: true, esFounder: true, suscripcion: { select: { plan: true, estado: true } } }
 
 export async function GET(req: NextRequest) {

@@ -43,7 +43,6 @@ enum CanalChat {
   GENERAL
   RALLY
   CIRCUITO
-  DRIFT
   ANUNCIOS
 }
 

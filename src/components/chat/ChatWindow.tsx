@@ -6,7 +6,7 @@ import toast from 'react-hot-toast'
 import { Send, Hash, Users, Shield, Trash2, Flag, Ban } from 'lucide-react'
 import { formatTimeAgo, cn } from '@/lib/utils'
 
-type Canal = 'GENERAL' | 'RALLY' | 'CIRCUITO' | 'DRIFT' | 'ANUNCIOS'
+type Canal = 'GENERAL' | 'RALLY' | 'CIRCUITO' | 'ANUNCIOS'
 
 interface User {
   id: string; username: string; avatar: string | null; role: string
@@ -25,7 +25,6 @@ const CANALES: { id: Canal; label: string; icon: string }[] = [
   { id: 'GENERAL', label: 'general', icon: '💬' },
   { id: 'RALLY', label: 'rally', icon: '🪨' },
   { id: 'CIRCUITO', label: 'circuito', icon: '🏎️' },
-  { id: 'DRIFT', label: 'drift', icon: '💨' },
   { id: 'ANUNCIOS', label: 'anuncios', icon: '📢' },
 ]
 
