@@ -4,7 +4,7 @@ import { redirect } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
 import Link from 'next/link'
 import { Users, Trophy, Calendar, MessageSquare, Plus, ChevronRight, Award } from 'lucide-react'
-import { formatFecha, DISCIPLINA_LABELS, DISCIPLINA_COLORS, cn } from '@/lib/utils'
+import { formatFecha, DISCIPLINA_LABELS, DISCIPLINA_COLORS, TOTAL_PLAZAS_FOUNDER, cn } from '@/lib/utils'
 
 export const metadata = { title: 'Panel Admin' }
 
@@ -41,7 +41,7 @@ export default async function AdminPage() {
 
   const stats = [
     { label: 'Total Pilotos', value: totalUsuarios, icon: Users, color: 'text-blue-400', bg: 'bg-blue-400/10' },
-    { label: 'Plazas Fundadoras', value: `${totalFundadores}/60`, icon: Award, color: 'text-yellow-400', bg: 'bg-yellow-400/10' },
+    { label: 'Plazas Fundadoras', value: `${totalFundadores}/${TOTAL_PLAZAS_FOUNDER}`, icon: Award, color: 'text-yellow-400', bg: 'bg-yellow-400/10' },
     { label: 'Campeonatos Activos', value: campeonatosActivos, icon: Trophy, color: 'text-apex-red', bg: 'bg-apex-red/10' },
     { label: 'Carreras este Mes', value: carrerasEsteMes, icon: Calendar, color: 'text-green-400', bg: 'bg-green-400/10' },
     { label: 'Mensajes en Chat', value: totalMensajes, icon: MessageSquare, color: 'text-purple-400', bg: 'bg-purple-400/10' },

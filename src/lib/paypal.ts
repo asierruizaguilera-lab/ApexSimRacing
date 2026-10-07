@@ -5,7 +5,7 @@ export const PAYPAL_BASE = process.env.PAYPAL_MODE === 'sandbox'
   ? 'https://api-m.sandbox.paypal.com'
   : 'https://api-m.paypal.com'
 
-// Planes "Normales" — se usan cuando ya se ocuparon las 60 plazas fundadoras.
+// Planes "Normales" — se usan cuando ya se ocuparon las 30 plazas fundadoras.
 // Variable oficial: NEXT_PUBLIC_PAYPAL_<PLAN>_NEW_PLAN_ID. Los nombres antiguos
 // (PAYPAL_PLAN_<PLAN> y NEXT_PUBLIC_PAYPAL_<PLAN>_PLAN_ID) se aceptan solo como respaldo.
 export const PAYPAL_PLAN_IDS: Record<string, string> = {
@@ -15,7 +15,7 @@ export const PAYPAL_PLAN_IDS: Record<string, string> = {
   ELITE: process.env.NEXT_PUBLIC_PAYPAL_ELITE_NEW_PLAN_ID || process.env.PAYPAL_PLAN_ELITE || process.env.NEXT_PUBLIC_PAYPAL_ELITE_PLAN_ID || '',
 }
 
-// Planes "Fundador" — precios congelados de por vida para los primeros 60 pagadores
+// Planes "Fundador" — precios congelados de por vida para los primeros 30 pagadores
 export const PAYPAL_FOUNDER_PLAN_IDS: Record<string, string> = {
   ROOKIE: process.env.NEXT_PUBLIC_PAYPAL_ROOKIE_FOUNDER_PLAN_ID || '',
   AMATEUR: process.env.NEXT_PUBLIC_PAYPAL_AMATEUR_FOUNDER_PLAN_ID || '',

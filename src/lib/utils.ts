@@ -144,7 +144,7 @@ export const PLAN_LABELS: Record<string, string> = {
   ELITE: 'Elite',
 }
 
-// Precios Fundador (primeros 60 pagadores) — congelados de por vida
+// Precios Fundador (primeros 30 pagadores) — congelados de por vida
 export const PLAN_PRECIOS: Record<string, number> = {
   ROOKIE: 5,
   AMATEUR: 10,
@@ -152,7 +152,7 @@ export const PLAN_PRECIOS: Record<string, number> = {
   ELITE: 25,
 }
 
-// Precios Normales — se aplican a todos los registros una vez se ocupan las 60 plazas fundadoras
+// Precios Normales — se aplican a todos los registros una vez se ocupan las 30 plazas fundadoras
 export const PLAN_PRECIOS_NORMAL: Record<string, number> = {
   ROOKIE: 7,
   AMATEUR: 12,
@@ -160,7 +160,7 @@ export const PLAN_PRECIOS_NORMAL: Record<string, number> = {
   ELITE: 30,
 }
 
-export const TOTAL_PLAZAS_FOUNDER = 60
+export const TOTAL_PLAZAS_FOUNDER = 30
 
 // % de descuento en merch según el plan activo (0 = sin plan/Rookie)
 export const DESCUENTO_MERCH_POR_PLAN: Record<string, number> = {

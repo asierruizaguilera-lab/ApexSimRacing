@@ -4,7 +4,7 @@ import { useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import toast from 'react-hot-toast'
 import { Search, X, Save, Ban, ShieldCheck, History, Trophy } from 'lucide-react'
-import { PLAN_LABELS, PLAN_COLORS, PLAN_ORDER, PLAN_PRECIOS, getPaisFlag, formatFecha, formatTimeAgo, cn } from '@/lib/utils'
+import { PLAN_LABELS, PLAN_COLORS, PLAN_ORDER, PLAN_PRECIOS, getPaisFlag, formatFecha, formatTimeAgo, TOTAL_PLAZAS_FOUNDER, cn } from '@/lib/utils'
 
 interface Suscripcion {
   id: string; plan: string; estado: string; precioMensual: number; esGratuita: boolean
@@ -113,7 +113,7 @@ export function AdminUsuariosClient({ usuarios: initial }: { usuarios: Usuario[]
         {[
           { label: 'Activos', value: totalActivos, sub: `${ingresosMes}€/mes` },
           { label: 'Gratuitos', value: totalGratuitos, sub: 'Sin cobro' },
-          { label: 'Fundadores', value: `${totalFundadores}/60`, sub: 'Plazas ocupadas' },
+          { label: 'Fundadores', value: `${totalFundadores}/${TOTAL_PLAZAS_FOUNDER}`, sub: 'Plazas ocupadas' },
           { label: 'Total usuarios', value: usuarios.length, sub: 'Registrados' },
           { label: 'Baneados', value: totalBaneados, sub: 'Suspendidos', red: true },
         ].map(s => (

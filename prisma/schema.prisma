@@ -120,7 +120,7 @@ model User {
   totalVictorias Int       @default(0)
   totalPodios    Int       @default(0)
 
-  esFounder      Boolean   @default(false) // true si fue uno de los primeros 60 en pagar
+  esFounder      Boolean   @default(false) // true si fue uno de los primeros 30 en pagar
   fechaFounder   DateTime? // cuando se convirtió en fundador
   descuentoMerch Int       @default(0) // % de descuento en merch según plan: 0, 10, 15 o 25
 

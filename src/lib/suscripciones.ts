@@ -4,7 +4,7 @@ import { PLAN_PRECIOS_NORMAL, DESCUENTO_MERCH_POR_PLAN } from './utils'
 
 export const PLAN_ORDER: PlanSuscripcion[] = ['ROOKIE', 'AMATEUR', 'PRO', 'ELITE']
 
-// Precios Fundador (congelados de por vida para los primeros 60 pagadores)
+// Precios Fundador (congelados de por vida para los primeros 30 pagadores)
 export const PLAN_PRECIOS: Record<PlanSuscripcion, number> = {
   ROOKIE: 5,
   AMATEUR: 10,

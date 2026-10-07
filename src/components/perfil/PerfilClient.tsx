@@ -178,7 +178,7 @@ export function PerfilClient({ piloto: initialPiloto, rankingGlobal, chartData, 
               )}
               {piloto.esFounder && (
                 <span
-                  title="Piloto Fundador APEX — uno de los primeros 60"
+                  title="Piloto Fundador APEX — uno de los primeros 30"
                   className="text-xs bg-yellow-500/20 text-yellow-400 border border-yellow-500/30 px-2 py-0.5 rounded-full flex items-center gap-1">
                   ⚡ Fundador
                 </span>

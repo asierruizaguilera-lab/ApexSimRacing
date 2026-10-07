@@ -53,7 +53,7 @@ export function RankingClient({ pilotos, currentUserId }: { pilotos: Piloto[]; c
                 </div>
                 <div className="font-bold text-sm truncate w-full flex items-center justify-center gap-1">
                   {p.username}
-                  {p.esFounder && <span title="Piloto Fundador APEX — uno de los primeros 60">⚡</span>}
+                  {p.esFounder && <span title="Piloto Fundador APEX — uno de los primeros 30">⚡</span>}
                   {esEliteActivo(p) && <span title="Piloto Elite APEX">👑</span>}
                 </div>
                 <div className="text-sm mt-0.5">{getPaisFlag(p.pais)}</div>
@@ -117,7 +117,7 @@ export function RankingClient({ pilotos, currentUserId }: { pilotos: Piloto[]; c
                         <div className="font-medium text-sm flex items-center gap-1">
                           {p.username}
                           {p.esFounder && (
-                            <span title="Piloto Fundador APEX — uno de los primeros 60" className="text-[10px] bg-yellow-500/20 text-yellow-400 border border-yellow-500/30 px-1.5 py-0.5 rounded-full">
+                            <span title="Piloto Fundador APEX — uno de los primeros 30" className="text-[10px] bg-yellow-500/20 text-yellow-400 border border-yellow-500/30 px-1.5 py-0.5 rounded-full">
                               ⚡ Fundador
                             </span>
                           )}
