@@ -5,19 +5,7 @@ import { prisma } from '@/lib/prisma'
 import { sendEmail, emailResultadoPublicado } from '@/lib/email'
 import { calcularPuntos, tieneVueltaRapida } from '@/lib/puntos'
 import { mesYAnio, recalcularPuntosEquipoMes } from '@/lib/temporadas'
-
-async function recalcularStatsPiloto(userId: string) {
-  const allResults = await prisma.resultado.findMany({ where: { userId } })
-  await prisma.user.update({
-    where: { id: userId },
-    data: {
-      totalPuntos: allResults.reduce((s, res) => s + res.puntos, 0),
-      totalCarreras: allResults.filter(res => !res.abandono).length,
-      totalVictorias: allResults.filter(res => res.posicion === 1).length,
-      totalPodios: allResults.filter(res => res.posicion <= 3).length,
-    },
-  })
-}
+import { recalcularStatsPiloto } from '@/lib/statsPiloto'
 
 export async function PUT(req: NextRequest, { params }: { params: { id: string } }) {
   const session = await getServerSession(authOptions)

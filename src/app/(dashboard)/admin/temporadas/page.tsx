@@ -29,7 +29,7 @@ export default async function AdminTemporadasPage() {
     <div>
       <div className="mb-6">
         <h1 className="text-2xl font-bold">Temporadas</h1>
-        <p className="text-apex-muted mt-1">T1 enero–abril · T2 mayo–agosto · T3 septiembre–diciembre. El cierre y el paso a la siguiente son automáticos (cron semanal).</p>
+        <p className="text-apex-muted mt-1">T1 enero–abril · T2 mayo–agosto · T3 septiembre–diciembre. El cierre y el paso a la siguiente son automáticos: cada día a las 23:59 (Madrid) se comprueba si es el último día de la temporada.</p>
       </div>
       <AdminTemporadasClient
         anioActual={mesYAnio().anio}

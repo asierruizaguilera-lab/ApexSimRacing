@@ -195,13 +195,27 @@ export async function activarTemporadaActual(cocheEquipoId?: string | null, fech
 }
 
 /**
- * Cron: si la temporada activa ya terminó, fija el ganador, avisa a todos y activa la siguiente.
- * No hace nada si no hay temporada activa (el admin aún no ha iniciado la liga).
+ * true si `fecha` (hora de Madrid) es el último día del último mes de la temporada
+ * (30 de abril, 31 de agosto o 31 de diciembre de su año).
+ */
+export function esUltimoDiaDeTemporada(temporada: { numero: number; anio: number }, fecha: Date = new Date()) {
+  const z = toZonedTime(fecha, ZONA)
+  const manana = new Date(z)
+  manana.setDate(z.getDate() + 1)
+  return esUltimoMesDeTemporada(temporada, fecha) && manana.getDate() === 1
+}
+
+/**
+ * Cron diario (23:59 hora de Madrid): si hoy es el último día de la temporada activa, fija el ganador,
+ * avisa a todos y activa la siguiente. También la cierra si su fecha de fin ya pasó (p. ej. el servidor
+ * estuvo caído esa noche). No hace nada si no hay temporada activa (el admin aún no ha iniciado la liga).
  */
 export async function cerrarTemporadaSiTerminada(ahora: Date = new Date()) {
   const activa = await prisma.temporada.findFirst({ where: { activa: true } })
   if (!activa) return { cerrada: false, motivo: 'Sin temporada activa' }
-  if (activa.fechaFin >= ahora) return { cerrada: false, motivo: 'La temporada activa sigue en curso' }
+  if (!esUltimoDiaDeTemporada(activa, ahora) && activa.fechaFin >= ahora) {
+    return { cerrada: false, motivo: 'Hoy no es el último día de la temporada activa' }
+  }
 
   // Por si algún resultado del último mes se guardó sin recalcular
   const ultimoMes = primerMesTemporada(activa.numero) + MESES_POR_TEMPORADA - 1
@@ -214,7 +228,8 @@ export async function cerrarTemporadaSiTerminada(ahora: Date = new Date()) {
     where: { id: activa.id },
     data: { activa: false, equipoGanadorId: ganador?.id ?? null },
   })
-  const nueva = await activarTemporadaActual(undefined, ahora)
+  // La siguiente es la que empieza justo después del fin de esta (a las 23:59 "ahora" aún cae en la que se cierra)
+  const nueva = await activarTemporadaActual(undefined, new Date(activa.fechaFin.getTime() + 1))
 
   const mensaje = ganador
     ? `🏆 ¡${ganador.nombre} gana la Temporada ${activa.numero} de ${activa.anio}! Arranca la Temporada ${nueva.numero}.`

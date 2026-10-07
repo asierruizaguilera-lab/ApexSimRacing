@@ -4,6 +4,7 @@ const next = require('next')
 const { Server } = require('socket.io')
 const cron = require('node-cron')
 const { execSync, execFileSync } = require('child_process')
+const { getToken } = require('next-auth/jwt')
 
 const dev = process.env.NODE_ENV !== 'production'
 const hostname = '0.0.0.0'
@@ -73,6 +74,33 @@ const handle = app.getRequestHandler()
 // Mapa de usuarios conectados: socketId -> { userId, username, canal }
 const usuariosConectados = new Map()
 
+// Prisma se carga tras el seed/generate del arranque (solo lo usan los handlers de socket)
+let prisma = null
+function getPrisma() {
+  if (!prisma) {
+    const { PrismaClient } = require('@prisma/client')
+    prisma = new PrismaClient()
+  }
+  return prisma
+}
+
+function parseCookies(header) {
+  const out = {}
+  if (!header) return out
+  for (const part of header.split(';')) {
+    const i = part.indexOf('=')
+    if (i < 0) continue
+    const k = part.slice(0, i).trim()
+    try { out[k] = decodeURIComponent(part.slice(i + 1).trim()) } catch { out[k] = part.slice(i + 1).trim() }
+  }
+  return out
+}
+
+// Canal privado de una conversación 1 a 1: ids siempre ordenados para que ambos lados coincidan
+function canalDM(a, b) {
+  return `dm:${[a, b].sort().join('-')}`
+}
+
 runMigrationSimuladorIfRequested()
   .then(() => runSeedOnStartIfRequested())
   .then(() => app.prepare()).then(() => {
@@ -98,8 +126,64 @@ runMigrationSimuladorIfRequested()
   // Exportar io para usarlo desde API routes via global
   global.io = io
 
+  // Identidad del socket a partir de la cookie de sesión de NextAuth. Nunca se confía en el userId
+  // que mande el cliente: las salas privadas (equipo:*, dm:*, user:*) dependen de esta identidad.
+  // Los sockets sin sesión se aceptan igualmente (chat público), pero no pueden entrar en salas privadas.
+  io.use(async (socket, next) => {
+    try {
+      socket.request.cookies = parseCookies(socket.request.headers.cookie)
+      const token = await getToken({ req: socket.request, secret: process.env.NEXTAUTH_SECRET ?? process.env.SECRET })
+      if (token?.id && !token.baneado) {
+        socket.data.userId = token.id
+        socket.data.role = token.role
+      }
+    } catch (err) {
+      console.error('[Socket] Error leyendo la sesión:', err.message)
+    }
+    next()
+  })
+
   io.on('connection', (socket) => {
     console.log(`[Socket] Conectado: ${socket.id}`)
+
+    // Sala personal: avisos de mensajes directos nuevos (badge de la sidebar, bandeja de entrada)
+    if (socket.data.userId) socket.join(`user:${socket.data.userId}`)
+
+    // Chat de equipo: solo miembros del equipo (o admins, para moderar)
+    socket.on('equipo:join', async ({ equipoId } = {}, ack) => {
+      const userId = socket.data.userId
+      let ok = false
+      try {
+        if (userId && typeof equipoId === 'string') {
+          if (socket.data.role === 'ADMIN') ok = true
+          else {
+            const m = await getPrisma().miembroEquipo.findUnique({ where: { userId }, select: { equipoId: true } })
+            ok = m?.equipoId === equipoId
+          }
+        }
+      } catch (err) {
+        console.error('[Socket] equipo:join:', err.message)
+      }
+      if (ok) socket.join(`equipo:${equipoId}`)
+      if (typeof ack === 'function') ack({ ok })
+    })
+
+    socket.on('equipo:leave', ({ equipoId } = {}) => {
+      if (typeof equipoId === 'string') socket.leave(`equipo:${equipoId}`)
+    })
+
+    // Mensajes directos: la sala se calcula con el userId autenticado, así que nadie puede
+    // unirse a una conversación de la que no forma parte. El envío va por POST /api/mensajes/[userId]
+    // (guarda en BD, aplica anti-spam y difunde con global.io), igual que el chat general.
+    socket.on('dm:join', ({ otroUserId } = {}) => {
+      const userId = socket.data.userId
+      if (userId && typeof otroUserId === 'string') socket.join(canalDM(userId, otroUserId))
+    })
+
+    socket.on('dm:leave', ({ otroUserId } = {}) => {
+      const userId = socket.data.userId
+      if (userId && typeof otroUserId === 'string') socket.leave(canalDM(userId, otroUserId))
+    })
 
     // Usuario se identifica al conectar
     socket.on('user:join', ({ userId, username, canal }) => {
@@ -158,12 +242,29 @@ runMigrationSimuladorIfRequested()
     timezone: 'Europe/Madrid',
   })
 
+  // Cierre de temporada — cada día a las 23:59: si hoy es el último día de la temporada activa
+  // (30 abr, 31 ago o 31 dic) fija el ganador, notifica a todos y activa la siguiente
+  cron.schedule('59 23 * * *', async () => {
+    console.log('[CRON] Comprobando fin de temporada...')
+    try {
+      const base = process.env.NEXTAUTH_URL || `http://localhost:${port}`
+      const secretQs = process.env.CRON_SECRET ? `?secret=${process.env.CRON_SECRET}` : ''
+      const res = await fetch(`${base}/api/cron/temporadas${secretQs}`)
+      const data = await res.json()
+      console.log('[CRON] Temporadas:', data)
+    } catch (err) {
+      console.error('[CRON] Error comprobando temporadas:', err)
+    }
+  }, {
+    timezone: 'Europe/Madrid',
+  })
+
   httpServer.listen(port, hostname, () => {
     console.log(`\n🏁 APEX SimRacing Platform`)
     console.log(`   ✅ Servidor: http://localhost:${port}`)
     console.log(`   ✅ Socket.io: activo`)
     console.log(`   ✅ Modo: ${dev ? 'desarrollo' : 'producción'}\n`)
     console.log(`   🔄 Sync Sheet: lunes 6:00 AM (Europe/Madrid)`)
-    console.log(`   🏆 Cierre de temporada: lunes 6:15 AM (Europe/Madrid)\n`)
+    console.log(`   🏆 Cierre de temporada: diario 23:59 (Europe/Madrid)\n`)
   })
 })
