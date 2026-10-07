@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth'
 import { notFound } from 'next/navigation'
 import { getSuscripcionActiva } from '@/lib/suscripciones'
 import { CampeonatoDetalle } from '@/components/campeonatos/CampeonatoDetalle'
+import { getMembresia } from '@/lib/equipos'
 
 export default async function CampeonatoPage({ params }: { params: { id: string } }) {
   const session = await getServerSession(authOptions)
@@ -19,10 +20,20 @@ export default async function CampeonatoPage({ params }: { params: { id: string 
         orderBy: { fechaInscripcion: 'asc' },
       },
       sistemaPuntos: { orderBy: { posicion: 'asc' } },
+      inscripcionesEquipo: {
+        include: {
+          equipo: {
+            select: { id: true, nombre: true, colorPrimario: true, logoUrl: true, _count: { select: { miembros: true } } },
+          },
+        },
+        orderBy: { fechaInscripcion: 'asc' },
+      },
     },
   })
 
   if (!campeonato) notFound()
+  const esEquipos = campeonato.esCampeonatoEquipos
+  const membresia = esEquipos && session?.user?.id ? await getMembresia(session.user.id) : null
 
   // Clasificación del campeonato
   const pilotos = campeonato.inscripciones.map(i => i.user)
@@ -51,9 +62,32 @@ export default async function CampeonatoPage({ params }: { params: { id: string 
       .sort((a, b) => b.puntos - a.puntos)
   }
 
-  const inscripcionActual = session?.user
-    ? campeonato.inscripciones.find(i => i.userId === session.user.id)?.estado || null
-    : null
+  // Campeonato de equipos: la clasificación agrupa los puntos por el equipo con el que corrió cada piloto
+  let clasificacionEquipos: { equipoId: string; nombre: string; colorPrimario: string | null; logoUrl: string | null; puntos: number; pilotos: number; victorias: number }[] = []
+  if (esEquipos && carrerasFinalizadas.length > 0) {
+    const resultados = await prisma.resultado.findMany({
+      where: { carreraId: { in: carrerasFinalizadas.map(c => c.id) }, equipoId: { not: null } },
+      include: { equipo: { select: { nombre: true, colorPrimario: true, logoUrl: true } } },
+    })
+    const mapa = new Map<string, { nombre: string; colorPrimario: string | null; logoUrl: string | null; puntos: number; pilotos: Set<string>; victorias: number }>()
+    for (const r of resultados) {
+      if (!r.equipoId || !r.equipo) continue
+      const prev = mapa.get(r.equipoId) || { ...r.equipo, puntos: 0, pilotos: new Set<string>(), victorias: 0 }
+      prev.puntos += r.puntos
+      prev.pilotos.add(r.userId)
+      if (r.posicion === 1 && !r.abandono) prev.victorias++
+      mapa.set(r.equipoId, prev)
+    }
+    clasificacionEquipos = Array.from(mapa.entries())
+      .map(([equipoId, d]) => ({ equipoId, nombre: d.nombre, colorPrimario: d.colorPrimario, logoUrl: d.logoUrl, puntos: d.puntos, pilotos: d.pilotos.size, victorias: d.victorias }))
+      .sort((a, b) => b.puntos - a.puntos)
+  }
+
+  const inscripcionActual = esEquipos
+    ? (membresia ? campeonato.inscripcionesEquipo.find(i => i.equipoId === membresia.equipoId)?.estado || null : null)
+    : session?.user
+      ? campeonato.inscripciones.find(i => i.userId === session.user.id)?.estado || null
+      : null
 
   return (
     <CampeonatoDetalle
@@ -67,8 +101,15 @@ export default async function CampeonatoPage({ params }: { params: { id: string 
           ...i,
           fechaInscripcion: i.fechaInscripcion.toISOString(),
         })),
+        inscripcionesEquipo: campeonato.inscripcionesEquipo.map(i => ({
+          id: i.id,
+          estado: i.estado,
+          equipo: { ...i.equipo, miembros: i.equipo._count.miembros },
+        })),
       }}
       clasificacion={clasificacion}
+      clasificacionEquipos={clasificacionEquipos}
+      miEquipo={membresia ? { id: membresia.equipoId, esLider: membresia.equipo.liderId === session!.user.id } : null}
       inscripcionActual={inscripcionActual}
       userId={session?.user?.id}
       userPlan={suscripcion?.plan || null}

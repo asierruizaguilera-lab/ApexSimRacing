@@ -11,7 +11,10 @@ const DISCIPLINAS = ['RALLY', 'CIRCUITO', 'DRIFT', 'KARTCROSS', 'MONOPLAZA', 'SU
 const ESTADOS = ['PROXIMO', 'ACTIVO', 'FINALIZADO']
 const PLANES = ['ROOKIE', 'AMATEUR', 'PRO', 'ELITE']
 
-export function AdminCampeonatoClient({ campeonato }: { campeonato: any }) {
+export function AdminCampeonatoClient({ campeonato, temporadas = [] }: {
+  campeonato: any
+  temporadas?: { id: string; numero: number; anio: number; activa: boolean }[]
+}) {
   const router = useRouter()
   const isNew = !campeonato
 
@@ -27,6 +30,8 @@ export function AdminCampeonatoClient({ campeonato }: { campeonato: any }) {
     numEtapas: campeonato?.numEtapas || 1,
     categoriaMinima: campeonato?.categoriaMinima || 'ROOKIE',
     soloElite: campeonato?.soloElite || false,
+    esCampeonatoEquipos: campeonato?.esCampeonatoEquipos || false,
+    temporadaId: campeonato?.temporadaId || (isNew ? temporadas.find(t => t.activa)?.id ?? '' : ''),
   })
   const [loading, setLoading] = useState(false)
   const [tab, setTab] = useState<'info' | 'carreras' | 'inscripciones' | 'resultados'>('info')
@@ -80,8 +85,8 @@ export function AdminCampeonatoClient({ campeonato }: { campeonato: any }) {
     } else toast.error('Error al crear carrera')
   }
 
-  async function gestionarInscripcion(inscId: string, estado: 'CONFIRMADA' | 'CANCELADA') {
-    const res = await fetch(`/api/inscripciones/${inscId}`, {
+  async function gestionarInscripcion(inscId: string, estado: 'CONFIRMADA' | 'CANCELADA', deEquipo = false) {
+    const res = await fetch(deEquipo ? `/api/admin/inscripciones-equipo/${inscId}` : `/api/inscripciones/${inscId}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ estado }),
@@ -115,7 +120,9 @@ export function AdminCampeonatoClient({ campeonato }: { campeonato: any }) {
           {[
             { id: 'info', label: 'Información' },
             { id: 'carreras', label: `Carreras (${campeonato.carreras?.length || 0})` },
-            { id: 'inscripciones', label: `Inscripciones (${campeonato.inscripciones?.length || 0})` },
+            { id: 'inscripciones', label: form.esCampeonatoEquipos
+              ? `Equipos inscritos (${campeonato.inscripcionesEquipo?.length || 0})`
+              : `Inscripciones (${campeonato.inscripciones?.length || 0})` },
           ].map(t => (
             <button key={t.id} onClick={() => setTab(t.id as any)}
               className={cn('flex-1 min-w-fit px-4 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap',
@@ -147,7 +154,7 @@ export function AdminCampeonatoClient({ campeonato }: { campeonato: any }) {
               </select>
             </div>
             <div>
-              <label className={LabelClass}>Máximo de Pilotos</label>
+              <label className={LabelClass}>{form.esCampeonatoEquipos ? 'Máximo de Equipos' : 'Máximo de Pilotos'}</label>
               <input type="number" value={form.maxPilotos} onChange={set('maxPilotos')} min={2} max={100} className={InputClass} />
             </div>
             <div>
@@ -164,6 +171,23 @@ export function AdminCampeonatoClient({ campeonato }: { campeonato: any }) {
                 {PLANES.map(p => <option key={p} value={p}>{PLAN_LABELS[p]}</option>)}
               </select>
               <p className="text-xs text-apex-muted mt-1">Los pilotos necesitarán este plan o superior para inscribirse</p>
+            </div>
+            <div className="flex items-end">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" checked={form.esCampeonatoEquipos}
+                  onChange={e => setForm(f => ({ ...f, esCampeonatoEquipos: e.target.checked }))}
+                  className="w-4 h-4 accent-cyan-500" />
+                <span className="text-sm">Campeonato por equipos <span className="text-apex-muted">(solo se inscriben equipos; suma en la liga mensual)</span></span>
+              </label>
+            </div>
+            <div>
+              <label className={LabelClass}>Temporada</label>
+              <select value={form.temporadaId} onChange={set('temporadaId')} className={InputClass}>
+                <option value="">— Sin temporada —</option>
+                {temporadas.map(t => (
+                  <option key={t.id} value={t.id}>T{t.numero} {t.anio}{t.activa ? ' (activa)' : ''}</option>
+                ))}
+              </select>
             </div>
             <div className="flex items-end">
               <label className="flex items-center gap-2 cursor-pointer">
@@ -248,7 +272,62 @@ export function AdminCampeonatoClient({ campeonato }: { campeonato: any }) {
         </div>
       )}
 
-      {tab === 'inscripciones' && !isNew && (
+      {tab === 'inscripciones' && !isNew && form.esCampeonatoEquipos && (
+        <div className="bg-apex-card border border-apex-border rounded-xl overflow-hidden">
+          <table className="w-full">
+            <thead>
+              <tr className="border-b border-apex-border text-left">
+                <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-apex-muted">Equipo</th>
+                <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-apex-muted">Estado</th>
+                <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-apex-muted text-right">Acciones</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-apex-border/50">
+              {(campeonato.inscripcionesEquipo ?? []).length === 0 && (
+                <tr><td colSpan={3} className="px-4 py-8 text-center text-sm text-apex-muted">Ningún equipo inscrito todavía</td></tr>
+              )}
+              {campeonato.inscripcionesEquipo?.map((i: any) => (
+                <tr key={i.id}>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-2">
+                      <span className="w-3 h-3 rounded-sm" style={{ background: i.equipo.colorPrimario || '#C0392B' }} />
+                      <span className="font-medium text-sm">{i.equipo.nombre}</span>
+                    </div>
+                    <div className="text-xs text-apex-muted">Líder: {i.equipo.lider} · {i.equipo.miembros} pilotos</div>
+                  </td>
+                  <td className="px-4 py-3">
+                    <span className={cn('text-xs px-2 py-0.5 rounded-full border', {
+                      'bg-yellow-500/20 text-yellow-400 border-yellow-500/30': i.estado === 'PENDIENTE',
+                      'bg-green-500/20 text-green-400 border-green-500/30': i.estado === 'CONFIRMADA',
+                      'bg-red-500/20 text-red-400 border-red-500/30': i.estado === 'CANCELADA',
+                    })}>
+                      {i.estado}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    {i.estado !== 'CANCELADA' && (
+                      <div className="flex items-center justify-end gap-2">
+                        {i.estado === 'PENDIENTE' && (
+                          <button onClick={() => gestionarInscripcion(i.id, 'CONFIRMADA', true)} aria-label="Confirmar"
+                            className="p-1.5 bg-green-500/20 text-green-400 rounded-lg hover:bg-green-500/30 transition-colors">
+                            <Check size={14} />
+                          </button>
+                        )}
+                        <button onClick={() => gestionarInscripcion(i.id, 'CANCELADA', true)} aria-label="Cancelar"
+                          className="p-1.5 bg-red-500/20 text-red-400 rounded-lg hover:bg-red-500/30 transition-colors">
+                          <X size={14} />
+                        </button>
+                      </div>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {tab === 'inscripciones' && !isNew && !form.esCampeonatoEquipos && (
         <div className="bg-apex-card border border-apex-border rounded-xl overflow-hidden">
           <table className="w-full">
             <thead>

@@ -1,5 +1,6 @@
 import { PrismaClient, Rol, Disciplina, PlanSuscripcion, UbicacionPatrocinador } from '@prisma/client'
 import bcrypt from 'bcryptjs'
+import { fromZonedTime } from 'date-fns-tz'
 import { sincronizarCoches } from './coches-catalogo'
 
 const prisma = new PrismaClient()
@@ -181,6 +182,26 @@ async function main() {
   if (placeholdersCreados === 0 && placeholdersActualizados === 0) {
     console.log('   ⏭️  Placeholders ya correctos — omitiendo')
   }
+
+  // ── 5. Temporadas del año en curso — solo crea las que falten, nunca activa ni borra nada ──
+  // (la liga la arranca el admin desde /admin/temporadas, que es quien asigna el coche de equipo)
+  const zona = 'Europe/Madrid'
+  const anio = Number(new Intl.DateTimeFormat('en', { timeZone: zona, year: 'numeric' }).format(new Date()))
+  let temporadasCreadas = 0
+  for (const numero of [1, 2, 3]) {
+    const existe = await prisma.temporada.findUnique({ where: { numero_anio: { numero, anio } } })
+    if (existe) continue
+    const mesInicio = (numero - 1) * 4 + 1
+    const pad = (n: number) => String(n).padStart(2, '0')
+    const fechaInicio = fromZonedTime(`${anio}-${pad(mesInicio)}-01T00:00:00`, zona)
+    const siguiente = numero === 3 ? `${anio + 1}-01-01T00:00:00` : `${anio}-${pad(mesInicio + 4)}-01T00:00:00`
+    const fechaFin = new Date(fromZonedTime(siguiente, zona).getTime() - 1)
+    await prisma.temporada.create({ data: { numero, anio, fechaInicio, fechaFin } })
+    temporadasCreadas++
+  }
+  console.log(temporadasCreadas > 0
+    ? `   ✅ ${temporadasCreadas} temporadas de ${anio} creadas (inactivas)`
+    : `   ⏭️  Temporadas de ${anio} ya existen — omitiendo`)
 
   console.log('✅ Seed completado')
 }

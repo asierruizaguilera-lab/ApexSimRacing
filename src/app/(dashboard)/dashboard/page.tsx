@@ -3,6 +3,8 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { HeroBanner } from '@/components/dashboard/HeroBanner'
 import { ActivityFeed } from '@/components/dashboard/ActivityFeed'
+import { EquipoDelMes } from '@/components/dashboard/EquipoDelMes'
+import { equipoGanadorMes, mesYAnio, nombreMes } from '@/lib/temporadas'
 import { formatFechaHora, DISCIPLINA_LABELS, DISCIPLINA_COLORS, cn } from '@/lib/utils'
 import Link from 'next/link'
 import { Trophy, Users, Flag } from 'lucide-react'
@@ -10,7 +12,11 @@ import { Trophy, Users, Flag } from 'lucide-react'
 export default async function DashboardPage() {
   const session = await getServerSession(authOptions)
 
-  const [proximaCarrera, campeonatosActivos, top10, recentResults, totalPilotos] = await Promise.all([
+  // Equipo del mes = ganador del mes anterior (no se muestra si aún no hay ninguno)
+  const hoy = mesYAnio()
+  const mesAnterior = hoy.mes === 1 ? { mes: 12, anio: hoy.anio - 1 } : { mes: hoy.mes - 1, anio: hoy.anio }
+
+  const [proximaCarrera, campeonatosActivos, top10, recentResults, totalPilotos, equipoDelMes] = await Promise.all([
     prisma.carrera.findFirst({
       where: { fecha: { gt: new Date() }, estado: 'PROGRAMADA' },
       orderBy: { fecha: 'asc' },
@@ -36,6 +42,7 @@ export default async function DashboardPage() {
       },
     }),
     prisma.user.count({ where: { role: 'PILOTO' } }),
+    equipoGanadorMes(mesAnterior.mes, mesAnterior.anio),
   ])
 
   return (
@@ -48,6 +55,14 @@ export default async function DashboardPage() {
         fecha: proximaCarrera.fecha.toISOString(),
         campeonato: { nombre: proximaCarrera.campeonato.nombre, disciplina: proximaCarrera.campeonato.disciplina },
       } : null} />
+
+      {equipoDelMes && (
+        <EquipoDelMes
+          equipo={equipoDelMes.equipo}
+          puntos={equipoDelMes.puntos}
+          mesNombre={`${nombreMes(mesAnterior.mes)} ${mesAnterior.anio}`}
+        />
+      )}
 
       {/* Stats rápidas */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">

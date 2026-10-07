@@ -6,7 +6,7 @@ import { prisma } from '@/lib/prisma'
 export async function GET() {
   const campeonatos = await prisma.campeonato.findMany({
     orderBy: { creadoEn: 'desc' },
-    include: { _count: { select: { inscripciones: true, carreras: true } } },
+    include: { _count: { select: { inscripciones: true, inscripcionesEquipo: true, carreras: true } } },
   })
   return NextResponse.json(campeonatos)
 }
@@ -18,7 +18,7 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json()
-  const { nombre, disciplina, descripcion, estado, fechaInicio, fechaFin, maxPilotos, modsReq, numEtapas, categoriaMinima, soloElite } = body
+  const { nombre, disciplina, descripcion, estado, fechaInicio, fechaFin, maxPilotos, modsReq, numEtapas, categoriaMinima, soloElite, esCampeonatoEquipos, temporadaId } = body
 
   if (!nombre || !disciplina || !descripcion || !fechaInicio || !fechaFin) {
     return NextResponse.json({ error: 'Campos requeridos faltantes' }, { status: 400 })
@@ -34,6 +34,8 @@ export async function POST(req: NextRequest) {
       numEtapas: parseInt(numEtapas) || 1,
       categoriaMinima: categoriaMinima || 'ROOKIE',
       soloElite: !!soloElite,
+      esCampeonatoEquipos: !!esCampeonatoEquipos,
+      temporadaId: temporadaId || null,
     },
   })
 
@@ -51,7 +53,9 @@ export async function POST(req: NextRequest) {
     data: pilotos.map(p => ({
       userId: p.id,
       tipo: 'NUEVO_CAMPEONATO',
-      mensaje: `Nuevo campeonato disponible: ${nombre}. ¡Inscríbete ahora!`,
+      mensaje: esCampeonatoEquipos
+        ? `Nuevo campeonato por equipos: ${nombre}. ¡Habla con tu líder para inscribir al equipo!`
+        : `Nuevo campeonato disponible: ${nombre}. ¡Inscríbete ahora!`,
       link: `/campeonatos/${camp.id}`,
     })),
   })

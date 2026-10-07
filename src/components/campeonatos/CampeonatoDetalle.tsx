@@ -4,7 +4,8 @@ import { useState } from 'react'
 import toast from 'react-hot-toast'
 import Link from 'next/link'
 import { DISCIPLINA_COLORS, DISCIPLINA_LABELS, PLAN_LABELS, PLAN_COLORS, planSuficiente, formatFechaHora, formatFecha, getPaisFlag, getPositionColor, cn } from '@/lib/utils'
-import { Users, Calendar, Trophy, Server, Wifi, Copy, ChevronLeft, ChevronDown, ChevronUp, Flag, Download, Gauge, Lock } from 'lucide-react'
+import { Users, Calendar, Trophy, Server, Wifi, Copy, ChevronLeft, ChevronDown, ChevronUp, Flag, Download, Gauge, Lock, Shield } from 'lucide-react'
+import { EquipoLogo } from '@/components/equipos/EquipoLogo'
 
 interface Carrera {
   id: string; nombre: string; circuito: string; fecha: string; duracionMin: number
@@ -29,9 +30,16 @@ interface ResultadoCarrera {
   user: { id: string; username: string; avatar: string | null; pais: string | null }
 }
 
+interface ClasificacionEquipo {
+  equipoId: string; nombre: string; colorPrimario: string | null; logoUrl: string | null
+  puntos: number; pilotos: number; victorias: number
+}
+
 interface Props {
   campeonato: any
   clasificacion: Clasificacion[]
+  clasificacionEquipos?: ClasificacionEquipo[]
+  miEquipo?: { id: string; esLider: boolean } | null
   inscripcionActual: string | null
   userId?: string
   userPlan?: string | null
@@ -44,7 +52,9 @@ function getPodiumRowClass(pos: number): string {
   return ''
 }
 
-export function CampeonatoDetalle({ campeonato: c, clasificacion, inscripcionActual, userId, userPlan }: Props) {
+export function CampeonatoDetalle({ campeonato: c, clasificacion, clasificacionEquipos = [], miEquipo = null, inscripcionActual, userId, userPlan }: Props) {
+  const esEquipos = !!c.esCampeonatoEquipos
+  const equiposConfirmados = (c.inscripcionesEquipo ?? []).filter((i: any) => i.estado === 'CONFIRMADA')
   const [tab, setTab] = useState<'info' | 'carreras' | 'clasificacion' | 'pilotos'>('info')
   const [inscrito, setInscrito] = useState(inscripcionActual)
   const [loading, setLoading] = useState(false)
@@ -56,12 +66,12 @@ export function CampeonatoDetalle({ campeonato: c, clasificacion, inscripcionAct
   async function inscribirse() {
     if (!userId) { toast.error('Debes iniciar sesión'); return }
     setLoading(true)
-    const res = await fetch(`/api/campeonatos/${c.id}/inscribirse`, { method: 'POST' })
+    const res = await fetch(`/api/campeonatos/${c.id}/${esEquipos ? 'inscribir-equipo' : 'inscribirse'}`, { method: 'POST' })
     const data = await res.json()
     setLoading(false)
     if (res.ok) {
       setInscrito('PENDIENTE')
-      toast.success('Inscripción enviada. Pendiente de confirmación.')
+      toast.success(esEquipos ? 'Equipo inscrito. Pendiente de confirmación.' : 'Inscripción enviada. Pendiente de confirmación.')
     } else if (data.code === 'NO_SUBSCRIPTION' || data.code === 'PLAN_INSUFICIENTE' || data.code === 'SOLO_ELITE') {
       toast.error(data.error || 'Necesitas un plan activo para inscribirte')
       setTimeout(() => { window.location.href = '/planes' }, 1500)
@@ -97,12 +107,16 @@ export function CampeonatoDetalle({ campeonato: c, clasificacion, inscripcionAct
     }
   }
 
-  const lleno = c.inscripciones.filter((i: any) => i.estado === 'CONFIRMADA').length >= c.maxPilotos
+  const lleno = esEquipos
+    ? (c.inscripcionesEquipo ?? []).filter((i: any) => i.estado !== 'CANCELADA').length >= c.maxPilotos
+    : c.inscripciones.filter((i: any) => i.estado === 'CONFIRMADA').length >= c.maxPilotos
   const tabs = [
     { id: 'info', label: 'Información' },
     { id: 'carreras', label: `Carreras (${c.carreras.length})` },
     { id: 'clasificacion', label: 'Clasificación' },
-    { id: 'pilotos', label: `Pilotos (${c.inscripciones.length})` },
+    esEquipos
+      ? { id: 'pilotos', label: `Equipos (${equiposConfirmados.length})` }
+      : { id: 'pilotos', label: `Pilotos (${c.inscripciones.length})` },
   ]
 
   return (
@@ -117,6 +131,11 @@ export function CampeonatoDetalle({ campeonato: c, clasificacion, inscripcionAct
         <div className="flex flex-col lg:flex-row lg:items-start gap-4">
           <div className="flex-1">
             <div className="flex flex-wrap items-center gap-2 mb-3">
+              {esEquipos && (
+                <span className="flex items-center gap-1 text-xs px-2 py-1 rounded-full border bg-cyan-500/20 text-cyan-300 border-cyan-500/40 font-semibold">
+                  <Shield size={12} />EQUIPOS
+                </span>
+              )}
               <span className={cn('text-xs px-2 py-1 rounded-full border', DISCIPLINA_COLORS[c.disciplina])}>
                 {DISCIPLINA_LABELS[c.disciplina]}
               </span>
@@ -139,13 +158,43 @@ export function CampeonatoDetalle({ campeonato: c, clasificacion, inscripcionAct
             <h1 className="text-2xl font-bold mb-2">{c.nombre}</h1>
             <div className="flex flex-wrap items-center gap-4 text-sm text-apex-muted">
               <span className="flex items-center gap-1"><Calendar size={14} />{formatFecha(c.fechaInicio)} — {formatFecha(c.fechaFin)}</span>
-              <span className="flex items-center gap-1"><Users size={14} />{c.inscripciones.filter((i: any) => i.estado === 'CONFIRMADA').length}/{c.maxPilotos} pilotos</span>
+              {esEquipos ? (
+                <span className="flex items-center gap-1"><Shield size={14} />{equiposConfirmados.length}/{c.maxPilotos} equipos</span>
+              ) : (
+                <span className="flex items-center gap-1"><Users size={14} />{c.inscripciones.filter((i: any) => i.estado === 'CONFIRMADA').length}/{c.maxPilotos} pilotos</span>
+              )}
               <span className="flex items-center gap-1"><Trophy size={14} />{c.carreras.length} carreras</span>
             </div>
           </div>
 
           {/* Botón inscripción */}
-          {c.estado !== 'FINALIZADO' && userId && (
+          {c.estado !== 'FINALIZADO' && userId && esEquipos && (
+            <div className="flex-shrink-0">
+              {inscrito === 'CONFIRMADA' ? (
+                <div className="px-4 py-2 bg-green-500/20 text-green-400 border border-green-500/30 rounded-xl font-medium">
+                  ✓ Tu equipo está inscrito
+                </div>
+              ) : inscrito === 'PENDIENTE' ? (
+                <div className="px-4 py-2 bg-yellow-500/20 text-yellow-400 border border-yellow-500/30 rounded-xl font-medium">
+                  ⏳ Equipo pendiente de confirmación
+                </div>
+              ) : lleno ? (
+                <div className="px-4 py-2 bg-gray-500/20 text-gray-400 border border-gray-500/30 rounded-xl font-medium">
+                  Campeonato lleno
+                </div>
+              ) : miEquipo?.esLider ? (
+                <button onClick={inscribirse} disabled={loading}
+                  className="px-6 py-2.5 bg-apex-red hover:bg-apex-red-dark text-white rounded-xl font-semibold transition-colors disabled:opacity-50">
+                  {loading ? 'Enviando...' : '🛡️ Inscribir a mi equipo'}
+                </button>
+              ) : (
+                <div className="flex items-center gap-2 px-4 py-2 bg-apex-surface border border-apex-border text-apex-muted rounded-xl text-sm">
+                  <Lock size={14} />{miEquipo ? 'Solo el líder puede inscribir al equipo' : 'Campeonato solo para equipos'}
+                </div>
+              )}
+            </div>
+          )}
+          {c.estado !== 'FINALIZADO' && userId && !esEquipos && (
             <div className="flex-shrink-0">
               {inscrito === 'CONFIRMADA' ? (
                 <div className="px-4 py-2 bg-green-500/20 text-green-400 border border-green-500/30 rounded-xl font-medium">
@@ -445,7 +494,46 @@ export function CampeonatoDetalle({ campeonato: c, clasificacion, inscripcionAct
         </div>
       )}
 
-      {tab === 'clasificacion' && (
+      {tab === 'clasificacion' && esEquipos && (
+        <div className="bg-apex-card border border-apex-border rounded-xl overflow-hidden">
+          {clasificacionEquipos.length === 0 ? (
+            <div className="text-center py-12 text-apex-muted">
+              <Trophy size={40} className="mx-auto mb-3 opacity-30" />
+              <p>La clasificación por equipos se publicará cuando haya resultados</p>
+            </div>
+          ) : (
+            <table className="w-full table-apex">
+              <thead>
+                <tr className="border-b border-apex-border text-left">
+                  <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-apex-muted w-12">Pos</th>
+                  <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-apex-muted">Equipo</th>
+                  <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-apex-muted text-center">Pilotos</th>
+                  <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-apex-muted text-center">Victorias</th>
+                  <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-apex-muted text-right">Puntos</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-apex-border/50">
+                {clasificacionEquipos.map((e, i) => (
+                  <tr key={e.equipoId} className={cn(e.equipoId === miEquipo?.id && 'outline outline-1 outline-apex-red/40')}>
+                    <td className="px-4 py-3"><span className={cn('font-bold', getPositionColor(i + 1))}>{i + 1}</span></td>
+                    <td className="px-4 py-3">
+                      <Link href={`/equipos/${e.equipoId}`} className="flex items-center gap-2 hover:text-apex-red transition-colors">
+                        <EquipoLogo nombre={e.nombre} logoUrl={e.logoUrl} color={e.colorPrimario} size={32} className="rounded-lg" />
+                        <span className="font-medium">{e.nombre}</span>
+                      </Link>
+                    </td>
+                    <td className="px-4 py-3 text-center text-sm">{e.pilotos}</td>
+                    <td className="px-4 py-3 text-center text-sm">{e.victorias}</td>
+                    <td className="px-4 py-3 text-right font-bold text-apex-red">{e.puntos}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      )}
+
+      {tab === 'clasificacion' && !esEquipos && (
         <div className="bg-apex-card border border-apex-border rounded-xl overflow-hidden">
           {clasificacion.length === 0 ? (
             <div className="text-center py-12 text-apex-muted">
@@ -489,7 +577,25 @@ export function CampeonatoDetalle({ campeonato: c, clasificacion, inscripcionAct
         </div>
       )}
 
-      {tab === 'pilotos' && (
+      {tab === 'pilotos' && esEquipos && (
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          {equiposConfirmados.length === 0 && (
+            <p className="text-apex-muted text-sm col-span-full">Aún no hay equipos confirmados</p>
+          )}
+          {equiposConfirmados.map((i: any) => (
+            <Link key={i.id} href={`/equipos/${i.equipo.id}`}
+              className="flex items-center gap-3 bg-apex-card border border-apex-border rounded-xl p-4 hover:border-apex-red/30 transition-all">
+              <EquipoLogo nombre={i.equipo.nombre} logoUrl={i.equipo.logoUrl} color={i.equipo.colorPrimario} size={40} />
+              <div>
+                <div className="font-medium">{i.equipo.nombre}</div>
+                <div className="text-sm text-apex-muted">{i.equipo.miembros} pilotos</div>
+              </div>
+            </Link>
+          ))}
+        </div>
+      )}
+
+      {tab === 'pilotos' && !esEquipos && (
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {c.inscripciones.filter((i: any) => i.estado === 'CONFIRMADA').map((insc: any) => (
             <Link key={insc.userId} href={`/perfil/${insc.user.id}`}

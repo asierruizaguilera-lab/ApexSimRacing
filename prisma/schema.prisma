@@ -56,6 +56,10 @@ enum TipoNotificacion {
   SUSCRIPCION_ACTIVA
   SUSCRIPCION_CANCELADA
   NUEVO_ELITE
+  INVITACION_EQUIPO
+  EQUIPO
+  TEMPORADA
+  MENSAJE_DIRECTO
 }
 
 enum PlanSuscripcion {
@@ -139,6 +143,16 @@ model User {
   quejasRecibidas     Queja[]             @relation("QuejaDenunciado")
   pruebasAportadas    PruebaQueja[]
 
+  // Equipos y mensajería. Un piloto puede haber liderado varios equipos a lo largo del tiempo
+  // (los equipos disueltos se conservan por su histórico de puntos), así que es una lista.
+  equiposLiderados      Equipo[]           @relation("LiderEquipo")
+  miembroEquipo         MiembroEquipo?
+  invitacionesRecibidas InvitacionEquipo[] @relation("InvitacionesRecibidas")
+  mensajesEquipo        MensajeEquipo[]
+  mensajesEnviados      MensajeDirecto[]   @relation("MensajesEnviados")
+  mensajesRecibidos     MensajeDirecto[]   @relation("MensajesRecibidos")
+  propuestasEquipo      PropuestaEquipo[]
+
   @@map("users")
 }
 
@@ -183,24 +197,28 @@ model VerificationToken {
 }
 
 model Campeonato {
-  id              String           @id @default(cuid())
-  nombre          String
-  disciplina      Disciplina
-  descripcion     String
-  estado          EstadoCampeonato @default(PROXIMO)
-  fechaInicio     DateTime
-  fechaFin        DateTime
-  maxPilotos      Int              @default(20)
-  imagen          String?
-  modsReq         String?
-  numEtapas       Int              @default(1)
-  categoriaMinima PlanSuscripcion  @default(ROOKIE)
-  soloElite       Boolean          @default(false) // si true, solo usuarios con plan Elite activo pueden inscribirse
-  creadoEn        DateTime         @default(now())
+  id                  String           @id @default(cuid())
+  nombre              String
+  disciplina          Disciplina
+  descripcion         String
+  estado              EstadoCampeonato @default(PROXIMO)
+  fechaInicio         DateTime
+  fechaFin            DateTime
+  maxPilotos          Int              @default(20)
+  imagen              String?
+  modsReq             String?
+  numEtapas           Int              @default(1)
+  categoriaMinima     PlanSuscripcion  @default(ROOKIE)
+  soloElite           Boolean          @default(false) // si true, solo usuarios con plan Elite activo pueden inscribirse
+  esCampeonatoEquipos Boolean          @default(false) // si true, solo se inscriben equipos (no pilotos individuales)
+  temporadaId         String?
+  creadoEn            DateTime         @default(now())
 
-  carreras      Carrera[]
-  inscripciones Inscripcion[]
-  sistemaPuntos SistemaPuntos[]
+  temporada           Temporada?          @relation(fields: [temporadaId], references: [id], onDelete: SetNull)
+  carreras            Carrera[]
+  inscripciones       Inscripcion[]
+  inscripcionesEquipo InscripcionEquipo[]
+  sistemaPuntos       SistemaPuntos[]
 
   @@map("campeonatos")
 }
@@ -254,10 +272,12 @@ model Resultado {
   vueltaRapida Boolean  @default(false)
   abandono     Boolean  @default(false)
   tiempo       String?
+  equipoId     String? // equipo por el que corrió (solo campeonatos de equipos): los puntos no cambian de equipo si el piloto se va
   creadoEn     DateTime @default(now())
 
   carrera Carrera @relation(fields: [carreraId], references: [id], onDelete: Cascade)
   user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  equipo  Equipo? @relation(fields: [equipoId], references: [id], onDelete: SetNull)
 
   @@unique([carreraId, userId])
   @@map("resultados")
@@ -472,4 +492,209 @@ model ClaseVista {
 
   @@unique([userId, claseId])
   @@map("clases_vistas")
+}
+
+// ── Equipos, liga por equipos y temporadas ─────────────────────────────────────
+
+enum RolEquipo {
+  LIDER
+  PILOTO
+}
+
+enum EstadoInvitacion {
+  PENDIENTE
+  ACEPTADA
+  RECHAZADA
+}
+
+enum EstadoPropuesta {
+  PENDIENTE
+  REVISANDO
+  ACEPTADA
+  RECHAZADA
+}
+
+// Temporadas fijas: T1 enero→abril, T2 mayo→agosto, T3 septiembre→diciembre
+model Temporada {
+  id              String   @id @default(cuid())
+  numero          Int // 1, 2 o 3
+  anio            Int
+  fechaInicio     DateTime
+  fechaFin        DateTime
+  activa          Boolean  @default(false)
+  cocheEquipoId   String? // coche asignado por el admin para esta temporada
+  equipoGanadorId String? // se rellena al cerrar la temporada
+  creadoEn        DateTime @default(now())
+
+  cocheEquipo   CocheEquipo?      @relation(fields: [cocheEquipoId], references: [id], onDelete: SetNull)
+  equipoGanador Equipo?           @relation("TemporadaGanador", fields: [equipoGanadorId], references: [id], onDelete: SetNull)
+  campeonatos   Campeonato[]
+  puntosEquipo  PuntosEquipoMes[]
+  propuestas    PropuestaEquipo[]
+
+  @@unique([numero, anio])
+  @@map("temporadas")
+}
+
+model Equipo {
+  id            String   @id @default(cuid())
+  nombre        String   @unique
+  descripcion   String?
+  logoUrl       String?
+  colorPrimario String? // hex, ej: #FF0000
+  liderId       String
+  activo        Boolean  @default(true) // false = disuelto (se conserva por el histórico de puntos)
+  creadoEn      DateTime @default(now())
+  actualizadoEn DateTime @updatedAt
+
+  lider             User                @relation("LiderEquipo", fields: [liderId], references: [id])
+  miembros          MiembroEquipo[]
+  invitaciones      InvitacionEquipo[]
+  puntosMes         PuntosEquipoMes[]
+  mensajes          MensajeEquipo[]
+  propuestas        PropuestaEquipo[]
+  skins             SkinEquipo[]
+  inscripciones     InscripcionEquipo[]
+  resultados        Resultado[]
+  temporadasGanadas Temporada[]         @relation("TemporadaGanador")
+
+  @@map("equipos")
+}
+
+model MiembroEquipo {
+  id         String    @id @default(cuid())
+  equipoId   String
+  userId     String    @unique // un piloto solo puede estar en un equipo
+  rol        RolEquipo @default(PILOTO)
+  fechaUnion DateTime  @default(now())
+
+  equipo Equipo @relation(fields: [equipoId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("miembros_equipo")
+}
+
+model InvitacionEquipo {
+  id         String           @id @default(cuid())
+  equipoId   String
+  invitadoId String
+  estado     EstadoInvitacion @default(PENDIENTE)
+  creadoEn   DateTime         @default(now())
+
+  equipo   Equipo @relation(fields: [equipoId], references: [id], onDelete: Cascade)
+  invitado User   @relation("InvitacionesRecibidas", fields: [invitadoId], references: [id], onDelete: Cascade)
+
+  @@unique([equipoId, invitadoId])
+  @@map("invitaciones_equipo")
+}
+
+model PuntosEquipoMes {
+  id          String @id @default(cuid())
+  equipoId    String
+  temporadaId String
+  mes         Int // 1-12
+  anio        Int
+  puntos      Float  @default(0)
+  posicion    Int?
+
+  equipo    Equipo    @relation(fields: [equipoId], references: [id], onDelete: Cascade)
+  temporada Temporada @relation(fields: [temporadaId], references: [id], onDelete: Cascade)
+
+  @@unique([equipoId, mes, anio])
+  @@map("puntos_equipo_mes")
+}
+
+// Garaje de equipo — independiente del garaje individual (no comparte coches con `Coche`)
+model CocheEquipo {
+  id           String   @id @default(cuid())
+  nombre       String
+  descripcion  String?
+  imagenBase   String? // imagen del coche sin skin
+  linkDescarga String? // link de descarga del mod
+  activo       Boolean  @default(true)
+  creadoEn     DateTime @default(now())
+
+  temporadas Temporada[]
+  skins      SkinEquipo[]
+
+  @@map("coches_equipo")
+}
+
+model SkinEquipo {
+  id            String   @id @default(cuid())
+  cocheEquipoId String
+  equipoId      String
+  imagenSkin    String? // URL de la skin personalizada del equipo
+  colorPrimario String?
+  creadoEn      DateTime @default(now())
+
+  cocheEquipo CocheEquipo @relation(fields: [cocheEquipoId], references: [id], onDelete: Cascade)
+  equipo      Equipo      @relation(fields: [equipoId], references: [id], onDelete: Cascade)
+
+  @@unique([cocheEquipoId, equipoId])
+  @@map("skins_equipo")
+}
+
+model MensajeEquipo {
+  id        String   @id @default(cuid())
+  equipoId  String
+  userId    String
+  contenido String
+  creadoEn  DateTime @default(now())
+
+  equipo Equipo @relation(fields: [equipoId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([equipoId, creadoEn])
+  @@map("mensajes_equipo")
+}
+
+model MensajeDirecto {
+  id             String   @id @default(cuid())
+  remitenteId    String
+  destinatarioId String
+  contenido      String
+  leido          Boolean  @default(false)
+  creadoEn       DateTime @default(now())
+
+  remitente    User @relation("MensajesEnviados", fields: [remitenteId], references: [id], onDelete: Cascade)
+  destinatario User @relation("MensajesRecibidos", fields: [destinatarioId], references: [id], onDelete: Cascade)
+
+  @@index([remitenteId, destinatarioId, creadoEn])
+  @@index([destinatarioId, leido])
+  @@map("mensajes_directos")
+}
+
+model PropuestaEquipo {
+  id             String          @id @default(cuid())
+  equipoId       String
+  liderId        String
+  temporadaId    String
+  titulo         String
+  descripcion    String
+  estado         EstadoPropuesta @default(PENDIENTE)
+  respuestaAdmin String?
+  creadoEn       DateTime        @default(now())
+  respondidoEn   DateTime?
+
+  equipo    Equipo    @relation(fields: [equipoId], references: [id], onDelete: Cascade)
+  lider     User      @relation(fields: [liderId], references: [id], onDelete: Cascade)
+  temporada Temporada @relation(fields: [temporadaId], references: [id], onDelete: Cascade)
+
+  @@unique([equipoId, temporadaId]) // una propuesta por equipo por temporada
+  @@map("propuestas_equipo")
+}
+
+model InscripcionEquipo {
+  id               String            @id @default(cuid())
+  campeonatoId     String
+  equipoId         String
+  estado           EstadoInscripcion @default(PENDIENTE)
+  fechaInscripcion DateTime          @default(now())
+
+  campeonato Campeonato @relation(fields: [campeonatoId], references: [id], onDelete: Cascade)
+  equipo     Equipo     @relation(fields: [equipoId], references: [id], onDelete: Cascade)
+
+  @@unique([campeonatoId, equipoId])
+  @@map("inscripciones_equipo")
 }

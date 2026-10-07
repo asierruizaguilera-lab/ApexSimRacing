@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { useSession, signOut } from 'next-auth/react'
 import { Bell, LogOut, Settings, User } from 'lucide-react'
 import { useState, useEffect, useRef } from 'react'
@@ -22,10 +23,15 @@ const TIPO_ICONS: Record<string, string> = {
   NUEVA_CARRERA: '📅',
   NUEVO_CAMPEONATO: '🏆',
   NUEVO_ELITE: '🎁',
+  INVITACION_EQUIPO: '📩',
+  EQUIPO: '🛡️',
+  TEMPORADA: '🏆',
+  MENSAJE_DIRECTO: '💬',
 }
 
 export function Header() {
   const { data: session } = useSession()
+  const router = useRouter()
   const [notifs, setNotifs] = useState<Notificacion[]>([])
   const [showNotifs, setShowNotifs] = useState(false)
   const [showUser, setShowUser] = useState(false)
@@ -116,7 +122,10 @@ export function Header() {
                       notifs.map(n => (
                         <div
                           key={n.id}
-                          onClick={() => marcarLeida(n.id)}
+                          onClick={() => {
+                            marcarLeida(n.id)
+                            if (n.link) { setShowNotifs(false); router.push(n.link) }
+                          }}
                           className={`flex gap-3 px-4 py-3 border-b border-apex-border/50 cursor-pointer hover:bg-apex-surface/50 transition-colors ${!n.leida ? 'bg-apex-red/5' : ''}`}
                         >
                           <span className="text-lg flex-shrink-0">{TIPO_ICONS[n.tipo] || '🔔'}</span>

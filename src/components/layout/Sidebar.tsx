@@ -7,20 +7,24 @@ import { cn } from '@/lib/utils'
 import {
   LayoutDashboard, Trophy, Calendar, MessageSquare,
   User, Shield, TrendingUp, Menu, X, Star, Car, Users, GraduationCap, Handshake, AlertTriangle, RefreshCw,
+  MessageCircle, CalendarRange, Lightbulb, Settings2,
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { PatrocinadoresSidebar, type Patrocinador } from '@/components/patrocinadores/PatrocinadoresStrip'
+import { getSocket } from '@/lib/socketClient'
 
 const navItems = [
   { href: '/dashboard', icon: LayoutDashboard, label: 'Inicio' },
   { href: '/campeonatos', icon: Trophy, label: 'Campeonatos' },
   { href: '/academia', icon: GraduationCap, label: 'Academia' },
   { href: '/ranking', icon: TrendingUp, label: 'Ranking' },
+  { href: '/equipos', icon: Shield, label: 'Equipos' },
   { href: '/calendario', icon: Calendar, label: 'Calendario' },
   { href: '/planes', icon: Star, label: 'Planes' },
   { href: '/mi-garaje', icon: Car, label: 'Mi Garaje' },
   { href: '/incidencias', icon: AlertTriangle, label: 'Incidencias' },
   { href: '/chat', icon: MessageSquare, label: 'Chat' },
+  { href: '/mensajes', icon: MessageCircle, label: 'Mensajes' },
   { href: '/perfil', icon: User, label: 'Mi Perfil' },
 ]
 
@@ -30,6 +34,10 @@ const adminItems = [
   { href: '/admin/incidencias', icon: AlertTriangle, label: 'Incidencias' },
   { href: '/admin/academia', icon: GraduationCap, label: 'Academia' },
   { href: '/admin/coches', icon: Car, label: 'Coches' },
+  { href: '/admin/equipos', icon: Shield, label: 'Equipos' },
+  { href: '/admin/temporadas', icon: CalendarRange, label: 'Temporadas' },
+  { href: '/admin/garaje-equipo', icon: Settings2, label: 'Garaje Equipo' },
+  { href: '/admin/propuestas', icon: Lightbulb, label: 'Propuestas' },
   { href: '/admin/suscriptores', icon: Star, label: 'Suscriptores' },
   { href: '/admin/patrocinadores', icon: Handshake, label: 'Patrocinadores' },
   { href: '/admin/sync-sheet', icon: RefreshCw, label: 'Sync Sheet' },
@@ -57,7 +65,33 @@ export function Sidebar() {
     return () => clearInterval(interval)
   }, [session, isAdmin])
 
+  // Mensajes directos sin leer: en tiempo real por socket, además del sondeo cada 30 s
+  useEffect(() => {
+    if (!session?.user) return
+    const s = getSocket()
+    const refrescar = () => { fetchNoLeidos() }
+    s.on('dm:notify', refrescar)
+    s.on('dm:leidos', refrescar)
+    window.addEventListener('mensajes:leidos', refrescar)
+    return () => {
+      s.off('dm:notify', refrescar)
+      s.off('dm:leidos', refrescar)
+      window.removeEventListener('mensajes:leidos', refrescar)
+    }
+  }, [session])
+
+  async function fetchNoLeidos() {
+    try {
+      const res = await fetch('/api/mensajes/no-leidos')
+      if (res.ok) {
+        const { total } = await res.json()
+        setBadges(prev => ({ ...prev, '/mensajes': total }))
+      }
+    } catch {}
+  }
+
   async function fetchBadges() {
+    fetchNoLeidos()
     try {
       const res = await fetch('/api/incidencias')
       if (res.ok) {
@@ -72,6 +106,13 @@ export function Sidebar() {
         if (res.ok) {
           const data = await res.json()
           setBadges(prev => ({ ...prev, '/admin/incidencias': data.length }))
+        }
+      } catch {}
+      try {
+        const res = await fetch('/api/admin/equipos/propuestas?estado=PENDIENTE')
+        if (res.ok) {
+          const data = await res.json()
+          setBadges(prev => ({ ...prev, '/admin/propuestas': data.length }))
         }
       } catch {}
     }

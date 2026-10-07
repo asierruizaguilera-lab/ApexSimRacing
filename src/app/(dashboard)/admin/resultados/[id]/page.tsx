@@ -17,6 +17,18 @@ export default async function AdminResultadosPage({ params }: { params: { id: st
             where: { estado: 'CONFIRMADA' },
             include: { user: { select: { id: true, username: true, pais: true } } },
           },
+          // Campeonatos de equipos: los pilotos salen de los equipos confirmados
+          inscripcionesEquipo: {
+            where: { estado: 'CONFIRMADA' },
+            include: {
+              equipo: {
+                select: {
+                  id: true, nombre: true, colorPrimario: true,
+                  miembros: { select: { user: { select: { id: true, username: true } } }, orderBy: { fechaUnion: 'asc' } },
+                },
+              },
+            },
+          },
         },
       },
       resultados: {

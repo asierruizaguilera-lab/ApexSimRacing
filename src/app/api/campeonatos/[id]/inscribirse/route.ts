@@ -15,6 +15,9 @@ export async function POST(_: NextRequest, { params }: { params: { id: string } 
   })
 
   if (!camp) return NextResponse.json({ error: 'Campeonato no encontrado' }, { status: 404 })
+  if (camp.esCampeonatoEquipos) {
+    return NextResponse.json({ error: 'Este campeonato es por equipos: solo el líder puede inscribir a su equipo', code: 'SOLO_EQUIPOS' }, { status: 400 })
+  }
 
   // Verificar suscripción activa (ACTIVA o GRATUITA no expirada)
   const suscripcion = await prisma.suscripcion.findFirst({

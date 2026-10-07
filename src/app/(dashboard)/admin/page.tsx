@@ -3,7 +3,8 @@ import { authOptions } from '@/lib/auth'
 import { redirect } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
 import Link from 'next/link'
-import { Users, Trophy, Calendar, MessageSquare, Plus, ChevronRight, Award } from 'lucide-react'
+import { Users, Trophy, Calendar, MessageSquare, Plus, ChevronRight, Award, Shield, CalendarRange } from 'lucide-react'
+import { etiquetaTemporada, getTemporadaActiva, mesYAnio, rankingEquiposMes } from '@/lib/temporadas'
 import { formatFecha, DISCIPLINA_LABELS, DISCIPLINA_COLORS, TOTAL_PLAZAS_FOUNDER, cn } from '@/lib/utils'
 
 export const metadata = { title: 'Panel Admin' }
@@ -11,6 +12,14 @@ export const metadata = { title: 'Panel Admin' }
 export default async function AdminPage() {
   const session = await getServerSession(authOptions)
   if (session?.user?.role !== 'ADMIN') redirect('/dashboard')
+
+  const hoy = mesYAnio()
+  const [equiposActivos, temporadaActiva, rankingMes] = await Promise.all([
+    prisma.equipo.count({ where: { activo: true } }),
+    getTemporadaActiva(),
+    rankingEquiposMes(hoy.mes, hoy.anio),
+  ])
+  const equipoLider = rankingMes[0]?.puntosMes > 0 ? rankingMes[0] : null
 
   const [totalUsuarios, totalFundadores, campeonatosActivos, carrerasEsteMes, totalMensajes, ultimosRegistros, campeonatos] = await Promise.all([
     prisma.user.count({ where: { role: 'PILOTO' } }),
@@ -71,6 +80,32 @@ export default async function AdminPage() {
             <div className="text-apex-muted text-sm mt-0.5">{s.label}</div>
           </div>
         ))}
+      </div>
+
+      {/* Liga por equipos */}
+      <div className="grid sm:grid-cols-3 gap-4">
+        <Link href="/admin/equipos" className="bg-apex-card border border-apex-border rounded-xl p-5 hover:border-apex-red/30 transition-all">
+          <div className="text-apex-muted text-sm flex items-center gap-2"><Shield size={15} className="text-cyan-400" />Equipos activos</div>
+          <div className="text-2xl font-bold mt-1">{equiposActivos}</div>
+        </Link>
+        <Link href="/admin/temporadas" className="bg-apex-card border border-apex-border rounded-xl p-5 hover:border-apex-red/30 transition-all">
+          <div className="text-apex-muted text-sm flex items-center gap-2"><CalendarRange size={15} className="text-apex-red" />Temporada actual</div>
+          <div className="text-2xl font-bold mt-1">
+            {temporadaActiva ? `T${temporadaActiva.numero} ${temporadaActiva.anio} — Mes ${etiquetaTemporada(temporadaActiva).mesTemporada}/4` : 'Sin iniciar'}
+          </div>
+        </Link>
+        <Link href={equipoLider ? `/equipos/${equipoLider.id}` : '/admin/equipos'} className="bg-apex-card border border-apex-border rounded-xl p-5 hover:border-apex-red/30 transition-all">
+          <div className="text-apex-muted text-sm flex items-center gap-2"><Trophy size={15} className="text-yellow-400" />Equipo líder este mes</div>
+          <div className="text-2xl font-bold mt-1 truncate flex items-center gap-2">
+            {equipoLider ? (
+              <>
+                <span className="w-3 h-3 rounded-sm flex-shrink-0" style={{ background: equipoLider.colorPrimario || '#C0392B' }} />
+                <span className="truncate">{equipoLider.nombre}</span>
+                <span className="text-sm text-apex-red font-semibold flex-shrink-0">{equipoLider.puntosMes} pts</span>
+              </>
+            ) : '—'}
+          </div>
+        </Link>
       </div>
 
       <div className="grid lg:grid-cols-2 gap-6">
@@ -140,6 +175,8 @@ export default async function AdminPage() {
           { href: '/admin/incidencias', label: 'Revisar Incidencias', desc: 'Gestionar quejas, resoluciones y sanciones', icon: '🚩' },
           { href: '/admin/sync-sheet', label: 'Sincronización Sheet', desc: 'Importar carreras desde Google Sheets', icon: '🔄' },
           { href: '/chat', label: 'Moderar Chat', desc: 'Ir al chat de comunidad', icon: '💬' },
+          { href: '/admin/temporadas', label: 'Temporadas', desc: 'Iniciar temporada y asignar el coche de equipo', icon: '📆' },
+          { href: '/admin/propuestas', label: 'Propuestas de equipos', desc: 'Responder a las propuestas de fin de temporada', icon: '💡' },
         ].map(a => (
           <Link key={a.href} href={a.href}
             className="bg-apex-card border border-apex-border rounded-xl p-5 hover:border-apex-red/30 transition-all group">

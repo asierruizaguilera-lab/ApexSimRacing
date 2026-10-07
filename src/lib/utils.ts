@@ -162,6 +162,9 @@ export const PLAN_PRECIOS_NORMAL: Record<string, number> = {
 
 export const TOTAL_PLAZAS_FOUNDER = 30
 
+// Pilotos por equipo (líder incluido)
+export const MAX_MIEMBROS_EQUIPO = 8
+
 // % de descuento en merch según el plan activo (0 = sin plan/Rookie)
 export const DESCUENTO_MERCH_POR_PLAN: Record<string, number> = {
   ROOKIE: 0,

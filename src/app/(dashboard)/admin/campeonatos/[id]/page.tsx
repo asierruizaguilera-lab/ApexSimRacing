@@ -10,8 +10,13 @@ export default async function AdminCampeonatoPage({ params }: { params: { id: st
 
   const isNew = params.id === 'nuevo'
 
+  const temporadas = (await prisma.temporada.findMany({
+    orderBy: [{ anio: 'desc' }, { numero: 'desc' }],
+    select: { id: true, numero: true, anio: true, activa: true },
+  }))
+
   if (isNew) {
-    return <AdminCampeonatoClient campeonato={null} />
+    return <AdminCampeonatoClient campeonato={null} temporadas={temporadas} />
   }
 
   const campeonato = await prisma.campeonato.findUnique({
@@ -20,6 +25,10 @@ export default async function AdminCampeonatoPage({ params }: { params: { id: st
       carreras: { orderBy: { fecha: 'asc' } },
       inscripciones: {
         include: { user: { select: { id: true, username: true, email: true, pais: true } } },
+        orderBy: { fechaInscripcion: 'asc' },
+      },
+      inscripcionesEquipo: {
+        include: { equipo: { select: { id: true, nombre: true, colorPrimario: true, lider: { select: { username: true } }, _count: { select: { miembros: true } } } } },
         orderBy: { fechaInscripcion: 'asc' },
       },
     },
@@ -39,7 +48,14 @@ export default async function AdminCampeonatoPage({ params }: { params: { id: st
           ...i,
           fechaInscripcion: i.fechaInscripcion.toISOString(),
         })),
+        inscripcionesEquipo: campeonato.inscripcionesEquipo.map(i => ({
+          id: i.id,
+          estado: i.estado,
+          fechaInscripcion: i.fechaInscripcion.toISOString(),
+          equipo: { id: i.equipo.id, nombre: i.equipo.nombre, colorPrimario: i.equipo.colorPrimario, lider: i.equipo.lider.username, miembros: i.equipo._count.miembros },
+        })),
       }}
+      temporadas={temporadas}
     />
   )
 }
