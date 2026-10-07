@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { banearUsuario } from '@/lib/suscripciones'
+import { recalcularStatsPiloto } from '@/lib/statsPiloto'
 import type { EstadoQueja, TipoSancion } from '@prisma/client'
 
 const ESTADOS: EstadoQueja[] = ['ABIERTA', 'EN_REVISION', 'RESUELTA', 'ARCHIVADA']
@@ -54,12 +55,8 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     if (sancion === 'BAN_PERMANENTE') {
       await banearUsuario(session.user.id, targetId, detalle)
     } else if (sancion === 'PENALIZACION_PUNTOS') {
-      const target = await prisma.user.findUnique({ where: { id: targetId }, select: { totalPuntos: true } })
+      // El total se recalcula más abajo a partir de los resultados y las penalizaciones guardadas
       const puntos = puntosPenalizados ? Number(puntosPenalizados) : 0
-      await prisma.user.update({
-        where: { id: targetId },
-        data: { totalPuntos: Math.max(0, (target?.totalPuntos || 0) - puntos) },
-      })
       await prisma.logAccionAdmin.create({
         data: { adminId: session.user.id, targetUserId: targetId, accion: 'SANCION_PUNTOS', detalle: `-${puntos} pts. ${detalle}` },
       })
@@ -79,6 +76,12 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
         data: { adminId: session.user.id, targetUserId: targetId, accion: `SANCION_${sancion}`, detalle },
       })
     }
+  }
+
+  // Penalización nueva, editada (otros puntos) o retirada: el total del piloto se recalcula desde cero
+  const afectaPuntos = queja.sancion === 'PENALIZACION_PUNTOS' || existing.sancion === 'PENALIZACION_PUNTOS'
+  if (afectaPuntos && existing.denunciadoId) {
+    await recalcularStatsPiloto(existing.denunciadoId)
   }
 
   return NextResponse.json(queja)
