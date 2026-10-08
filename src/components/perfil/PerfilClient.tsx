@@ -8,6 +8,7 @@ import { Trophy, Flag, Calendar, Target, TrendingUp, Star, Edit2, Camera, X, Che
 import Link from 'next/link'
 import toast from 'react-hot-toast'
 import { CambiarPassword } from './CambiarPassword'
+import { ReferidosPanel } from './ReferidosPanel'
 
 interface Badge {
   id: string; icon: string; label: string; desc: string; unlocked: boolean
@@ -343,6 +344,9 @@ export function PerfilClient({ piloto: initialPiloto, rankingGlobal, chartData, 
 
       {/* Cambio de contraseña — solo en tu propio perfil, dentro del modo edición */}
       {editing && isOwn && <CambiarPassword />}
+
+      {/* Programa de referidos — solo en tu propio perfil */}
+      {isOwn && <ReferidosPanel />}
 
       {/* Gráfica puntos */}
       {chartData.length > 0 && (

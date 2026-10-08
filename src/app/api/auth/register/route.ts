@@ -2,10 +2,11 @@ import { NextRequest, NextResponse } from 'next/server'
 import bcrypt from 'bcryptjs'
 import { prisma } from '@/lib/prisma'
 import { sendEmail, emailBienvenida } from '@/lib/email'
+import { buscarCodigoValido } from '@/lib/referidos'
 
 export async function POST(req: NextRequest) {
   try {
-    const { username, email, password, pais } = await req.json()
+    const { username, email, password, pais, codigoReferido } = await req.json()
 
     if (!username || !email || !password) {
       return NextResponse.json({ error: 'Todos los campos son requeridos' }, { status: 400 })
@@ -29,10 +30,29 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Este nombre de piloto ya está en uso' }, { status: 409 })
     }
 
+    // Código de referido opcional: si se envía, debe ser válido
+    let codigoReferidoId: string | null = null
+    if (typeof codigoReferido === 'string' && codigoReferido.trim()) {
+      const codigo = await buscarCodigoValido(codigoReferido)
+      if (!codigo) {
+        return NextResponse.json({ error: 'El código de referido no es válido' }, { status: 400 })
+      }
+      codigoReferidoId = codigo.id
+    }
+
     const hashed = await bcrypt.hash(password, 12)
 
     const user = await prisma.user.create({
-      data: { username, email, password: hashed, pais, role: 'PILOTO' },
+      data: {
+        username,
+        email,
+        password: hashed,
+        pais,
+        role: 'PILOTO',
+        // Se vincula con el referidor (UsoReferido) al completar el primer pago
+        descuentoReferido: !!codigoReferidoId,
+        codigoReferidoPendienteId: codigoReferidoId,
+      },
       select: { id: true, username: true, email: true, role: true },
     })
 

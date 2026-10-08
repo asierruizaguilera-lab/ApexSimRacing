@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { activarPlan, cancelarSuscripcion } from '@/lib/suscripciones'
-import { getPlanId } from '@/lib/paypal'
+import { getPlanId, verificarWebhookPayPal } from '@/lib/paypal'
+import { vincularReferido, registrarComisionPago, desactivarUsoReferido } from '@/lib/referidos'
 import { sendEmail, emailSuscripcionActiva, emailSuscripcionCancelada } from '@/lib/email'
 import type { PlanSuscripcion } from '@prisma/client'
 
@@ -17,6 +18,15 @@ async function getUserForNotification(userId: string) {
 export async function POST(req: NextRequest) {
   const body = await req.json()
   const eventType = body.event_type
+
+  // Con PAYPAL_WEBHOOK_ID configurado se rechaza cualquier evento sin firma válida.
+  // Sin él se mantiene el comportamiento anterior, pero NO se acumulan comisiones de referido
+  // (cualquiera podría falsificar un PAYMENT.SALE.COMPLETED y generarse saldo).
+  const verificado = await verificarWebhookPayPal(req.headers, body)
+  if (verificado === false) {
+    console.warn('[PayPal Webhook] Firma inválida — evento ignorado:', eventType)
+    return NextResponse.json({ error: 'Firma inválida' }, { status: 400 })
+  }
 
   try {
     switch (eventType) {
@@ -48,6 +58,7 @@ export async function POST(req: NextRequest) {
             paypalSubscriptionId: resource.id,
             esFounder,
           })
+          await vincularReferido(userId).catch(err => console.error('[PayPal Webhook] vincularReferido', err))
           const user = await getUserForNotification(userId)
           if (user) {
             sendEmail({
@@ -78,6 +89,7 @@ export async function POST(req: NextRequest) {
 
         if (userId) {
           await cancelarSuscripcion(userId)
+          await desactivarUsoReferido(userId)
           const user = await getUserForNotification(userId)
           if (user) {
             sendEmail({
@@ -100,6 +112,17 @@ export async function POST(req: NextRequest) {
             where: { paypalSubscriptionId: billingAgreementId },
             data: { fechaRenovacion },
           })
+
+          // Comisión de referido: 12% del precio del plan durante los primeros 12 pagos
+          if (verificado) {
+            const sub = await prisma.suscripcion.findUnique({
+              where: { paypalSubscriptionId: billingAgreementId },
+              select: { userId: true, precioMensual: true },
+            })
+            if (sub) await registrarComisionPago(sub.userId, resource.id, sub.precioMensual)
+          } else {
+            console.warn('[PayPal Webhook] PAYPAL_WEBHOOK_ID no configurado — comisiones de referido desactivadas')
+          }
         }
         break
       }

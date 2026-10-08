@@ -59,6 +59,7 @@ enum TipoNotificacion {
   EQUIPO
   TEMPORADA
   MENSAJE_DIRECTO
+  REFERIDO
 }
 
 enum PlanSuscripcion {
@@ -127,6 +128,10 @@ model User {
   fechaFounder   DateTime? // cuando se convirtió en fundador
   descuentoMerch Int       @default(0) // % de descuento en merch según plan: 0, 10, 15 o 25
 
+  // Programa de referidos
+  descuentoReferido         Boolean @default(false) // true si usó un código al registrarse
+  codigoReferidoPendienteId String? // código usado en el registro, pendiente de vincular al completar el primer pago
+
   accounts            Account[]
   sessions            Session[]
   inscripciones       Inscripcion[]
@@ -151,6 +156,14 @@ model User {
   mensajesEnviados      MensajeDirecto[]   @relation("MensajesEnviados")
   mensajesRecibidos     MensajeDirecto[]   @relation("MensajesRecibidos")
   propuestasEquipo      PropuestaEquipo[]
+
+  codigosCreados        CodigoReferido[]      @relation("CodigosCreados")
+  referidoPor           UsoReferido?          @relation("ReferidoPor")
+  referidosHechos       UsoReferido[]         @relation("ReferidosHechos")
+  saldoReferidor        SaldoReferidor?
+  comisionesGeneradas   ComisionReferido[]    @relation("ComisionesReferidor")
+  liquidacionesReferido LiquidacionReferido[] @relation("LiquidacionesReferidor")
+  liquidacionesHechas   LiquidacionReferido[] @relation("LiquidacionesAdmin")
 
   @@map("users")
 }
@@ -696,4 +709,82 @@ model InscripcionEquipo {
 
   @@unique([campeonatoId, equipoId])
   @@map("inscripciones_equipo")
+}
+
+// ── Programa de referidos ────────────────────────────────────────────────────
+
+model CodigoReferido {
+  id          String        @id @default(cuid())
+  codigo      String        @unique // ej: "APEX-ASIER-4821"
+  creadoPorId String
+  creadoPor   User          @relation("CodigosCreados", fields: [creadoPorId], references: [id])
+  usos        UsoReferido[]
+  activo      Boolean       @default(true)
+  creadoEn    DateTime      @default(now())
+
+  @@index([creadoPorId])
+  @@map("codigos_referido")
+}
+
+model UsoReferido {
+  id             String             @id @default(cuid())
+  codigoId       String
+  codigo         CodigoReferido     @relation(fields: [codigoId], references: [id])
+  referidoId     String             @unique // un usuario solo puede ser referido una vez
+  referido       User               @relation("ReferidoPor", fields: [referidoId], references: [id])
+  referidorId    String
+  referidor      User               @relation("ReferidosHechos", fields: [referidorId], references: [id])
+  fechaInicio    DateTime           @default(now())
+  mesesActivos   Int                @default(0) // meses que ha pagado el referido
+  comisionTotal  Float              @default(0) // comisión acumulada total (12% × meses)
+  comisionPagada Float              @default(0) // ya liquidada
+  activo         Boolean            @default(true) // false cuando llega a 12 meses o cancela
+  creadoEn       DateTime           @default(now())
+  comisiones     ComisionReferido[]
+
+  @@index([referidorId])
+  @@map("usos_referido")
+}
+
+model SaldoReferidor {
+  id                String    @id @default(cuid())
+  userId            String    @unique
+  user              User      @relation(fields: [userId], references: [id])
+  saldoPendiente    Float     @default(0) // comisión acumulada sin liquidar
+  saldoPagado       Float     @default(0) // total liquidado históricamente
+  ultimaLiquidacion DateTime?
+  actualizadoEn     DateTime  @updatedAt
+
+  @@map("saldos_referidor")
+}
+
+// Una fila por cada pago del referido que genera comisión. saleId único = webhook idempotente.
+model ComisionReferido {
+  id          String      @id @default(cuid())
+  usoId       String
+  uso         UsoReferido @relation(fields: [usoId], references: [id])
+  referidorId String
+  referidor   User        @relation("ComisionesReferidor", fields: [referidorId], references: [id])
+  saleId      String      @unique // id del pago de PayPal (PAYMENT.SALE.COMPLETED)
+  precioPlan  Float
+  importe     Float
+  creadoEn    DateTime    @default(now())
+
+  @@index([referidorId, creadoEn])
+  @@map("comisiones_referido")
+}
+
+model LiquidacionReferido {
+  id                String   @id @default(cuid())
+  userId            String
+  user              User     @relation("LiquidacionesReferidor", fields: [userId], references: [id])
+  adminId           String
+  admin             User     @relation("LiquidacionesAdmin", fields: [adminId], references: [id])
+  importeLiquidado  Float // saldo pendiente que se liquida
+  precioSuscripcion Float // parte que cubre su propia suscripción
+  cashPagado        Float // max(0, importeLiquidado - precioSuscripcion)
+  creadoEn          DateTime @default(now())
+
+  @@index([userId])
+  @@map("liquidaciones_referido")
 }

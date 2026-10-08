@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { getPayPalSubscription, getPlanId } from '@/lib/paypal'
 import { activarPlan } from '@/lib/suscripciones'
+import { vincularReferido } from '@/lib/referidos'
 import { sendEmail, emailSuscripcionActiva } from '@/lib/email'
 import type { PlanSuscripcion } from '@prisma/client'
 
@@ -31,6 +32,9 @@ export async function POST(req: NextRequest) {
       paypalSubscriptionId: subscriptionId,
       esFounder,
     })
+
+    // Si se registró con un código de referido, el primer pago lo vincula con su referidor
+    await vincularReferido(session.user.id).catch(err => console.error('[PayPal capture] vincularReferido', err))
 
     // Email de confirmación (async, no bloquea)
     const user = await prisma.user.findUnique({

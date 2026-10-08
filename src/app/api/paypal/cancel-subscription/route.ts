@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { cancelPayPalSubscription } from '@/lib/paypal'
 import { cancelarSuscripcion } from '@/lib/suscripciones'
+import { desactivarUsoReferido } from '@/lib/referidos'
 import { sendEmail, emailSuscripcionCancelada } from '@/lib/email'
 
 export async function POST(_req: NextRequest) {
@@ -22,6 +23,7 @@ export async function POST(_req: NextRequest) {
   }
 
   await cancelarSuscripcion(session.user.id)
+  await desactivarUsoReferido(session.user.id)
 
   // Email de confirmación (async)
   const user = await prisma.user.findUnique({

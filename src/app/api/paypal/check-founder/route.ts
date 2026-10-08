@@ -36,9 +36,10 @@ export async function GET(req: NextRequest) {
 
   // Si se solicita un plan concreto y hay sesión, devolvemos también el Plan ID de PayPal resuelto
   if (plan && session?.user?.id) {
-    const { planId, esFounder } = await getPlanId(plan, session.user.id)
+    const { planId, esFounder, descuentoReferido } = await getPlanId(plan, session.user.id)
     body.planId = planId
     body.esFounderParaEstaCompra = esFounder
+    body.descuentoReferido = descuentoReferido
   }
 
   return NextResponse.json(body)

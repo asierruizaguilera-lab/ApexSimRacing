@@ -1,11 +1,11 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { signIn } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import toast from 'react-hot-toast'
-import { UserPlus, Eye, EyeOff } from 'lucide-react'
+import { UserPlus, Eye, EyeOff, Loader2 } from 'lucide-react'
 import { PAISES_NOMBRES } from '@/lib/utils'
 
 export default function RegisterPage() {
@@ -13,6 +13,30 @@ export default function RegisterPage() {
   const [form, setForm] = useState({ username: '', email: '', password: '', pais: 'ES' })
   const [showPwd, setShowPwd] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [codigoRef, setCodigoRef] = useState('')
+  const [estadoRef, setEstadoRef] = useState<'vacio' | 'validando' | 'valido' | 'invalido'>('vacio')
+
+  // Prerellenar desde el link compartido (?ref=APEX-USER-1234). Se lee de window.location para no
+  // necesitar un Suspense boundary con useSearchParams.
+  useEffect(() => {
+    const ref = new URLSearchParams(window.location.search).get('ref')
+    if (ref) setCodigoRef(ref.toUpperCase())
+  }, [])
+
+  // Validación en tiempo real con debounce
+  useEffect(() => {
+    const codigo = codigoRef.trim()
+    if (!codigo) { setEstadoRef('vacio'); return }
+    setEstadoRef('validando')
+    const controller = new AbortController()
+    const t = setTimeout(() => {
+      fetch(`/api/referidos/validar?codigo=${encodeURIComponent(codigo)}`, { signal: controller.signal })
+        .then(r => r.json())
+        .then(d => setEstadoRef(d.valido ? 'valido' : 'invalido'))
+        .catch(err => { if (err.name !== 'AbortError') setEstadoRef('invalido') })
+    }, 400)
+    return () => { clearTimeout(t); controller.abort() }
+  }, [codigoRef])
 
   const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
     setForm(f => ({ ...f, [k]: e.target.value }))
@@ -23,12 +47,16 @@ export default function RegisterPage() {
       toast.error('La contraseña debe tener al menos 8 caracteres')
       return
     }
+    if (estadoRef === 'invalido' || estadoRef === 'validando') {
+      toast.error(estadoRef === 'invalido' ? 'El código de referido no es válido — corrígelo o déjalo vacío' : 'Validando código de referido...')
+      return
+    }
     setLoading(true)
     try {
       const res = await fetch('/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form),
+        body: JSON.stringify({ ...form, codigoReferido: codigoRef.trim() || undefined }),
       })
       const data = await res.json()
       if (!res.ok) {
@@ -108,6 +136,36 @@ export default function RegisterPage() {
               {showPwd ? <EyeOff size={16} /> : <Eye size={16} />}
             </button>
           </div>
+        </div>
+        <div>
+          <label className="block text-sm font-medium mb-1.5">
+            ¿Tienes un código de referido? <span className="text-apex-muted font-normal">(opcional)</span>
+          </label>
+          <div className="relative">
+            <input
+              type="text"
+              value={codigoRef}
+              onChange={e => setCodigoRef(e.target.value.toUpperCase())}
+              placeholder="APEX-PILOTO-1234"
+              autoComplete="off"
+              className={`w-full bg-apex-surface border rounded-lg px-3 py-2.5 text-sm font-mono focus:outline-none transition-colors pr-10 ${
+                estadoRef === 'valido' ? 'border-green-500/60' : estadoRef === 'invalido' ? 'border-red-500/60' : 'border-apex-border focus:border-apex-red'
+              }`}
+            />
+            {estadoRef === 'validando' && (
+              <Loader2 size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-apex-muted animate-spin" />
+            )}
+          </div>
+          {estadoRef === 'valido' && (
+            <span className="inline-block mt-2 text-xs font-medium px-2.5 py-1 rounded-full bg-green-500/15 text-green-400 border border-green-500/30">
+              ✅ Código válido — 10% de descuento en tu primer mes
+            </span>
+          )}
+          {estadoRef === 'invalido' && (
+            <span className="inline-block mt-2 text-xs font-medium px-2.5 py-1 rounded-full bg-red-500/15 text-red-400 border border-red-500/30">
+              ❌ Código no válido
+            </span>
+          )}
         </div>
 
         <button

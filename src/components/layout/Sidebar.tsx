@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils'
 import {
   LayoutDashboard, Trophy, Calendar, MessageSquare,
   User, Shield, TrendingUp, Menu, X, Star, Car, Users, GraduationCap, Handshake, AlertTriangle, RefreshCw,
-  MessageCircle, CalendarRange, Lightbulb, Settings2,
+  MessageCircle, CalendarRange, Lightbulb, Settings2, Gift,
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { PatrocinadoresSidebar, type Patrocinador } from '@/components/patrocinadores/PatrocinadoresStrip'
@@ -39,6 +39,7 @@ const adminItems = [
   { href: '/admin/garaje-equipo', icon: Settings2, label: 'Garaje Equipo' },
   { href: '/admin/propuestas', icon: Lightbulb, label: 'Propuestas' },
   { href: '/admin/suscriptores', icon: Star, label: 'Suscriptores' },
+  { href: '/admin/referidos', icon: Gift, label: 'Referidos' },
   { href: '/admin/patrocinadores', icon: Handshake, label: 'Patrocinadores' },
   { href: '/admin/sync-sheet', icon: RefreshCw, label: 'Sync Sheet' },
 ]
