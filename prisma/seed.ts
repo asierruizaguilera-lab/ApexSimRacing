@@ -1,10 +1,14 @@
-import { PrismaClient, Rol, Disciplina, PlanSuscripcion, UbicacionPatrocinador } from '@prisma/client'
+import { PrismaClient, Rol, PlanSuscripcion } from '@prisma/client'
 import bcrypt from 'bcryptjs'
 import { fromZonedTime } from 'date-fns-tz'
 import { sincronizarCoches } from './coches-catalogo'
 
 const prisma = new PrismaClient()
 
+// Seed mínimo y no destructivo: solo crea lo imprescindible para que la app funcione en una BD vacía
+// (admin, catálogo de coches y temporadas del año). Nunca borra usuarios ni datos existentes y no
+// crea datos de prueba. Se ejecuta con ts-node --transpile-only para no cargar los tipos de Prisma
+// en memoria (ver server.js).
 async function main() {
   console.log('🌱 Iniciando seed de APEX...')
 
@@ -44,7 +48,7 @@ async function main() {
     console.log(`   ⏭️  BD con ${totalUsuarios} usuarios — omitiendo creación de admin`)
   }
 
-  // ── 1b. Catálogo de coches — sincronización no destructiva (nunca toca usuarios) ──
+  // ── 2. Catálogo de coches — sincronización no destructiva (nunca toca usuarios) ──
   const resumenCoches = await sincronizarCoches(prisma, { force: false })
   console.log(
     `   🚗 Coches: ${resumenCoches.creados.length} creados, ${resumenCoches.renombrados.length} renombrados, ` +
@@ -52,138 +56,7 @@ async function main() {
     `${resumenCoches.desbloqueosNuevos} desbloqueos nuevos`
   )
 
-  // ── 2. Clases de Academia — solo si no hay ninguna ────────────────────────
-  const totalClases = await prisma.clase.count()
-  if (totalClases === 0) {
-    const clasesData = [
-      {
-        titulo: 'Técnica de frenada en tierra',
-        descripcion: 'Aprende a frenar correctamente en superficies de tierra: dosificación del freno, punto de frenada y transferencia de peso.',
-        disciplina: Disciplina.RALLY,
-        youtubeUrl: 'dQw4w9WgXcQ',
-        duracionMin: 12,
-        orden: 1,
-        publicada: true,
-      },
-      {
-        titulo: 'Setup de suspensión para rally',
-        descripcion: 'Configuración de la suspensión en etapas de tierra y asfalto. Altura, rigidez y diferencial.',
-        disciplina: Disciplina.RALLY,
-        youtubeUrl: 'dQw4w9WgXcQ',
-        duracionMin: 18,
-        orden: 2,
-        publicada: true,
-      },
-      {
-        titulo: 'Trazada perfecta en chicane',
-        descripcion: 'La geometría de la trazada en chicanes apretadas: cómo minimizar pérdida de tiempo y proteger los neumáticos.',
-        disciplina: Disciplina.CIRCUITO,
-        youtubeUrl: 'dQw4w9WgXcQ',
-        duracionMin: 10,
-        orden: 1,
-        publicada: true,
-      },
-      {
-        titulo: 'Gestión de neumáticos en carrera',
-        descripcion: 'Estrategias de ahorro de goma, reconocimiento del degradado y cómo adaptar la conducción en las últimas vueltas.',
-        disciplina: Disciplina.CIRCUITO,
-        youtubeUrl: 'dQw4w9WgXcQ',
-        duracionMin: 15,
-        orden: 2,
-        publicada: true,
-      },
-      {
-        titulo: 'Iniciación al drift con handbrake',
-        descripcion: 'Primeros pasos en el drift: uso del freno de mano, iniciación del sobreviraje y control del ángulo.',
-        disciplina: Disciplina.DRIFT,
-        youtubeUrl: 'dQw4w9WgXcQ',
-        duracionMin: 20,
-        orden: 1,
-        publicada: true,
-      },
-      {
-        titulo: 'Técnica de salida en tierra',
-        descripcion: 'Cómo conseguir la salida perfecta en kartcross: embrague, aceleración y control de la tracción.',
-        disciplina: Disciplina.KARTCROSS,
-        youtubeUrl: 'dQw4w9WgXcQ',
-        duracionMin: 8,
-        orden: 1,
-        publicada: true,
-      },
-    ]
-
-    await prisma.clase.createMany({ data: clasesData })
-    console.log(`   ✅ ${clasesData.length} clases de Academia creadas`)
-  } else {
-    console.log(`   ⏭️  Ya existen ${totalClases} clases — omitiendo seed de Academia`)
-  }
-
-  // ── 3. Vadosan — colaborador técnico de Academia ─────────────────────────────
-  const vadosan = await prisma.patrocinador.findFirst({ where: { nombre: 'Vadosan' } })
-  if (!vadosan) {
-    await prisma.patrocinador.create({
-      data: {
-        nombre: 'Vadosan',
-        descripcion: 'Colaborador técnico — Mecánica, técnica de pilotaje y conocimiento de circuitos',
-        logoUrl: null,
-        linkExterno: null,
-        ubicaciones: [UbicacionPatrocinador.ACADEMIA],
-        activo: true,
-        esColaborador: true,
-        orden: 0,
-      },
-    })
-    console.log('   ✅ Vadosan (colaborador técnico Academia) creado')
-  } else {
-    console.log('   ⏭️  Vadosan ya existe — omitiendo')
-  }
-
-  // ── 4. Patrocinadores placeholder ────────────────────────────────────────────
-  const placeholders = [
-    {
-      nombre: 'Tu Marca Aquí',
-      descripcion: '¿Quieres llegar a la comunidad del motor hispanohablante? Contáctanos.',
-      logoUrl: null as string | null,
-      linkExterno: null as string | null,
-      ubicaciones: [UbicacionPatrocinador.TODAS],
-      activo: true,
-      esColaborador: false,
-      orden: 1,
-    },
-    {
-      nombre: 'Patrocinador Oficial',
-      descripcion: 'Colaborador oficial de APEX SimRacing.',
-      logoUrl: null as string | null,
-      linkExterno: null as string | null,
-      ubicaciones: [UbicacionPatrocinador.TODAS],
-      activo: true,
-      esColaborador: false,
-      orden: 2,
-    },
-  ]
-
-  let placeholdersCreados = 0
-  let placeholdersActualizados = 0
-  for (const p of placeholders) {
-    const existing = await prisma.patrocinador.findFirst({ where: { nombre: p.nombre } })
-    if (!existing) {
-      await prisma.patrocinador.create({ data: p })
-      placeholdersCreados++
-    } else if (!existing.ubicaciones.includes(UbicacionPatrocinador.TODAS)) {
-      await prisma.patrocinador.update({
-        where: { id: existing.id },
-        data: { ubicaciones: [UbicacionPatrocinador.TODAS], activo: true },
-      })
-      placeholdersActualizados++
-    }
-  }
-  if (placeholdersCreados > 0) console.log(`   ✅ ${placeholdersCreados} patrocinadores placeholder creados`)
-  if (placeholdersActualizados > 0) console.log(`   ✅ ${placeholdersActualizados} patrocinadores placeholder actualizados a TODAS`)
-  if (placeholdersCreados === 0 && placeholdersActualizados === 0) {
-    console.log('   ⏭️  Placeholders ya correctos — omitiendo')
-  }
-
-  // ── 5. Temporadas del año en curso — solo crea las que falten, nunca activa ni borra nada ──
+  // ── 3. Temporadas del año en curso — solo crea las que falten, nunca activa ni borra nada ──
   // (la liga la arranca el admin desde /admin/temporadas, que es quien asigna el coche de equipo)
   const zona = 'Europe/Madrid'
   const anio = Number(new Intl.DateTimeFormat('en', { timeZone: zona, year: 'numeric' }).format(new Date()))

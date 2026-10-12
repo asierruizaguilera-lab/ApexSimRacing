@@ -3,16 +3,31 @@ const { parse } = require('url')
 const next = require('next')
 const { Server } = require('socket.io')
 const cron = require('node-cron')
-const { execSync, execFileSync } = require('child_process')
+const { execFileSync } = require('child_process')
 const { getToken } = require('next-auth/jwt')
 
 const dev = process.env.NODE_ENV !== 'production'
 const hostname = '0.0.0.0'
 const port = parseInt(process.env.PORT || '3000', 10)
 
+// Los pasos de arranque se lanzan directamente con `node` (sin npx/npm ni el CLI `prisma db seed`
+// de por medio), uno detrás de otro y con el heap de cada proceso hijo limitado, para no agotar la
+// memoria de la instancia de Render. Los scripts TS van con ts-node --transpile-only: la comprobación
+// de tipos cargaba los tipos generados de Prisma y consumía ~400 MB por script.
+const CHILD_HEAP_MB = process.env.BOOT_CHILD_HEAP_MB || '256'
+const TS_NODE_ARGS = ['--transpile-only', '--compiler-options', '{"module":"CommonJS","moduleResolution":"node"}']
+
+function runNode(args, opts = {}) {
+  execFileSync(process.execPath, [`--max-old-space-size=${CHILD_HEAP_MB}`, ...args], { stdio: 'inherit', ...opts })
+}
+
+function runTs(script) {
+  runNode([require.resolve('ts-node/dist/bin.js'), ...TS_NODE_ARGS, script])
+}
+
 // Inicialización de BD sin acceso a Shell (Render): si RUN_SEED_ON_START=true,
 // sincroniza el esquema y ejecuta el seed antes de arrancar el servidor.
-// Ambos pasos son best-effort: un fallo se loguea pero nunca impide que el servidor arranque.
+// Todos los pasos son best-effort: un fallo se loguea pero nunca impide que el servidor arranque.
 async function runSeedOnStartIfRequested() {
   if (process.env.RUN_SEED_ON_START !== 'true') return
 
@@ -24,10 +39,13 @@ async function runSeedOnStartIfRequested() {
   // para que `db push` no encuentre ninguna columna/tipo que "perder" y nunca necesite
   // --accept-data-loss — ese flag se mantiene deliberadamente fuera del comando de abajo.
   try {
-    execSync('npx prisma db execute --stdin --schema=prisma/schema.prisma', {
-      input: 'ALTER TABLE "campeonatos" DROP COLUMN IF EXISTS "simulador"; DROP TYPE IF EXISTS "Simulador";',
-      stdio: ['pipe', 'inherit', 'inherit'],
-    })
+    runNode(
+      [require.resolve('prisma/build/index.js'), 'db', 'execute', '--stdin', '--schema=prisma/schema.prisma'],
+      {
+        input: 'ALTER TABLE "campeonatos" DROP COLUMN IF EXISTS "simulador"; DROP TYPE IF EXISTS "Simulador";',
+        stdio: ['pipe', 'inherit', 'inherit'],
+      }
+    )
     console.log('[BOOT] ✅ Columna simulador y su enum eliminados (o ya no existían)')
   } catch (err) {
     console.error('[BOOT] ❌ Error eliminando columna simulador (no crítico si la tabla aún no existe):', err.message)
@@ -36,27 +54,23 @@ async function runSeedOnStartIfRequested() {
   // El canal de chat DRIFT se eliminó del enum CanalChat. Se borran sus mensajes y se recrea el
   // enum ANTES de `db push` por el mismo motivo (idempotente: no-op si DRIFT ya no existe).
   try {
-    execFileSync(
-      process.execPath,
-      [require.resolve('ts-node/dist/bin.js'), '--compiler-options', '{"module":"CommonJS"}', 'scripts/migrate-canal-drift.ts'],
-      { stdio: 'inherit' }
-    )
+    runTs('scripts/migrate-canal-drift.ts')
   } catch (err) {
     console.error('[BOOT] ❌ Error en la migración del canal DRIFT:', err.message)
   }
 
   try {
-    execSync('npx prisma db push --skip-generate', { stdio: 'inherit' })
+    runNode([require.resolve('prisma/build/index.js'), 'db', 'push', '--skip-generate'])
     console.log('[BOOT] ✅ prisma db push completado')
   } catch (err) {
     console.error('[BOOT] ❌ Error en prisma db push:', err.message)
   }
 
   try {
-    execSync('npx prisma db seed', { stdio: 'inherit' })
-    console.log('[BOOT] ✅ prisma db seed completado')
+    runTs('prisma/seed.ts')
+    console.log('[BOOT] ✅ seed completado')
   } catch (err) {
-    console.error('[BOOT] ❌ Error en prisma db seed:', err.message)
+    console.error('[BOOT] ❌ Error en el seed:', err.message)
   }
 }
 
@@ -68,12 +82,7 @@ async function runMigrationSimuladorIfRequested() {
 
   console.log('[BOOT] RUN_MIGRATION_SIMULADOR=true — ejecutando scripts/migrate-simulador.ts...')
   try {
-    // Se invoca ts-node con un array de argumentos (sin shell) para que el JSON llegue intacto en Linux y Windows
-    execFileSync(
-      process.execPath,
-      [require.resolve('ts-node/dist/bin.js'), '--compiler-options', '{"module":"CommonJS"}', 'scripts/migrate-simulador.ts'],
-      { stdio: 'inherit' }
-    )
+    runTs('scripts/migrate-simulador.ts')
     console.log('[BOOT] ✅ Migración simulador completada')
   } catch (err) {
     console.error('[BOOT] ❌ Error en migración simulador:', err.message)
