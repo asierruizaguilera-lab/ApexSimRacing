@@ -22,7 +22,7 @@ async function gestionarSuscripcionEquipo(eventType: string, resource: any): Pro
   try { equipoId = JSON.parse(resource?.custom_id || '{}').equipoId } catch {}
   const esPlanEquipo = !!resource?.plan_id && Object.values(PAYPAL_EQUIPO_PLAN_IDS).includes(resource.plan_id)
   const equipoPorSub = resource?.id
-    ? await prisma.equipo.findUnique({ where: { paypalSubIdEquipo: resource.id }, select: { id: true } })
+    ? await prisma.equipo.findFirst({ where: { paypalSubIdEquipo: resource.id }, select: { id: true } })
     : null
   equipoId = equipoId || equipoPorSub?.id
   if (!equipoId || (!esPlanEquipo && !equipoPorSub)) return false
