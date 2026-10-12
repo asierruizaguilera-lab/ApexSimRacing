@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { sendEmail, emailInscripcionConfirmada } from '@/lib/email'
 import { planSuficiente, PLAN_LABELS } from '@/lib/utils'
+import { esMiembroEquipoFounder } from '@/lib/equipos'
 
 export async function POST(_: NextRequest, { params }: { params: { id: string } }) {
   const session = await getServerSession(authOptions)
@@ -19,6 +20,15 @@ export async function POST(_: NextRequest, { params }: { params: { id: string } 
     return NextResponse.json({ error: 'Este campeonato es por equipos: solo el líder puede inscribir a su equipo', code: 'SOLO_EQUIPOS' }, { status: 400 })
   }
 
+  if (await esMiembroEquipoFounder(session.user.id)) {
+    return NextResponse.json({
+      error: 'Los miembros de un Equipo Founder solo pueden competir en campeonatos de equipos.',
+      code: 'EQUIPO_FOUNDER',
+    }, { status: 403 })
+  }
+
+  // La temporada de iniciación es gratuita: no exige suscripción ni plan mínimo
+  if (!camp.esIniciacion) {
   // Verificar suscripción activa (ACTIVA o GRATUITA no expirada)
   const suscripcion = await prisma.suscripcion.findFirst({
     where: { userId: session.user.id, estado: { in: ['ACTIVA', 'GRATUITA'] } },
@@ -47,6 +57,7 @@ export async function POST(_: NextRequest, { params }: { params: { id: string } 
       code: 'SOLO_ELITE',
       redirectTo: '/planes',
     }, { status: 403 })
+  }
   }
   if (camp.estado === 'FINALIZADO') return NextResponse.json({ error: 'Este campeonato ya ha finalizado' }, { status: 400 })
   if (camp._count.inscripciones >= camp.maxPilotos) return NextResponse.json({ error: 'Campeonato lleno' }, { status: 400 })

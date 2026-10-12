@@ -1,8 +1,12 @@
 import { prisma } from './prisma'
 
-// Stats del ranking individual: solo cuentan campeonatos individuales.
-// Los resultados de campeonatos de equipos suman únicamente a la clasificación del equipo.
-export const RESULTADO_INDIVIDUAL = { carrera: { campeonato: { esCampeonatoEquipos: false } } } as const
+// Stats del ranking individual: solo cuentan campeonatos individuales que no sean de iniciación.
+// Los resultados de campeonatos de equipos suman únicamente a la clasificación del equipo, y los de la
+// temporada de iniciación solo se guardan para el historial (sección aparte en el perfil).
+export const RESULTADO_INDIVIDUAL = {
+  esIniciacion: false,
+  carrera: { campeonato: { esCampeonatoEquipos: false, esIniciacion: false } },
+} as const
 
 /** Puntos restados al piloto por sanciones PENALIZACION_PUNTOS de incidencias. */
 export async function puntosPenalizados(userId: string): Promise<number> {

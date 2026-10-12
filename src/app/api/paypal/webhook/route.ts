@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { activarPlan, cancelarSuscripcion } from '@/lib/suscripciones'
-import { getPlanId, verificarWebhookPayPal } from '@/lib/paypal'
+import { getPlanId, verificarWebhookPayPal, PAYPAL_EQUIPO_PLAN_IDS } from '@/lib/paypal'
+import { activarPlanEquipoFounder } from '@/lib/equipos'
 import { vincularReferido, registrarComisionPago, desactivarUsoReferido } from '@/lib/referidos'
 import { sendEmail, emailSuscripcionActiva, emailSuscripcionCancelada } from '@/lib/email'
 import type { PlanSuscripcion } from '@prisma/client'
@@ -13,6 +14,29 @@ async function getUserForNotification(userId: string) {
     where: { id: userId },
     select: { email: true, username: true },
   })
+}
+
+/** Devuelve true si el evento corresponde a un plan de equipo (y ya se ha procesado). */
+async function gestionarSuscripcionEquipo(eventType: string, resource: any): Promise<boolean> {
+  let equipoId: string | undefined
+  try { equipoId = JSON.parse(resource?.custom_id || '{}').equipoId } catch {}
+  const esPlanEquipo = !!resource?.plan_id && Object.values(PAYPAL_EQUIPO_PLAN_IDS).includes(resource.plan_id)
+  const equipoPorSub = resource?.id
+    ? await prisma.equipo.findUnique({ where: { paypalSubIdEquipo: resource.id }, select: { id: true } })
+    : null
+  equipoId = equipoId || equipoPorSub?.id
+  if (!equipoId || (!esPlanEquipo && !equipoPorSub)) return false
+
+  if (eventType === 'BILLING.SUBSCRIPTION.ACTIVATED' && resource.plan_id === PAYPAL_EQUIPO_PLAN_IDS.FOUNDER) {
+    const r = await activarPlanEquipoFounder(equipoId, resource.id)
+    if (!r.ok) console.warn('[PayPal Webhook] Plan equipo Founder no activado:', r.error)
+  } else if (eventType === 'BILLING.SUBSCRIPTION.ACTIVATED') {
+    await prisma.equipo.update({ where: { id: equipoId }, data: { fechaInicioEquipo: new Date(), paypalSubIdEquipo: resource.id } })
+  } else if (eventType === 'BILLING.SUBSCRIPTION.CANCELLED' || eventType === 'BILLING.SUBSCRIPTION.EXPIRED') {
+    // Igual que en individual: si cancela, el equipo pierde el precio Founder de por vida
+    await prisma.equipo.update({ where: { id: equipoId }, data: { planEquipo: 'ESTANDAR', paypalSubIdEquipo: null } })
+  }
+  return true
 }
 
 export async function POST(req: NextRequest) {
@@ -29,6 +53,11 @@ export async function POST(req: NextRequest) {
   }
 
   try {
+    // Suscripciones del plan de equipo (las paga el líder): custom_id = { equipoId }
+    if (eventType?.startsWith('BILLING.SUBSCRIPTION.') && await gestionarSuscripcionEquipo(eventType, body.resource)) {
+      return NextResponse.json({ received: true })
+    }
+
     switch (eventType) {
       case 'BILLING.SUBSCRIPTION.ACTIVATED': {
         const resource = body.resource
@@ -51,14 +80,15 @@ export async function POST(req: NextRequest) {
         }
 
         if (userId && plan) {
-          // Recalculamos el estado fundador en el momento de la activación (idempotente: si el
-          // usuario ya es fundador, getPlanId siempre devuelve esFounder=true independientemente de las plazas restantes).
-          const { esFounder } = await getPlanId(plan, userId)
+          // Recalculamos el precio Founder en el momento de la activación (idempotente: si el capture ya
+          // lo activó, el usuario es Founder con la suscripción activa y getPlanId devuelve precio Founder).
+          const { precioFounder: esFounder } = await getPlanId(userId, plan)
           const { precio, fechaRenovacion } = await activarPlan(userId, plan as PlanSuscripcion, {
             paypalSubscriptionId: resource.id,
             esFounder,
           })
           await vincularReferido(userId).catch(err => console.error('[PayPal Webhook] vincularReferido', err))
+          await prisma.user.update({ where: { id: userId }, data: { descuentoTransicionEquipo: false } })
           const user = await getUserForNotification(userId)
           if (user) {
             sendEmail({

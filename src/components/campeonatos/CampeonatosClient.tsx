@@ -19,6 +19,7 @@ interface Campeonato {
   categoriaMinima: string
   soloElite?: boolean
   esCampeonatoEquipos?: boolean
+  esIniciacion?: boolean
   _count: { inscripciones: number; carreras: number; inscripcionesEquipo?: number }
   inscrito?: string | null
 }
@@ -163,7 +164,7 @@ export function CampeonatosClient({ campeonatos, userId, userPlan, patrocinadore
             const esEquipos = !!c.esCampeonatoEquipos
             const inscritosCount = esEquipos ? (c._count.inscripcionesEquipo ?? 0) : c._count.inscripciones
             const lleno = inscritosCount >= c.maxPilotos
-            const planOk = (userPlan ? planSuficiente(userPlan, c.categoriaMinima) : true) && (!c.soloElite || userPlan === 'ELITE')
+            const planOk = !!c.esIniciacion || ((userPlan ? planSuficiente(userPlan, c.categoriaMinima) : true) && (!c.soloElite || userPlan === 'ELITE'))
             return (
               <div key={c.id} className="bg-apex-card border border-apex-border rounded-xl overflow-hidden hover:border-apex-red/30 transition-all group">
                 {/* Header colored bar */}
@@ -187,7 +188,11 @@ export function CampeonatosClient({ campeonatos, userId, userPlan, patrocinadore
                     <span className={cn('text-xs px-2 py-0.5 rounded-full border', ESTADO_COLORS[c.estado])}>
                       {ESTADO_CAMPEONATO_LABELS[c.estado]}
                     </span>
-                    {!esEquipos && (
+                    {c.esIniciacion ? (
+                      <span className="text-xs px-2 py-0.5 rounded-full border bg-emerald-500/20 text-emerald-300 border-emerald-500/40">
+                        🏁 Iniciación · Gratis
+                      </span>
+                    ) : !esEquipos && (
                       <span className={cn('text-xs px-2 py-0.5 rounded-full border', PLAN_COLORS[c.categoriaMinima])}>
                         Desde {PLAN_LABELS[c.categoriaMinima]}
                       </span>

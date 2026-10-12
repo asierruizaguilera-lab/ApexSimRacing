@@ -22,9 +22,38 @@ interface Props {
 
 interface FounderInfo {
   esFounder: boolean
-  plazasRestantes: number
-  totalPlazas: number
+  esElegibleFounder: boolean
+  ventanaExpira: string | null
+  horasRestantes: number | null
   modoPrecio: 'FOUNDER' | 'NORMAL'
+}
+
+function formatCuentaAtras(ms: number): string {
+  const total = Math.max(0, Math.floor(ms / 1000))
+  const dd = Math.floor(total / 86400)
+  const hh = Math.floor((total % 86400) / 3600)
+  const mm = Math.floor((total % 3600) / 60)
+  const ss = total % 60
+  return [dd, hh, mm, ss].map(n => String(n).padStart(2, '0')).join(':')
+}
+
+/** Cuenta atrás DD:HH:MM:SS hasta el cierre de la ventana Founder; al llegar a 0 recarga la página. */
+function CuentaAtrasFounder({ expira }: { expira: string }) {
+  const [restante, setRestante] = useState(() => new Date(expira).getTime() - Date.now())
+
+  useEffect(() => {
+    const id = setInterval(() => {
+      const ms = new Date(expira).getTime() - Date.now()
+      setRestante(ms)
+      if (ms <= 0) {
+        clearInterval(id)
+        window.location.reload()
+      }
+    }, 1000)
+    return () => clearInterval(id)
+  }, [expira])
+
+  return <span className="font-mono tabular-nums text-white">{formatCuentaAtras(restante)}</span>
 }
 
 const PLANES = ['ROOKIE', 'AMATEUR', 'PRO', 'ELITE']
@@ -57,9 +86,9 @@ export function PlanesGrid({ suscripcionActual, userId }: Props) {
       .catch(() => {})
   }, [])
 
-  const esUsuarioFounder = founderInfo?.esFounder ?? false
-  const quedanPlazas = (founderInfo?.plazasRestantes ?? 0) > 0
-  const mostrarPreciosFounder = esUsuarioFounder || quedanPlazas
+  const esElegible = !!founderInfo?.esElegibleFounder && !founderInfo.esFounder
+  const mostrarPreciosFounder = founderInfo?.modoPrecio === 'FOUNDER'
+  const esSuscripcionFounder = !!suscripcionActual?.esFounder && suscripcionActual.estado === 'ACTIVA'
 
   async function cancelarSuscripcion() {
     setCancelling(true)
@@ -82,17 +111,12 @@ export function PlanesGrid({ suscripcionActual, userId }: Props) {
 
   return (
     <div>
-      {/* Contador de plazas fundadoras */}
-      {founderInfo && quedanPlazas && (
-        <div className={cn(
-          'flex items-center justify-center gap-2 rounded-xl border px-4 py-3 mb-6 text-center font-semibold',
-          founderInfo.plazasRestantes < 10
-            ? 'bg-red-500/10 border-red-500/40 text-red-400'
-            : 'bg-yellow-500/10 border-yellow-500/30 text-yellow-400'
-        )}>
-          <Trophy size={18} />
-          🏆 PLAZAS FUNDADORAS: {founderInfo.plazasRestantes} de {founderInfo.totalPlazas} disponibles
-          {founderInfo.plazasRestantes < 10 && ' — ¡Últimas plazas!'}
+      {/* Ventana Founder: solo para inscritos en la temporada de iniciación */}
+      {esElegible && founderInfo?.ventanaExpira && (
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-2 rounded-xl border-2 border-red-500/60 bg-red-500/15 px-4 py-4 mb-6 text-center font-semibold text-red-300 shadow-lg shadow-red-500/10">
+          <span>🏆 Eres elegible para el precio Founder. Tienes</span>
+          <span className="text-xl"><CuentaAtrasFounder expira={founderInfo.ventanaExpira} /></span>
+          <span>para bloquearlo de por vida.</span>
         </div>
       )}
 
@@ -126,8 +150,8 @@ export function PlanesGrid({ suscripcionActual, userId }: Props) {
             </div>
           </div>
 
-          {/* Confirmación de cancelación */}
-          {confirmCancel && (
+          {/* Confirmación de cancelación (no Founder) */}
+          {confirmCancel && !esSuscripcionFounder && (
             <div className="mt-4 pt-4 border-t border-green-500/20">
               <div className="flex items-start gap-3">
                 <AlertTriangle size={16} className="text-yellow-400 flex-shrink-0 mt-0.5" />
@@ -186,7 +210,7 @@ export function PlanesGrid({ suscripcionActual, userId }: Props) {
               <div className="text-3xl mb-3">{PLAN_ICONS[plan]}</div>
               <h3 className="text-xl font-bold mb-1">{label}</h3>
 
-              {isActual && suscripcionActual?.esFounder ? (
+              {isActual && esSuscripcionFounder ? (
                 <div className="mb-5">
                   <div className="flex items-end gap-2">
                     <span className="text-3xl font-bold">{precioFounder}€</span>
@@ -194,10 +218,10 @@ export function PlanesGrid({ suscripcionActual, userId }: Props) {
                     <span className="text-apex-muted text-sm line-through mb-0.5">{precioNormal}€</span>
                   </div>
                   <span className="inline-flex items-center gap-1 mt-1.5 text-[11px] font-semibold bg-yellow-500/20 text-yellow-400 border border-yellow-500/30 px-2 py-0.5 rounded-full">
-                    <Trophy size={10} />Tu precio: {precioFounder}€ (Fundador)
+                    <Trophy size={10} />Tu precio: {precioFounder}€ (Founder)
                   </span>
                 </div>
-              ) : !isActual && !esUsuarioFounder && quedanPlazas ? (
+              ) : !isActual && mostrarPreciosFounder ? (
                 <div className="mb-5">
                   <div className="flex items-end gap-2">
                     <span className="text-3xl font-bold">{precioFounder}€</span>
@@ -205,7 +229,7 @@ export function PlanesGrid({ suscripcionActual, userId }: Props) {
                     <span className="text-apex-muted text-sm line-through mb-0.5">{precioNormal}€</span>
                   </div>
                   <span className="inline-flex items-center gap-1 mt-1.5 text-[11px] font-semibold bg-yellow-500/20 text-yellow-400 border border-yellow-500/30 px-2 py-0.5 rounded-full">
-                    <Trophy size={10} />Precio Fundador
+                    <Trophy size={10} />Precio Founder
                   </span>
                 </div>
               ) : (
@@ -260,6 +284,36 @@ export function PlanesGrid({ suscripcionActual, userId }: Props) {
           <br />Cancela cuando quieras — sin permanencia.
         </p>
       </div>
+
+      {/* Aviso al cancelar una suscripción Founder: pierde el precio bloqueado para siempre */}
+      {confirmCancel && esSuscripcionFounder && suscripcionActual && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+          <div className="w-full max-w-md bg-apex-card border border-red-500/40 rounded-2xl p-6 shadow-2xl animate-fade-in">
+            <div className="flex items-start gap-3 mb-5">
+              <AlertTriangle size={22} className="text-yellow-400 flex-shrink-0 mt-0.5" />
+              <p className="text-sm text-apex-text leading-relaxed">
+                ⚠️ Atención: si cancelas tu suscripción Founder, <strong>perderás el precio bloqueado de por vida</strong>{' '}
+                ({PLAN_PRECIOS[suscripcionActual.plan]}€/mes). Si vuelves a suscribirte en el futuro, pagarás el precio
+                estándar ({PLAN_PRECIOS_NORMAL[suscripcionActual.plan]}€/mes). ¿Estás seguro de que quieres cancelar?
+              </p>
+            </div>
+            <div className="flex flex-col gap-2">
+              <button
+                onClick={() => setConfirmCancel(false)}
+                disabled={cancelling}
+                className="w-full py-2.5 bg-apex-red text-white rounded-xl text-sm font-semibold hover:bg-apex-red-dark transition-colors disabled:opacity-60">
+                No, mantener mi suscripción Founder
+              </button>
+              <button
+                onClick={cancelarSuscripcion}
+                disabled={cancelling}
+                className="w-full py-2.5 bg-red-500/10 text-red-400 border border-red-500/30 rounded-xl text-sm hover:bg-red-500/20 transition-colors disabled:opacity-60">
+                {cancelling ? 'Cancelando...' : 'Sí, cancelar de todas formas'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Modal */}
       {modalPlan && (

@@ -14,7 +14,7 @@ export default async function PerfilPage({ params }: { params: { id: string } })
         orderBy: { creadoEn: 'desc' },
         include: {
           carrera: {
-            include: { campeonato: { select: { id: true, nombre: true, disciplina: true } } },
+            include: { campeonato: { select: { id: true, nombre: true, disciplina: true, esIniciacion: true } } },
           },
         },
       },
@@ -32,7 +32,27 @@ export default async function PerfilPage({ params }: { params: { id: string } })
     where: { role: 'PILOTO', totalPuntos: { gt: piloto.totalPuntos } },
   }) + 1
 
-  const chartData = piloto.resultados.slice(0, 10).reverse().map(r => ({
+  // Los resultados de la temporada de iniciación van en una sección aparte (no cuentan para el ranking)
+  const esDeIniciacion = (r: (typeof piloto.resultados)[number]) => r.esIniciacion || r.carrera.campeonato.esIniciacion
+  const resultadosPrincipales = piloto.resultados.filter(r => !esDeIniciacion(r))
+  const resultadosIniciacion = piloto.resultados.filter(esDeIniciacion)
+  const serializarResultado = (r: (typeof piloto.resultados)[number]) => ({
+    id: r.id,
+    posicion: r.posicion,
+    puntos: r.puntos,
+    vueltaRapida: r.vueltaRapida,
+    abandono: r.abandono,
+    tiempo: r.tiempo,
+    creadoEn: r.creadoEn.toISOString(),
+    carrera: {
+      id: r.carreraId,
+      nombre: r.carrera.nombre,
+      circuito: r.carrera.circuito,
+      campeonato: r.carrera.campeonato,
+    },
+  })
+
+  const chartData = resultadosPrincipales.slice(0, 10).reverse().map(r => ({
     nombre: r.carrera.nombre.split('—')[0].trim().substring(0, 15),
     puntos: r.puntos,
   }))
@@ -45,21 +65,8 @@ export default async function PerfilPage({ params }: { params: { id: string } })
         ...piloto,
         fechaRegistro: piloto.fechaRegistro.toISOString(),
         suscripcion: piloto.suscripcion,
-        resultados: piloto.resultados.map(r => ({
-          id: r.id,
-          posicion: r.posicion,
-          puntos: r.puntos,
-          vueltaRapida: r.vueltaRapida,
-          abandono: r.abandono,
-          tiempo: r.tiempo,
-          creadoEn: r.creadoEn.toISOString(),
-          carrera: {
-            id: r.carreraId,
-            nombre: r.carrera.nombre,
-            circuito: r.carrera.circuito,
-            campeonato: r.carrera.campeonato,
-          },
-        })),
+        resultados: resultadosPrincipales.map(serializarResultado),
+        resultadosIniciacion: resultadosIniciacion.map(serializarResultado),
         inscripciones: piloto.inscripciones.map(i => ({
           campeonato: i.campeonato,
         })),

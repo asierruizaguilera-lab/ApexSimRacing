@@ -5,7 +5,9 @@ import { prisma } from '@/lib/prisma'
 import Link from 'next/link'
 import { Users, Trophy, Calendar, MessageSquare, Plus, ChevronRight, Award, Shield, CalendarRange } from 'lucide-react'
 import { etiquetaTemporada, getTemporadaActiva, mesYAnio, rankingEquiposMes } from '@/lib/temporadas'
-import { formatFecha, DISCIPLINA_LABELS, DISCIPLINA_COLORS, TOTAL_PLAZAS_FOUNDER, cn } from '@/lib/utils'
+import { formatFecha, DISCIPLINA_LABELS, DISCIPLINA_COLORS, cn } from '@/lib/utils'
+import { resumenIniciacionAdmin } from '@/lib/iniciacion'
+import { AdminIniciacionPanel } from '@/components/admin/AdminIniciacionPanel'
 
 export const metadata = { title: 'Panel Admin' }
 
@@ -14,10 +16,11 @@ export default async function AdminPage() {
   if (session?.user?.role !== 'ADMIN') redirect('/dashboard')
 
   const hoy = mesYAnio()
-  const [equiposActivos, temporadaActiva, rankingMes] = await Promise.all([
+  const [equiposActivos, temporadaActiva, rankingMes, iniciaciones] = await Promise.all([
     prisma.equipo.count({ where: { activo: true } }),
     getTemporadaActiva(),
     rankingEquiposMes(hoy.mes, hoy.anio),
+    resumenIniciacionAdmin(),
   ])
   const equipoLider = rankingMes[0]?.puntosMes > 0 ? rankingMes[0] : null
 
@@ -50,7 +53,7 @@ export default async function AdminPage() {
 
   const stats = [
     { label: 'Total Pilotos', value: totalUsuarios, icon: Users, color: 'text-blue-400', bg: 'bg-blue-400/10' },
-    { label: 'Plazas Fundadoras', value: `${totalFundadores}/${TOTAL_PLAZAS_FOUNDER}`, icon: Award, color: 'text-yellow-400', bg: 'bg-yellow-400/10' },
+    { label: 'Founders', value: totalFundadores, icon: Award, color: 'text-yellow-400', bg: 'bg-yellow-400/10' },
     { label: 'Campeonatos Activos', value: campeonatosActivos, icon: Trophy, color: 'text-apex-red', bg: 'bg-apex-red/10' },
     { label: 'Carreras este Mes', value: carrerasEsteMes, icon: Calendar, color: 'text-green-400', bg: 'bg-green-400/10' },
     { label: 'Mensajes en Chat', value: totalMensajes, icon: MessageSquare, color: 'text-purple-400', bg: 'bg-purple-400/10' },
@@ -81,6 +84,9 @@ export default async function AdminPage() {
           </div>
         ))}
       </div>
+
+      {/* Temporada de iniciación y ventana Founder */}
+      <AdminIniciacionPanel iniciaciones={iniciaciones} />
 
       {/* Liga por equipos */}
       <div className="grid sm:grid-cols-3 gap-4">
@@ -121,7 +127,10 @@ export default async function AdminPage() {
             {campeonatos.map(c => (
               <div key={c.id} className="flex items-center gap-3 px-4 py-3">
                 <div className="flex-1 min-w-0">
-                  <div className="font-medium text-sm truncate">{c.nombre}</div>
+                  <div className="font-medium text-sm truncate">
+                    {c.nombre}
+                    {c.esIniciacion && <span className="ml-2 text-[10px] px-1.5 py-0.5 rounded-full border bg-emerald-500/15 text-emerald-400 border-emerald-500/30">Iniciación</span>}
+                  </div>
                   <div className="flex items-center gap-2 mt-0.5">
                     <span className={cn('text-xs px-1.5 py-0.5 rounded-full border', DISCIPLINA_COLORS[c.disciplina])}>
                       {DISCIPLINA_LABELS[c.disciplina]}

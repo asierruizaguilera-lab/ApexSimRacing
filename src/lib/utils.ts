@@ -144,7 +144,8 @@ export const PLAN_LABELS: Record<string, string> = {
   ELITE: 'Elite',
 }
 
-// Precios Fundador (primeros 30 pagadores) — congelados de por vida
+// Precios Founder — para los inscritos en la temporada de iniciación que pagan dentro de la ventana Founder.
+// Congelados de por vida mientras no cancelen.
 export const PLAN_PRECIOS: Record<string, number> = {
   ROOKIE: 5,
   AMATEUR: 10,
@@ -152,7 +153,7 @@ export const PLAN_PRECIOS: Record<string, number> = {
   ELITE: 25,
 }
 
-// Precios Normales — se aplican a todos los registros una vez se ocupan las 30 plazas fundadoras
+// Precios estándar
 export const PLAN_PRECIOS_NORMAL: Record<string, number> = {
   ROOKIE: 7,
   AMATEUR: 12,
@@ -160,7 +161,14 @@ export const PLAN_PRECIOS_NORMAL: Record<string, number> = {
   ELITE: 30,
 }
 
-export const TOTAL_PLAZAS_FOUNDER = 30
+// Temporada de iniciación: la ventana Founder se abre al finalizar la carrera 4 y dura 120h
+export const CARRERAS_INICIACION = 4
+export const HORAS_VENTANA_FOUNDER = 120
+
+// Plan de equipo: lo paga el líder y cubre a todos los miembros
+export const MAX_EQUIPOS_FOUNDER = 6
+export const PRECIO_EQUIPO: Record<string, number> = { FOUNDER: 25, ESTANDAR: 35 }
+export const DESCUENTO_TRANSICION_EQUIPO_PCT = 20
 
 // Pilotos por equipo (líder incluido)
 export const MAX_MIEMBROS_EQUIPO = 8

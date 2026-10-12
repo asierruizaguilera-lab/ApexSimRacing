@@ -6,6 +6,7 @@ import { sendEmail, emailResultadoPublicado } from '@/lib/email'
 import { calcularPuntos, tieneVueltaRapida } from '@/lib/puntos'
 import { mesYAnio, recalcularPuntosEquipoMes } from '@/lib/temporadas'
 import { recalcularStatsPiloto } from '@/lib/statsPiloto'
+import { abrirVentanaFounderSiProcede } from '@/lib/iniciacion'
 
 export async function PUT(req: NextRequest, { params }: { params: { id: string } }) {
   const session = await getServerSession(authOptions)
@@ -16,11 +17,11 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
 
   const carrera = await prisma.carrera.findUnique({
     where: { id: params.id },
-    include: { campeonato: { select: { nombre: true, disciplina: true, numEtapas: true, esCampeonatoEquipos: true } } },
+    include: { campeonato: { select: { nombre: true, disciplina: true, numEtapas: true, esCampeonatoEquipos: true, esIniciacion: true } } },
   })
   if (!carrera) return NextResponse.json({ error: 'Carrera no encontrada' }, { status: 404 })
 
-  const { disciplina, numEtapas, esCampeonatoEquipos } = carrera.campeonato
+  const { disciplina, numEtapas, esCampeonatoEquipos, esIniciacion } = carrera.campeonato
   const conVueltaRapida = tieneVueltaRapida(disciplina)
 
   // Campeonatos de equipos: cada resultado se atribuye al equipo por el que corre el piloto. Debe ser un
@@ -63,8 +64,8 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
     puntosPorUsuario.set(r.userId, puntos)
     await prisma.resultado.upsert({
       where: { carreraId_userId: { carreraId: params.id, userId: r.userId } },
-      update: { posicion: r.posicion, puntos, vueltaRapida, abandono: r.abandono, tiempo: r.tiempo, equipoId },
-      create: { carreraId: params.id, userId: r.userId, posicion: r.posicion, puntos, vueltaRapida, abandono: r.abandono, tiempo: r.tiempo, equipoId },
+      update: { posicion: r.posicion, puntos, vueltaRapida, abandono: r.abandono, tiempo: r.tiempo, equipoId, esIniciacion },
+      create: { carreraId: params.id, userId: r.userId, posicion: r.posicion, puntos, vueltaRapida, abandono: r.abandono, tiempo: r.tiempo, equipoId, esIniciacion },
     })
   }
 
@@ -87,7 +88,12 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
     data: { estado: 'FINALIZADA' },
   })
 
-  // Recalcular stats de cada piloto
+  // Temporada de iniciación: al terminar la carrera 4 se abre la ventana Founder (120h)
+  if (esIniciacion) {
+    await abrirVentanaFounderSiProcede(carrera.campeonatoId).catch(err => console.error('[Resultados] ventana Founder', err))
+  }
+
+  // Recalcular stats de cada piloto (los resultados de iniciación no suman al ranking individual)
   for (const r of resultados) {
     const puntos = puntosPorUsuario.get(r.userId) ?? 0
     await recalcularStatsPiloto(r.userId)

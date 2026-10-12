@@ -179,9 +179,9 @@ export function PerfilClient({ piloto: initialPiloto, rankingGlobal, chartData, 
               )}
               {piloto.esFounder && (
                 <span
-                  title="Piloto Fundador APEX — uno de los primeros 30"
+                  title="Piloto Founder APEX"
                   className="text-xs bg-yellow-500/20 text-yellow-400 border border-yellow-500/30 px-2 py-0.5 rounded-full flex items-center gap-1">
-                  ⚡ Fundador
+                  ⚡ Founder
                 </span>
               )}
               {['ACTIVA', 'GRATUITA'].includes(piloto.suscripcion?.estado) && piloto.suscripcion?.plan === 'ELITE' && (
@@ -489,6 +489,46 @@ export function PerfilClient({ piloto: initialPiloto, rankingGlobal, chartData, 
               )}
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Temporada de iniciación: separada del historial principal, no cuenta para el ranking */}
+      {(piloto.resultadosIniciacion?.length > 0 || piloto.esFounder) && (
+        <div className="mt-8 bg-apex-card border border-emerald-500/20 rounded-xl overflow-hidden">
+          <div className="flex flex-wrap items-center gap-2 px-4 py-3 border-b border-apex-border">
+            <h2 className="font-semibold">Temporada de Iniciación APEX</h2>
+            {piloto.esFounder && (
+              <span className="text-xs bg-yellow-500/20 text-yellow-400 border border-yellow-500/30 px-2 py-0.5 rounded-full">
+                🏁 Piloto Fundador
+              </span>
+            )}
+          </div>
+          {piloto.resultadosIniciacion?.length > 0 ? (
+            <div className="divide-y divide-apex-border/50">
+              {piloto.resultadosIniciacion.map((r: any) => (
+                <div key={r.id} className="flex items-center gap-3 px-4 py-3">
+                  <span className="w-12 text-center inline-flex items-center justify-center gap-1">
+                    {getPosIcon(r.posicion) && <span>{getPosIcon(r.posicion)}</span>}
+                    <span className={cn('font-bold', getPositionColor(r.posicion))}>{r.posicion}º</span>
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-medium truncate">{r.carrera.nombre}</div>
+                    <Link href={`/campeonatos/${r.carrera.campeonato.id}`} className="text-xs text-apex-muted hover:text-apex-red transition-colors">
+                      {r.carrera.campeonato.nombre}
+                    </Link>
+                  </div>
+                  {r.abandono && <span className="text-[10px] bg-gray-500/20 text-gray-400 px-1.5 py-0.5 rounded-full">Abandonó</span>}
+                  <span className="text-xs text-apex-muted hidden sm:block">{formatFecha(r.creadoEn)}</span>
+                  <span className="text-sm font-semibold text-apex-muted w-12 text-right">{r.puntos} pts</span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="px-4 py-4 text-sm text-apex-muted">Sin resultados en la temporada de iniciación.</p>
+          )}
+          <p className="px-4 py-3 text-xs text-apex-muted border-t border-apex-border bg-apex-surface/40">
+            Los resultados de la temporada de iniciación no cuentan para el ranking global
+          </p>
         </div>
       )}
     </div>

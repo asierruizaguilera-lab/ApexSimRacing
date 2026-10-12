@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { disolverEquipo, emitir } from '@/lib/equipos'
+import { disolverEquipo, emitir, marcarDescuentoTransicion } from '@/lib/equipos'
 
 // Salir del equipo. El líder solo puede salir si es el único miembro (y entonces el equipo se disuelve);
 // si hay más pilotos, primero debe transferir el liderazgo.
@@ -27,6 +27,7 @@ export async function DELETE(_: NextRequest, { params }: { params: { id: string 
   }
 
   await prisma.miembroEquipo.delete({ where: { userId } })
+  if (equipo.planEquipo === 'FOUNDER') await marcarDescuentoTransicion([userId])
   await prisma.notificacion.create({
     data: { userId: equipo.liderId, tipo: 'EQUIPO', mensaje: `${session.user.username} ha salido de ${equipo.nombre}`, link: `/equipos/${equipo.id}` },
   })

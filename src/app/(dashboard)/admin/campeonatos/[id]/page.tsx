@@ -43,6 +43,7 @@ export default async function AdminCampeonatoPage({ params }: { params: { id: st
         fechaInicio: campeonato.fechaInicio.toISOString(),
         fechaFin: campeonato.fechaFin.toISOString(),
         creadoEn: campeonato.creadoEn.toISOString(),
+        ventanaFounderExpira: campeonato.ventanaFounderExpira?.toISOString() ?? null,
         carreras: campeonato.carreras.map(c => ({ ...c, fecha: c.fecha.toISOString() })),
         inscripciones: campeonato.inscripciones.map(i => ({
           ...i,

@@ -24,9 +24,9 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Re-verificamos las plazas fundadoras en el momento de la confirmación (protección de condición de carrera).
-    // Si alguien se adelantó y ya no quedan plazas, se activa igual pero con precio normal.
-    const { esFounder } = await getPlanId(plan, session.user.id)
+    // Re-verificamos la elegibilidad Founder en el momento de la confirmación (protección de condición de
+    // carrera): si la ventana cerró mientras pagaba, se activa igual pero con precio estándar.
+    const { precioFounder: esFounder } = await getPlanId(session.user.id, plan)
 
     const { precio, fechaRenovacion } = await activarPlan(session.user.id, plan as PlanSuscripcion, {
       paypalSubscriptionId: subscriptionId,
@@ -35,6 +35,8 @@ export async function POST(req: NextRequest) {
 
     // Si se registró con un código de referido, el primer pago lo vincula con su referidor
     await vincularReferido(session.user.id).catch(err => console.error('[PayPal capture] vincularReferido', err))
+    // El 20% de transición desde un Equipo Founder solo aplica al primer plan individual
+    await prisma.user.update({ where: { id: session.user.id }, data: { descuentoTransicionEquipo: false } })
 
     // Email de confirmación (async, no bloquea)
     const user = await prisma.user.findUnique({

@@ -8,7 +8,7 @@ export async function POST(req: NextRequest) {
   if (!session?.user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
 
   const { plan } = await req.json()
-  const { planId, esFounder } = await getPlanId(plan, session.user.id)
+  const { planId, precioFounder: esFounder } = await getPlanId(session.user.id, plan)
   if (!planId) return NextResponse.json({ error: 'Plan de PayPal no configurado' }, { status: 400 })
 
   try {

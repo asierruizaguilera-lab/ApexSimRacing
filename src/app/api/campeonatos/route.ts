@@ -18,7 +18,7 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json()
-  const { nombre, disciplina, descripcion, estado, fechaInicio, fechaFin, maxPilotos, modsReq, numEtapas, categoriaMinima, soloElite, esCampeonatoEquipos, temporadaId } = body
+  const { nombre, disciplina, descripcion, estado, fechaInicio, fechaFin, maxPilotos, modsReq, numEtapas, categoriaMinima, soloElite, esCampeonatoEquipos, temporadaId, esIniciacion } = body
 
   if (!nombre || !disciplina || !descripcion || !fechaInicio || !fechaFin) {
     return NextResponse.json({ error: 'Campos requeridos faltantes' }, { status: 400 })
@@ -32,9 +32,11 @@ export async function POST(req: NextRequest) {
       maxPilotos: parseInt(maxPilotos) || 20,
       modsReq,
       numEtapas: parseInt(numEtapas) || 1,
-      categoriaMinima: categoriaMinima || 'ROOKIE',
-      soloElite: !!soloElite,
-      esCampeonatoEquipos: !!esCampeonatoEquipos,
+      // La iniciación es gratuita: sin categoría mínima ni restricción Elite, y siempre individual
+      categoriaMinima: esIniciacion ? 'ROOKIE' : (categoriaMinima || 'ROOKIE'),
+      soloElite: !esIniciacion && !!soloElite,
+      esCampeonatoEquipos: !esIniciacion && !!esCampeonatoEquipos,
+      esIniciacion: !!esIniciacion,
       temporadaId: temporadaId || null,
     },
   })
@@ -53,7 +55,9 @@ export async function POST(req: NextRequest) {
     data: pilotos.map(p => ({
       userId: p.id,
       tipo: 'NUEVO_CAMPEONATO',
-      mensaje: esCampeonatoEquipos
+      mensaje: esIniciacion
+        ? `🏁 Temporada de iniciación gratuita: ${nombre}. ¡Inscríbete gratis!`
+        : esCampeonatoEquipos
         ? `Nuevo campeonato por equipos: ${nombre}. ¡Habla con tu líder para inscribir al equipo!`
         : `Nuevo campeonato disponible: ${nombre}. ¡Inscríbete ahora!`,
       link: `/campeonatos/${camp.id}`,

@@ -250,7 +250,7 @@ export function ChatWindow({ initialMessages, currentUser, bloqueadoHastaInicial
                         </span>
                       )}
                       {m.user.esFounder && (
-                        <span title="Piloto Fundador APEX — uno de los primeros 30" className="text-[10px] bg-yellow-500/20 text-yellow-400 border border-yellow-500/30 px-1.5 py-0.5 rounded-full">
+                        <span title="Piloto Founder APEX" className="text-[10px] bg-yellow-500/20 text-yellow-400 border border-yellow-500/30 px-1.5 py-0.5 rounded-full">
                           ⚡ Fundador
                         </span>
                       )}

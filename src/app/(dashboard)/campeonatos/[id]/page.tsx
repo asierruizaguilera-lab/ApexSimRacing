@@ -4,7 +4,7 @@ import { authOptions } from '@/lib/auth'
 import { notFound } from 'next/navigation'
 import { getSuscripcionActiva } from '@/lib/suscripciones'
 import { CampeonatoDetalle } from '@/components/campeonatos/CampeonatoDetalle'
-import { getMembresia } from '@/lib/equipos'
+import { getMembresia, esMiembroEquipoFounder } from '@/lib/equipos'
 
 export default async function CampeonatoPage({ params }: { params: { id: string } }) {
   const session = await getServerSession(authOptions)
@@ -34,6 +34,7 @@ export default async function CampeonatoPage({ params }: { params: { id: string 
   if (!campeonato) notFound()
   const esEquipos = campeonato.esCampeonatoEquipos
   const membresia = esEquipos && session?.user?.id ? await getMembresia(session.user.id) : null
+  const bloqueoEquipoFounder = !esEquipos && !!session?.user?.id && await esMiembroEquipoFounder(session.user.id)
 
   // Clasificación del campeonato
   const pilotos = campeonato.inscripciones.map(i => i.user)
@@ -96,6 +97,7 @@ export default async function CampeonatoPage({ params }: { params: { id: string 
         fechaInicio: campeonato.fechaInicio.toISOString(),
         fechaFin: campeonato.fechaFin.toISOString(),
         creadoEn: campeonato.creadoEn.toISOString(),
+        ventanaFounderExpira: campeonato.ventanaFounderExpira?.toISOString() ?? null,
         carreras: campeonato.carreras.map(c => ({ ...c, fecha: c.fecha.toISOString() })),
         inscripciones: campeonato.inscripciones.map(i => ({
           ...i,
@@ -113,6 +115,7 @@ export default async function CampeonatoPage({ params }: { params: { id: string 
       inscripcionActual={inscripcionActual}
       userId={session?.user?.id}
       userPlan={suscripcion?.plan || null}
+      bloqueoEquipoFounder={bloqueoEquipoFounder}
     />
   )
 }

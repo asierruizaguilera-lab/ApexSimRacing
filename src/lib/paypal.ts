@@ -1,13 +1,13 @@
 import { prisma } from './prisma'
-import { TOTAL_PLAZAS_FOUNDER } from './utils'
 import { tieneDescuentoReferidoPendiente } from './referidos'
+import { getVentanaFounderUsuario } from './iniciacion'
+import { esMiembroEquipoFounder } from './equipos'
 
 export const PAYPAL_BASE = process.env.PAYPAL_MODE === 'sandbox'
   ? 'https://api-m.sandbox.paypal.com'
   : 'https://api-m.paypal.com'
 
-// Planes "Normales" — se usan cuando ya se ocuparon las 30 plazas fundadoras.
-// Variable oficial: NEXT_PUBLIC_PAYPAL_<PLAN>_NEW_PLAN_ID. Los nombres antiguos
+// Planes estándar. Variable oficial: NEXT_PUBLIC_PAYPAL_<PLAN>_NEW_PLAN_ID. Los nombres antiguos
 // (PAYPAL_PLAN_<PLAN> y NEXT_PUBLIC_PAYPAL_<PLAN>_PLAN_ID) se aceptan solo como respaldo.
 export const PAYPAL_PLAN_IDS: Record<string, string> = {
   ROOKIE: process.env.NEXT_PUBLIC_PAYPAL_ROOKIE_NEW_PLAN_ID || process.env.PAYPAL_PLAN_ROOKIE || process.env.NEXT_PUBLIC_PAYPAL_ROOKIE_PLAN_ID || '',
@@ -16,7 +16,7 @@ export const PAYPAL_PLAN_IDS: Record<string, string> = {
   ELITE: process.env.NEXT_PUBLIC_PAYPAL_ELITE_NEW_PLAN_ID || process.env.PAYPAL_PLAN_ELITE || process.env.NEXT_PUBLIC_PAYPAL_ELITE_PLAN_ID || '',
 }
 
-// Planes "Fundador" — precios congelados de por vida para los primeros 30 pagadores
+// Planes "Founder" — precio congelado de por vida para quien paga dentro de la ventana Founder
 export const PAYPAL_FOUNDER_PLAN_IDS: Record<string, string> = {
   ROOKIE: process.env.NEXT_PUBLIC_PAYPAL_ROOKIE_FOUNDER_PLAN_ID || '',
   AMATEUR: process.env.NEXT_PUBLIC_PAYPAL_AMATEUR_FOUNDER_PLAN_ID || '',
@@ -27,7 +27,7 @@ export const PAYPAL_FOUNDER_PLAN_IDS: Record<string, string> = {
 // Planes "Referido" — primer mes con un 10% de descuento para quien se registró con un código.
 // Se crean en PayPal con 2 ciclos: TRIAL de 1 mes al precio rebajado + REGULAR al precio normal,
 // así PayPal pasa solo al precio completo a partir del segundo mes.
-// Fundador: 4.5 / 9 / 13.5 / 22.5 € el primer mes, luego 5 / 10 / 15 / 25 €
+// Founder: 4.5 / 9 / 13.5 / 22.5 € el primer mes, luego 5 / 10 / 15 / 25 €
 export const PAYPAL_REFERIDO_FOUNDER_PLAN_IDS: Record<string, string> = {
   ROOKIE: process.env.NEXT_PUBLIC_PAYPAL_ROOKIE_REFERIDO_PLAN_ID || '',
   AMATEUR: process.env.NEXT_PUBLIC_PAYPAL_AMATEUR_REFERIDO_PLAN_ID || '',
@@ -35,7 +35,7 @@ export const PAYPAL_REFERIDO_FOUNDER_PLAN_IDS: Record<string, string> = {
   ELITE: process.env.NEXT_PUBLIC_PAYPAL_ELITE_REFERIDO_PLAN_ID || '',
 }
 
-// Normal (sin plazas fundadoras): 6.3 / 10.8 / 17.1 / 27 € el primer mes, luego 7 / 12 / 19 / 30 €
+// Estándar: 6.3 / 10.8 / 17.1 / 27 € el primer mes, luego 7 / 12 / 19 / 30 €
 export const PAYPAL_REFERIDO_NEW_PLAN_IDS: Record<string, string> = {
   ROOKIE: process.env.NEXT_PUBLIC_PAYPAL_ROOKIE_REFERIDO_NEW_PLAN_ID || '',
   AMATEUR: process.env.NEXT_PUBLIC_PAYPAL_AMATEUR_REFERIDO_NEW_PLAN_ID || '',
@@ -43,48 +43,93 @@ export const PAYPAL_REFERIDO_NEW_PLAN_IDS: Record<string, string> = {
   ELITE: process.env.NEXT_PUBLIC_PAYPAL_ELITE_REFERIDO_NEW_PLAN_ID || '',
 }
 
+// Planes "Transición de equipo" — primer mes -20% para quien viene de un Equipo Founder.
+// Mismo esquema TRIAL + REGULAR que los de referido. Founder: 4 / 8 / 12 / 20 €; estándar: 5.6 / 9.6 / 15.2 / 24 €
+export const PAYPAL_EQUIPO20_FOUNDER_PLAN_IDS: Record<string, string> = {
+  ROOKIE: process.env.NEXT_PUBLIC_PAYPAL_ROOKIE_EQUIPO20_FOUNDER_PLAN_ID || '',
+  AMATEUR: process.env.NEXT_PUBLIC_PAYPAL_AMATEUR_EQUIPO20_FOUNDER_PLAN_ID || '',
+  PRO: process.env.NEXT_PUBLIC_PAYPAL_PRO_EQUIPO20_FOUNDER_PLAN_ID || '',
+  ELITE: process.env.NEXT_PUBLIC_PAYPAL_ELITE_EQUIPO20_FOUNDER_PLAN_ID || '',
+}
+
+export const PAYPAL_EQUIPO20_NEW_PLAN_IDS: Record<string, string> = {
+  ROOKIE: process.env.NEXT_PUBLIC_PAYPAL_ROOKIE_EQUIPO20_NEW_PLAN_ID || '',
+  AMATEUR: process.env.NEXT_PUBLIC_PAYPAL_AMATEUR_EQUIPO20_NEW_PLAN_ID || '',
+  PRO: process.env.NEXT_PUBLIC_PAYPAL_PRO_EQUIPO20_NEW_PLAN_ID || '',
+  ELITE: process.env.NEXT_PUBLIC_PAYPAL_ELITE_EQUIPO20_NEW_PLAN_ID || '',
+}
+
+// Plan de equipo (lo paga el líder). Se rellenan cuando estén creados en PayPal.
+export const PAYPAL_EQUIPO_PLAN_IDS: Record<'FOUNDER' | 'ESTANDAR', string> = {
+  FOUNDER: process.env.NEXT_PUBLIC_PAYPAL_EQUIPO_FOUNDER_PLAN_ID || '',
+  ESTANDAR: process.env.NEXT_PUBLIC_PAYPAL_EQUIPO_ESTANDAR_PLAN_ID || '',
+}
+
 /**
- * Cuenta las plazas fundadoras ocupadas y determina si aún quedan disponibles.
+ * Situación Founder de un usuario:
+ * - `founderActivo`: ya es Founder y mantiene su suscripción Founder activa → conserva el precio
+ *   bloqueado al cambiar de tier.
+ * - `esElegibleFounder`: está inscrito en una temporada de iniciación con la ventana Founder abierta.
+ * Un Founder que canceló pierde el precio para siempre: no vuelve a ser elegible aunque la ventana siga abierta.
  */
-export async function getFounderStatus() {
-  const fundadoresActuales = await prisma.user.count({ where: { esFounder: true } })
-  const plazasRestantes = Math.max(0, TOTAL_PLAZAS_FOUNDER - fundadoresActuales)
+export async function getEstadoFounder(userId: string) {
+  const [user, suscripcion] = await Promise.all([
+    prisma.user.findUnique({ where: { id: userId }, select: { esFounder: true } }),
+    prisma.suscripcion.findUnique({ where: { userId }, select: { estado: true, esFounder: true } }),
+  ])
+  const esFounder = !!user?.esFounder
+  const founderActivo = esFounder && !!suscripcion?.esFounder && suscripcion.estado === 'ACTIVA'
+
+  const ventana = esFounder ? null : await getVentanaFounderUsuario(userId)
   return {
-    fundadoresActuales,
-    plazasRestantes,
-    totalPlazas: TOTAL_PLAZAS_FOUNDER,
-    hayPlazasDisponibles: fundadoresActuales < TOTAL_PLAZAS_FOUNDER,
+    esFounder,
+    founderActivo,
+    esElegibleFounder: !!ventana,
+    ventanaExpira: ventana?.ventanaFounderExpira ?? null,
   }
 }
 
 /**
  * Resuelve el Plan ID de PayPal a usar para un plan dado.
- * - Si el usuario ya es fundador, siempre recibe el Plan ID Fundador del nuevo tier
- *   (nunca se le asigna un plan normal, incluso si ya no quedan plazas).
- * - Si no es fundador, se le asigna Fundador mientras queden plazas libres, o Normal en caso contrario.
- * - Si se registró con un código de referido y aún no ha pagado nunca, se usa la variante "Referido"
- *   (primer mes -10%) siempre que su Plan ID esté configurado.
+ * - Precio Founder si el usuario es elegible (ventana abierta) o si ya es Founder con la suscripción activa.
+ * - Primer mes con descuento: 20% si viene de un Equipo Founder, o 10% si se registró con un código de
+ *   referido. No son acumulables: se aplica solo el mayor (y solo si su Plan ID está configurado).
  */
 export async function getPlanId(
-  plan: string,
-  userId?: string
-): Promise<{ planId: string; esFounder: boolean; descuentoReferido: boolean }> {
-  let esFounder: boolean
-  if (userId) {
-    const user = await prisma.user.findUnique({ where: { id: userId }, select: { esFounder: true } })
-    esFounder = !!user?.esFounder || (await getFounderStatus()).hayPlazasDisponibles
-  } else {
-    esFounder = (await getFounderStatus()).hayPlazasDisponibles
+  userId: string,
+  plan: string
+): Promise<{ planId: string; esElegibleFounder: boolean; precioFounder: boolean; descuentoReferido: boolean; descuentoTransicionEquipo: boolean }> {
+  const { founderActivo, esElegibleFounder } = await getEstadoFounder(userId)
+  const precioFounder = founderActivo || esElegibleFounder
+  const base = {
+    esElegibleFounder,
+    precioFounder,
+    descuentoReferido: false,
+    descuentoTransicionEquipo: false,
   }
 
-  const planId = esFounder ? (PAYPAL_FOUNDER_PLAN_IDS[plan] || '') : (PAYPAL_PLAN_IDS[plan] || '')
-
-  if (userId && await tieneDescuentoReferidoPendiente(userId)) {
-    const planReferido = esFounder ? PAYPAL_REFERIDO_FOUNDER_PLAN_IDS[plan] : PAYPAL_REFERIDO_NEW_PLAN_IDS[plan]
-    if (planReferido) return { planId: planReferido, esFounder, descuentoReferido: true }
+  if (await tieneDescuentoTransicionEquipo(userId)) {
+    const planEquipo = precioFounder ? PAYPAL_EQUIPO20_FOUNDER_PLAN_IDS[plan] : PAYPAL_EQUIPO20_NEW_PLAN_IDS[plan]
+    if (planEquipo) return { ...base, planId: planEquipo, descuentoTransicionEquipo: true }
   }
 
-  return { planId, esFounder, descuentoReferido: false }
+  if (await tieneDescuentoReferidoPendiente(userId)) {
+    const planReferido = precioFounder ? PAYPAL_REFERIDO_FOUNDER_PLAN_IDS[plan] : PAYPAL_REFERIDO_NEW_PLAN_IDS[plan]
+    if (planReferido) return { ...base, planId: planReferido, descuentoReferido: true }
+  }
+
+  const planId = precioFounder ? (PAYPAL_FOUNDER_PLAN_IDS[plan] || '') : (PAYPAL_PLAN_IDS[plan] || '')
+  return { ...base, planId }
+}
+
+/** 20% en el primer plan individual: viene de un Equipo Founder (o sigue en él) y aún no ha pagado un plan propio. */
+export async function tieneDescuentoTransicionEquipo(userId: string): Promise<boolean> {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { descuentoTransicionEquipo: true, suscripcion: { select: { paypalSubscriptionId: true } } },
+  })
+  if (!user || user.suscripcion?.paypalSubscriptionId) return false
+  return user.descuentoTransicionEquipo || await esMiembroEquipoFounder(userId)
 }
 
 export async function getPayPalAccessToken(): Promise<string> {

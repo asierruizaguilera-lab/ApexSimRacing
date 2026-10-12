@@ -4,8 +4,8 @@ import { useCallback, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import toast from 'react-hot-toast'
-import { Crown, MessageSquare, Trash2, UserCog, Search } from 'lucide-react'
-import { cn, formatFecha } from '@/lib/utils'
+import { Crown, MessageSquare, Trash2, UserCog, Search, Trophy } from 'lucide-react'
+import { cn, formatFecha, MAX_EQUIPOS_FOUNDER, PRECIO_EQUIPO } from '@/lib/utils'
 import { EquipoLogo } from '@/components/equipos/EquipoLogo'
 import { EquipoChat, type MensajeEquipo } from '@/components/equipos/EquipoChat'
 import { Modal } from '@/components/equipos/Modal'
@@ -16,6 +16,8 @@ interface EquipoAdmin {
   colorPrimario: string | null
   logoUrl: string | null
   activo: boolean
+  planEquipo: 'FOUNDER' | 'ESTANDAR'
+  fechaInicioEquipo: string | null
   creadoEn: string
   lider: { id: string; username: string }
   miembros: { userId: string; rol: string; user: { id: string; username: string; avatar: string | null } }[]
@@ -30,9 +32,12 @@ export function AdminEquiposClient({ equipos, adminId }: { equipos: EquipoAdmin[
   const [chat, setChat] = useState<{ equipo: EquipoAdmin; mensajes: MensajeEquipo[] } | null>(null)
   const [lider, setLider] = useState<EquipoAdmin | null>(null)
   const [disolver, setDisolver] = useState<EquipoAdmin | null>(null)
+  const [founder, setFounder] = useState<EquipoAdmin | null>(null)
   const [nuevoLider, setNuevoLider] = useState('')
   const [busy, setBusy] = useState(false)
-  const cerrar = useCallback(() => { setChat(null); setLider(null); setDisolver(null) }, [])
+  const cerrar = useCallback(() => { setChat(null); setLider(null); setDisolver(null); setFounder(null) }, [])
+  const founderActivos = equipos.filter(e => e.activo && e.planEquipo === 'FOUNDER').length
+  const plazasFounderLlenas = founderActivos >= MAX_EQUIPOS_FOUNDER
 
   const lista = equipos
     .filter(e => filtro === 'TODOS' || (filtro === 'ACTIVOS' ? e.activo : !e.activo))
@@ -74,6 +79,9 @@ export function AdminEquiposClient({ equipos, adminId }: { equipos: EquipoAdmin[
             </button>
           ))}
         </div>
+        <div className="flex items-center gap-2 px-3 py-2 rounded-lg border bg-yellow-500/10 border-yellow-500/30 text-yellow-400 text-sm font-semibold">
+          <Trophy size={14} />{founderActivos}/{MAX_EQUIPOS_FOUNDER} equipos Founder activos
+        </div>
         <div className="relative">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-apex-muted" />
           <input value={q} onChange={e => setQ(e.target.value)} placeholder="Buscar equipo..." aria-label="Buscar equipo"
@@ -102,7 +110,12 @@ export function AdminEquiposClient({ equipos, adminId }: { equipos: EquipoAdmin[
                   <Link href={`/equipos/${e.id}`} className="flex items-center gap-3 hover:text-apex-red transition-colors">
                     <EquipoLogo nombre={e.nombre} logoUrl={e.logoUrl} color={e.colorPrimario} size={36} className="rounded-lg" />
                     <div>
-                      <div className="font-medium text-sm">{e.nombre}</div>
+                      <div className="font-medium text-sm flex items-center gap-2">
+                        {e.nombre}
+                        {e.planEquipo === 'FOUNDER' && (
+                          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full border bg-yellow-500/20 text-yellow-400 border-yellow-500/30">FOUNDER</span>
+                        )}
+                      </div>
                       <div className="text-xs text-apex-muted">Creado {formatFecha(e.creadoEn)} · líder {e.lider.username}</div>
                     </div>
                   </Link>
@@ -133,6 +146,13 @@ export function AdminEquiposClient({ equipos, adminId }: { equipos: EquipoAdmin[
                     </button>
                     {e.activo && (
                       <>
+                        {e.planEquipo !== 'FOUNDER' && (
+                          <button onClick={() => setFounder(e)} disabled={plazasFounderLlenas}
+                            title={plazasFounderLlenas ? `Ya hay ${MAX_EQUIPOS_FOUNDER} equipos Founder` : 'Activar Plan Founder'}
+                            className="flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg bg-yellow-500/10 text-yellow-400 border border-yellow-500/30 hover:bg-yellow-500/20 transition-colors disabled:opacity-40">
+                            <Trophy size={13} />Activar Plan Founder
+                          </button>
+                        )}
                         <button onClick={() => { setNuevoLider(''); setLider(e) }} title="Cambiar líder" disabled={e.miembros.length < 2}
                           className="p-1.5 rounded-lg bg-apex-surface border border-apex-border hover:border-apex-red/40 transition-colors disabled:opacity-40">
                           <UserCog size={14} />
@@ -182,6 +202,23 @@ export function AdminEquiposClient({ equipos, adminId }: { equipos: EquipoAdmin[
               onClick={() => accion(lider.id, { accion: 'CAMBIAR_LIDER', nuevoLiderId: nuevoLider }, 'Líder actualizado')}
               className="px-4 py-2 bg-apex-red hover:bg-apex-red-dark text-white rounded-xl text-sm font-semibold disabled:opacity-50">
               Cambiar líder
+            </button>
+          </div>
+        </Modal>
+      )}
+
+      {founder && (
+        <Modal titulo={`Activar Plan Founder — ${founder.nombre}`} onClose={cerrar} ancho="max-w-md">
+          <p className="text-sm text-apex-muted mb-5">
+            El equipo pasará a plan Founder ({PRECIO_EQUIPO.FOUNDER}€/mes, bloqueado de por vida, lo paga el líder y cubre a todos los
+            miembros). Sus {founder.miembros.length} pilotos solo podrán competir en campeonatos de equipos.
+            Quedarán {MAX_EQUIPOS_FOUNDER - founderActivos - 1} plazas Founder libres.
+          </p>
+          <div className="flex justify-end gap-2">
+            <button onClick={cerrar} className="px-4 py-2 text-sm text-apex-muted hover:text-apex-text">Cancelar</button>
+            <button disabled={busy} onClick={() => accion(founder.id, { accion: 'ACTIVAR_FOUNDER' }, 'Plan Founder activado')}
+              className="px-4 py-2 bg-yellow-500/20 text-yellow-400 border border-yellow-500/30 rounded-xl text-sm font-semibold hover:bg-yellow-500/30 disabled:opacity-50">
+              Activar Plan Founder
             </button>
           </div>
         </Modal>

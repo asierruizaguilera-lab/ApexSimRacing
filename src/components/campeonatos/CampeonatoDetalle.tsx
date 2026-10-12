@@ -43,6 +43,7 @@ interface Props {
   inscripcionActual: string | null
   userId?: string
   userPlan?: string | null
+  bloqueoEquipoFounder?: boolean
 }
 
 function getPodiumRowClass(pos: number): string {
@@ -52,7 +53,7 @@ function getPodiumRowClass(pos: number): string {
   return ''
 }
 
-export function CampeonatoDetalle({ campeonato: c, clasificacion, clasificacionEquipos = [], miEquipo = null, inscripcionActual, userId, userPlan }: Props) {
+export function CampeonatoDetalle({ campeonato: c, clasificacion, clasificacionEquipos = [], miEquipo = null, inscripcionActual, userId, userPlan, bloqueoEquipoFounder = false }: Props) {
   const esEquipos = !!c.esCampeonatoEquipos
   const equiposConfirmados = (c.inscripcionesEquipo ?? []).filter((i: any) => i.estado === 'CONFIRMADA')
   const [tab, setTab] = useState<'info' | 'carreras' | 'clasificacion' | 'pilotos'>('info')
@@ -61,7 +62,8 @@ export function CampeonatoDetalle({ campeonato: c, clasificacion, clasificacionE
   const [expandedRace, setExpandedRace] = useState<string | null>(null)
   const [raceResults, setRaceResults] = useState<Record<string, ResultadoCarrera[]>>({})
   const [loadingResults, setLoadingResults] = useState<string | null>(null)
-  const planOk = (userPlan ? planSuficiente(userPlan, c.categoriaMinima) : true) && (!c.soloElite || userPlan === 'ELITE')
+  // La temporada de iniciación es gratuita: no exige plan
+  const planOk = !!c.esIniciacion || ((userPlan ? planSuficiente(userPlan, c.categoriaMinima) : true) && (!c.soloElite || userPlan === 'ELITE'))
 
   async function inscribirse() {
     if (!userId) { toast.error('Debes iniciar sesión'); return }
@@ -139,9 +141,15 @@ export function CampeonatoDetalle({ campeonato: c, clasificacion, clasificacionE
               <span className={cn('text-xs px-2 py-1 rounded-full border', DISCIPLINA_COLORS[c.disciplina])}>
                 {DISCIPLINA_LABELS[c.disciplina]}
               </span>
-              <span className={cn('text-xs px-2 py-1 rounded-full border', PLAN_COLORS[c.categoriaMinima])}>
-                Desde Plan {PLAN_LABELS[c.categoriaMinima]}
-              </span>
+              {c.esIniciacion ? (
+                <span className="text-xs px-2 py-1 rounded-full border bg-emerald-500/20 text-emerald-300 border-emerald-500/40 font-semibold">
+                  🏁 INICIACIÓN · GRATIS
+                </span>
+              ) : (
+                <span className={cn('text-xs px-2 py-1 rounded-full border', PLAN_COLORS[c.categoriaMinima])}>
+                  Desde Plan {PLAN_LABELS[c.categoriaMinima]}
+                </span>
+              )}
               {c.soloElite && (
                 <span className="text-xs px-2 py-1 rounded-full border bg-red-950 text-red-300 border-red-800 font-semibold">
                   ELITE
@@ -207,6 +215,10 @@ export function CampeonatoDetalle({ campeonato: c, clasificacion, clasificacionE
               ) : lleno ? (
                 <div className="px-4 py-2 bg-gray-500/20 text-gray-400 border border-gray-500/30 rounded-xl font-medium">
                   Campeonato lleno
+                </div>
+              ) : bloqueoEquipoFounder ? (
+                <div className="flex items-center gap-2 px-4 py-2 bg-apex-surface border border-apex-border text-apex-muted rounded-xl text-sm max-w-xs">
+                  <Lock size={14} className="flex-shrink-0" />Los miembros de un Equipo Founder solo pueden competir en campeonatos de equipos.
                 </div>
               ) : !planOk ? (
                 <Link href="/planes"

@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { PayPalButtons, PayPalScriptProvider } from '@paypal/react-paypal-js'
 import toast from 'react-hot-toast'
 import { X, Check, Loader2, Trophy } from 'lucide-react'
-import { PLAN_LABELS, PLAN_PRECIOS, PLAN_PRECIOS_NORMAL, PLAN_FEATURES, cn } from '@/lib/utils'
+import { PLAN_LABELS, PLAN_PRECIOS, PLAN_PRECIOS_NORMAL, PLAN_FEATURES, DESCUENTO_TRANSICION_EQUIPO_PCT } from '@/lib/utils'
 
 type Paso = 'resumen' | 'pago' | 'exito'
 
@@ -22,6 +22,7 @@ export function ModalPago({ plan, isLoggedIn = true, onClose }: Props) {
   const [planId, setPlanId] = useState('')
   const [esFounder, setEsFounder] = useState(false)
   const [descuentoReferido, setDescuentoReferido] = useState(false)
+  const [descuentoEquipo, setDescuentoEquipo] = useState(false)
   const [loadingPlanId, setLoadingPlanId] = useState(true)
 
   useEffect(() => {
@@ -32,14 +33,17 @@ export function ModalPago({ plan, isLoggedIn = true, onClose }: Props) {
         if (data?.planId) setPlanId(data.planId)
         setEsFounder(!!data?.esFounderParaEstaCompra)
         setDescuentoReferido(!!data?.descuentoReferido)
+        setDescuentoEquipo(!!data?.descuentoTransicionEquipo)
       })
       .catch(() => {})
       .finally(() => setLoadingPlanId(false))
   }, [plan, isLoggedIn])
 
   const precio = esFounder ? PLAN_PRECIOS[plan] : PLAN_PRECIOS_NORMAL[plan]
-  // Código de referido: el primer mes se cobra con un 10% de descuento (plan PayPal "Referido")
-  const precioPrimerMes = descuentoReferido ? Math.round(precio * 90) / 100 : precio
+  // Primer mes con descuento: 20% si viene de un Equipo Founder o 10% por código de referido (no acumulables)
+  const pctPrimerMes = descuentoEquipo ? DESCUENTO_TRANSICION_EQUIPO_PCT : descuentoReferido ? 10 : 0
+  const hayDescuento = pctPrimerMes > 0
+  const precioPrimerMes = Math.round(precio * (100 - pctPrimerMes)) / 100
   const label = PLAN_LABELS[plan]
   const features = PLAN_FEATURES[plan] || []
 
@@ -126,21 +130,26 @@ export function ModalPago({ plan, isLoggedIn = true, onClose }: Props) {
                   <div className="flex items-start gap-2 bg-yellow-500/10 border border-yellow-500/30 rounded-xl px-4 py-3 mb-5">
                     <Trophy size={16} className="text-yellow-400 flex-shrink-0 mt-0.5" />
                     <p className="text-sm text-yellow-400">
-                      <strong>Estás a punto de convertirte en Fundador APEX</strong> — precio congelado de por vida y badge permanente.
+                      <strong>Estás a punto de convertirte en Founder APEX</strong> — precio bloqueado de por vida mientras mantengas la suscripción, y badge permanente.
                     </p>
                   </div>
                 )}
-                {descuentoReferido && (
+                {descuentoEquipo ? (
+                  <div className="bg-green-500/10 border border-green-500/30 rounded-xl px-4 py-3 mb-5 text-sm text-green-400">
+                    ✅ Vienes de un Equipo Founder — {DESCUENTO_TRANSICION_EQUIPO_PCT}% de descuento en tu primer mes
+                    {descuentoReferido && ' (no acumulable con el código de referido)'}
+                  </div>
+                ) : descuentoReferido && (
                   <div className="bg-green-500/10 border border-green-500/30 rounded-xl px-4 py-3 mb-5 text-sm text-green-400">
                     ✅ Código de referido aplicado — 10% de descuento en tu primer mes
                   </div>
                 )}
                 <div className="flex items-end gap-1 mb-6">
-                  {descuentoReferido && (
+                  {hayDescuento && (
                     <span className="text-xl text-apex-muted line-through mb-1 mr-1">{precio}€</span>
                   )}
                   <span className="text-4xl font-bold text-white">{precioPrimerMes}€</span>
-                  <span className="text-apex-muted mb-1">{descuentoReferido ? `el primer mes, luego ${precio}€/mes` : '/mes'}</span>
+                  <span className="text-apex-muted mb-1">{hayDescuento ? `el primer mes, luego ${precio}€/mes` : '/mes'}</span>
                 </div>
                 <ul className="space-y-2 mb-6">
                   {features.map((f, i) => (
@@ -170,10 +179,10 @@ export function ModalPago({ plan, isLoggedIn = true, onClose }: Props) {
                     <span className="font-medium">{label}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-apex-muted">{descuentoReferido ? 'Primer mes' : 'Total mensual'}</span>
+                    <span className="text-apex-muted">{hayDescuento ? 'Primer mes' : 'Total mensual'}</span>
                     <span className="font-bold text-apex-red">{precioPrimerMes}€</span>
                   </div>
-                  {descuentoReferido && (
+                  {hayDescuento && (
                     <div className="flex justify-between mt-1">
                       <span className="text-apex-muted">A partir del 2º mes</span>
                       <span className="font-medium">{precio}€</span>

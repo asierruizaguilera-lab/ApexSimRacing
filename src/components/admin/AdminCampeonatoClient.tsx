@@ -31,6 +31,7 @@ export function AdminCampeonatoClient({ campeonato, temporadas = [] }: {
     categoriaMinima: campeonato?.categoriaMinima || 'ROOKIE',
     soloElite: campeonato?.soloElite || false,
     esCampeonatoEquipos: campeonato?.esCampeonatoEquipos || false,
+    esIniciacion: campeonato?.esIniciacion || false,
     temporadaId: campeonato?.temporadaId || (isNew ? temporadas.find(t => t.activa)?.id ?? '' : ''),
   })
   const [loading, setLoading] = useState(false)
@@ -138,6 +139,19 @@ export function AdminCampeonatoClient({ campeonato, temporadas = [] }: {
         <form onSubmit={guardarCampeonato} className="space-y-4 bg-apex-card border border-apex-border rounded-xl p-6">
           <div className="grid sm:grid-cols-2 gap-4">
             <div className="sm:col-span-2">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" checked={form.esIniciacion}
+                  onChange={e => setForm(f => ({ ...f, esIniciacion: e.target.checked }))}
+                  className="w-4 h-4 accent-emerald-500" />
+                <span className="text-sm font-medium">¿Es temporada de iniciación?</span>
+              </label>
+              {form.esIniciacion && (
+                <p className="mt-2 text-xs bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 rounded-lg px-3 py-2">
+                  Este campeonato es gratuito. Los resultados no suman al ranking individual.
+                </p>
+              )}
+            </div>
+            <div className="sm:col-span-2">
               <label className={LabelClass}>Nombre del Campeonato</label>
               <input type="text" value={form.nombre} onChange={set('nombre')} required className={InputClass} placeholder="APEX GT Series 2025" />
             </div>
@@ -165,21 +179,21 @@ export function AdminCampeonatoClient({ campeonato, temporadas = [] }: {
               <label className={LabelClass}>Fecha de Fin</label>
               <input type="date" value={form.fechaFin} onChange={set('fechaFin')} required className={InputClass} />
             </div>
-            <div>
+            {!form.esIniciacion && <div>
               <label className={LabelClass}>Categoría mínima</label>
               <select value={form.categoriaMinima} onChange={set('categoriaMinima')} className={InputClass}>
                 {PLANES.map(p => <option key={p} value={p}>{PLAN_LABELS[p]}</option>)}
               </select>
               <p className="text-xs text-apex-muted mt-1">Los pilotos necesitarán este plan o superior para inscribirse</p>
-            </div>
-            <div className="flex items-end">
+            </div>}
+            {!form.esIniciacion && <div className="flex items-end">
               <label className="flex items-center gap-2 cursor-pointer">
                 <input type="checkbox" checked={form.esCampeonatoEquipos}
                   onChange={e => setForm(f => ({ ...f, esCampeonatoEquipos: e.target.checked }))}
                   className="w-4 h-4 accent-cyan-500" />
                 <span className="text-sm">Campeonato por equipos <span className="text-apex-muted">(solo se inscriben equipos; suma en la liga mensual)</span></span>
               </label>
-            </div>
+            </div>}
             <div>
               <label className={LabelClass}>Temporada</label>
               <select value={form.temporadaId} onChange={set('temporadaId')} className={InputClass}>
@@ -189,14 +203,14 @@ export function AdminCampeonatoClient({ campeonato, temporadas = [] }: {
                 ))}
               </select>
             </div>
-            <div className="flex items-end">
+            {!form.esIniciacion && <div className="flex items-end">
               <label className="flex items-center gap-2 cursor-pointer">
                 <input type="checkbox" checked={form.soloElite}
                   onChange={e => setForm(f => ({ ...f, soloElite: e.target.checked }))}
                   className="w-4 h-4 accent-red-700" />
                 <span className="text-sm">Campeonato exclusivo Elite</span>
               </label>
-            </div>
+            </div>}
             {form.disciplina === 'RALLY' && (
               <div>
                 <label className={LabelClass}>Número de etapas</label>

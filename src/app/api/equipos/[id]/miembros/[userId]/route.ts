@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { emitir } from '@/lib/equipos'
+import { emitir, marcarDescuentoTransicion } from '@/lib/equipos'
 
 // Expulsar a un piloto (solo líder)
 export async function DELETE(_: NextRequest, { params }: { params: { id: string; userId: string } }) {
@@ -18,6 +18,7 @@ export async function DELETE(_: NextRequest, { params }: { params: { id: string;
   if (!miembro || miembro.equipoId !== equipo.id) return NextResponse.json({ error: 'Ese piloto no es miembro del equipo' }, { status: 404 })
 
   await prisma.miembroEquipo.delete({ where: { userId: params.userId } })
+  if (equipo.planEquipo === 'FOUNDER') await marcarDescuentoTransicion([params.userId])
   await prisma.notificacion.create({
     data: { userId: params.userId, tipo: 'EQUIPO', mensaje: `Ya no formas parte de ${equipo.nombre}`, link: '/equipos' },
   })

@@ -124,13 +124,16 @@ model User {
   totalVictorias Int       @default(0)
   totalPodios    Int       @default(0)
 
-  esFounder      Boolean   @default(false) // true si fue uno de los primeros 30 en pagar
+  esFounder      Boolean   @default(false) // true si se convirtió en Founder (badge permanente)
   fechaFounder   DateTime? // cuando se convirtió en fundador
   descuentoMerch Int       @default(0) // % de descuento en merch según plan: 0, 10, 15 o 25
 
   // Programa de referidos
   descuentoReferido         Boolean @default(false) // true si usó un código al registrarse
   codigoReferidoPendienteId String? // código usado en el registro, pendiente de vincular al completar el primer pago
+
+  // 20% en el primer mes del plan individual para quien sale de un Equipo Founder (no acumulable con el referido)
+  descuentoTransicionEquipo Boolean @default(false)
 
   accounts            Account[]
   sessions            Session[]
@@ -209,22 +212,25 @@ model VerificationToken {
 }
 
 model Campeonato {
-  id                  String           @id @default(cuid())
-  nombre              String
-  disciplina          Disciplina
-  descripcion         String
-  estado              EstadoCampeonato @default(PROXIMO)
-  fechaInicio         DateTime
-  fechaFin            DateTime
-  maxPilotos          Int              @default(20)
-  imagen              String?
-  modsReq             String?
-  numEtapas           Int              @default(1)
-  categoriaMinima     PlanSuscripcion  @default(ROOKIE)
-  soloElite           Boolean          @default(false) // si true, solo usuarios con plan Elite activo pueden inscribirse
-  esCampeonatoEquipos Boolean          @default(false) // si true, solo se inscriben equipos (no pilotos individuales)
-  temporadaId         String?
-  creadoEn            DateTime         @default(now())
+  id                   String           @id @default(cuid())
+  nombre               String
+  disciplina           Disciplina
+  descripcion          String
+  estado               EstadoCampeonato @default(PROXIMO)
+  fechaInicio          DateTime
+  fechaFin             DateTime
+  maxPilotos           Int              @default(20)
+  imagen               String?
+  modsReq              String?
+  numEtapas            Int              @default(1)
+  categoriaMinima      PlanSuscripcion  @default(ROOKIE)
+  soloElite            Boolean          @default(false) // si true, solo usuarios con plan Elite activo pueden inscribirse
+  esCampeonatoEquipos  Boolean          @default(false) // si true, solo se inscriben equipos (no pilotos individuales)
+  esIniciacion         Boolean          @default(false) // temporada gratuita de iniciación: no suma al ranking individual
+  ventanaFounderExpira DateTime? // se fija al finalizar la carrera 4 de la iniciación (+120h)
+  ventanaCerrada       Boolean          @default(false) // true cuando la ventana Founder expira definitivamente
+  temporadaId          String?
+  creadoEn             DateTime         @default(now())
 
   temporada           Temporada?          @relation(fields: [temporadaId], references: [id], onDelete: SetNull)
   carreras            Carrera[]
@@ -285,6 +291,7 @@ model Resultado {
   abandono     Boolean  @default(false)
   tiempo       String?
   equipoId     String? // equipo por el que corrió (solo campeonatos de equipos): los puntos no cambian de equipo si el piloto se va
+  esIniciacion Boolean  @default(false) // true si pertenece a un campeonato de iniciación (no suma al ranking)
   creadoEn     DateTime @default(now())
 
   carrera Carrera @relation(fields: [carreraId], references: [id], onDelete: Cascade)
@@ -508,6 +515,11 @@ model ClaseVista {
 
 // ── Equipos, liga por equipos y temporadas ─────────────────────────────────────
 
+enum PlanEquipo {
+  FOUNDER // 25€/mes, bloqueado de por vida, máximo 6 equipos
+  ESTANDAR // 35€/mes
+}
+
 enum RolEquipo {
   LIDER
   PILOTO
@@ -549,15 +561,18 @@ model Temporada {
 }
 
 model Equipo {
-  id            String   @id @default(cuid())
-  nombre        String   @unique
-  descripcion   String?
-  logoUrl       String?
-  colorPrimario String? // hex, ej: #FF0000
-  liderId       String
-  activo        Boolean  @default(true) // false = disuelto (se conserva por el histórico de puntos)
-  creadoEn      DateTime @default(now())
-  actualizadoEn DateTime @updatedAt
+  id                String     @id @default(cuid())
+  nombre            String     @unique
+  descripcion       String?
+  logoUrl           String?
+  colorPrimario     String? // hex, ej: #FF0000
+  liderId           String
+  activo            Boolean    @default(true) // false = disuelto (se conserva por el histórico de puntos)
+  planEquipo        PlanEquipo @default(ESTANDAR)
+  fechaInicioEquipo DateTime? // cuando el líder pagó (o el admin activó) el plan de equipo
+  paypalSubIdEquipo String?    @unique
+  creadoEn          DateTime   @default(now())
+  actualizadoEn     DateTime   @updatedAt
 
   lider             User                @relation("LiderEquipo", fields: [liderId], references: [id])
   miembros          MiembroEquipo[]

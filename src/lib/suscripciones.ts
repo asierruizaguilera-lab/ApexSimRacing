@@ -4,7 +4,7 @@ import { PLAN_PRECIOS_NORMAL, DESCUENTO_MERCH_POR_PLAN } from './utils'
 
 export const PLAN_ORDER: PlanSuscripcion[] = ['ROOKIE', 'AMATEUR', 'PRO', 'ELITE']
 
-// Precios Fundador (congelados de por vida para los primeros 30 pagadores)
+// Precios Founder (congelados de por vida mientras la suscripción siga activa)
 export const PLAN_PRECIOS: Record<PlanSuscripcion, number> = {
   ROOKIE: 5,
   AMATEUR: 10,
@@ -54,8 +54,10 @@ export async function activarPlan(
   const esFounderPago = !opts.esGratuita && !!opts.esFounder
 
   const suscripcionAnterior = await prisma.suscripcion.findUnique({ where: { userId } })
-  // Una vez fundador, la suscripción sigue marcada como fundadora al cambiar de plan (precio congelado de por vida)
-  const marcarComoFounder = esFounderPago || (suscripcionAnterior?.esFounder ?? false)
+  // Un Founder con la suscripción activa conserva el precio al cambiar de plan. Si canceló, lo pierde:
+  // al volver se le cobra el precio estándar (una suscripción CANCELADA/EXPIRADA no arrastra el precio Founder).
+  const anteriorVigente = suscripcionAnterior?.estado === 'ACTIVA' || suscripcionAnterior?.estado === 'GRATUITA'
+  const marcarComoFounder = esFounderPago || (anteriorVigente && (suscripcionAnterior?.esFounder ?? false))
 
   const precio = opts.esGratuita
     ? 0

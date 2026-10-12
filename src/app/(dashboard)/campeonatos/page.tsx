@@ -51,6 +51,7 @@ export default async function CampeonatosPage() {
           fechaInicio: c.fechaInicio.toISOString(),
           fechaFin: c.fechaFin.toISOString(),
           creadoEn: c.creadoEn.toISOString(),
+          ventanaFounderExpira: c.ventanaFounderExpira?.toISOString() ?? null,
           inscrito: c.esCampeonatoEquipos
             ? c.inscripcionesEquipo?.[0]?.estado || null
             : c.inscripciones?.[0]?.estado || null,
