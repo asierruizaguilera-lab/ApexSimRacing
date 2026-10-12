@@ -7,9 +7,23 @@ import { PerfilClient } from '@/components/perfil/PerfilClient'
 export default async function PerfilPage({ params }: { params: { id: string } }) {
   const session = await getServerSession(authOptions)
 
+  // Perfil público: select explícito con solo los campos que se muestran. Nunca incluir password,
+  // email ni datos internos (ban, referidos...), porque todo esto se serializa al navegador.
   const piloto = await prisma.user.findUnique({
     where: { id: params.id },
-    include: {
+    select: {
+      id: true,
+      username: true,
+      avatar: true,
+      pais: true,
+      bio: true,
+      role: true,
+      fechaRegistro: true,
+      totalPuntos: true,
+      totalCarreras: true,
+      totalVictorias: true,
+      totalPodios: true,
+      esFounder: true,
       resultados: {
         orderBy: { creadoEn: 'desc' },
         include: {

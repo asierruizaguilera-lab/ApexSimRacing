@@ -90,5 +90,7 @@ export async function GET(_: NextRequest, { params }: { params: { id: string } }
   ])
 
   if (!user) return NextResponse.json({ error: 'Usuario no encontrado' }, { status: 404 })
-  return NextResponse.json({ user, logs })
+  // Nunca devolver el hash de la contraseña, ni siquiera a un admin
+  const { password: _password, ...userSinPassword } = user
+  return NextResponse.json({ user: userSinPassword, logs })
 }
