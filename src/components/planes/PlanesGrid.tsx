@@ -78,16 +78,20 @@ export function PlanesGrid({ suscripcionActual, userId }: Props) {
   const [confirmCancel, setConfirmCancel] = useState(false)
   const [cancelling, setCancelling] = useState(false)
   const [founderInfo, setFounderInfo] = useState<FounderInfo | null>(null)
+  const [founderCargado, setFounderCargado] = useState(false)
 
   useEffect(() => {
     fetch('/api/paypal/check-founder')
       .then(r => r.ok ? r.json() : null)
       .then(setFounderInfo)
       .catch(() => {})
+      .finally(() => setFounderCargado(true))
   }, [])
 
   const esElegible = !!founderInfo?.esElegibleFounder && !founderInfo.esFounder
   const mostrarPreciosFounder = founderInfo?.modoPrecio === 'FOUNDER'
+  // Los planes solo se muestran con la ventana Founder abierta (tras la temporada de iniciación)
+  const planesDisponibles = mostrarPreciosFounder
   const esSuscripcionFounder = !!suscripcionActual?.esFounder && suscripcionActual.estado === 'ACTIVA'
 
   async function cancelarSuscripcion() {
@@ -133,7 +137,7 @@ export function PlanesGrid({ suscripcionActual, userId }: Props) {
               </span>
             </div>
             <div className="flex items-center gap-2">
-              {suscripcionActual.plan !== 'ELITE' && (
+              {planesDisponibles && suscripcionActual.plan !== 'ELITE' && (
                 <button
                   onClick={() => setModalPlan(PLANES[PLANES.indexOf(suscripcionActual.plan) + 1])}
                   className="text-xs px-3 py-1.5 bg-apex-red text-white rounded-lg hover:bg-apex-red-dark transition-colors flex items-center gap-1">
@@ -181,7 +185,16 @@ export function PlanesGrid({ suscripcionActual, userId }: Props) {
         </div>
       )}
 
+      {founderCargado && !planesDisponibles && (
+        <div className="bg-apex-card border border-apex-border rounded-2xl p-8 text-center">
+          <p className="text-apex-text font-semibold">
+            Los planes estarán disponibles al finalizar la temporada de iniciación gratuita. ¡Mantente atento!
+          </p>
+        </div>
+      )}
+
       {/* Grid planes */}
+      {planesDisponibles && (<>
       <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {PLANES.map((plan) => {
           const precioFounder = PLAN_PRECIOS[plan]
@@ -284,6 +297,7 @@ export function PlanesGrid({ suscripcionActual, userId }: Props) {
           <br />Cancela cuando quieras — sin permanencia.
         </p>
       </div>
+      </>)}
 
       {/* Aviso al cancelar una suscripción Founder: pierde el precio bloqueado para siempre */}
       {confirmCancel && esSuscripcionFounder && suscripcionActual && (
