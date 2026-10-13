@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { getEstadoFounder, getPlanId } from '@/lib/paypal'
+import { temporadaIniciacionFinalizada } from '@/lib/iniciacion'
 import { PLAN_PRECIOS, PLAN_PRECIOS_NORMAL } from '@/lib/utils'
 
 export const dynamic = 'force-dynamic'
@@ -30,6 +31,7 @@ export async function GET(req: NextRequest) {
     ventanaExpira: ventanaExpira?.toISOString() ?? null,
     horasRestantes,
     modoPrecio: (founderActivo || esElegibleFounder) ? 'FOUNDER' : 'NORMAL',
+    temporadaIniciacionFinalizada: await temporadaIniciacionFinalizada(),
     precios: { FOUNDER: PLAN_PRECIOS, NORMAL: PLAN_PRECIOS_NORMAL },
   }
 

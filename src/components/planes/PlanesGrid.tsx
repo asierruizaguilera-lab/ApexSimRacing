@@ -26,6 +26,7 @@ interface FounderInfo {
   ventanaExpira: string | null
   horasRestantes: number | null
   modoPrecio: 'FOUNDER' | 'NORMAL'
+  temporadaIniciacionFinalizada: boolean
 }
 
 function formatCuentaAtras(ms: number): string {
@@ -90,8 +91,9 @@ export function PlanesGrid({ suscripcionActual, userId }: Props) {
 
   const esElegible = !!founderInfo?.esElegibleFounder && !founderInfo.esFounder
   const mostrarPreciosFounder = founderInfo?.modoPrecio === 'FOUNDER'
-  // Los planes solo se muestran con la ventana Founder abierta (tras la temporada de iniciación)
-  const planesDisponibles = mostrarPreciosFounder
+  // Planes visibles con la ventana Founder abierta (precio Founder) o, cerrada ya la ventana tras
+  // la temporada de iniciación, a precio estándar. Antes de eso se muestra un aviso.
+  const planesDisponibles = mostrarPreciosFounder || !!founderInfo?.temporadaIniciacionFinalizada
   const esSuscripcionFounder = !!suscripcionActual?.esFounder && suscripcionActual.estado === 'ACTIVA'
 
   async function cancelarSuscripcion() {

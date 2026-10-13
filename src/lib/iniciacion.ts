@@ -26,6 +26,21 @@ export async function getVentanaFounderUsuario(userId: string) {
 }
 
 /**
+ * La temporada de iniciación ha terminado y su ventana Founder ya se cerró (o expiró aunque el cron
+ * aún no la haya cerrado). A partir de entonces los planes se venden a precio estándar.
+ */
+export async function temporadaIniciacionFinalizada() {
+  const camp = await prisma.campeonato.findFirst({
+    where: {
+      esIniciacion: true,
+      OR: [{ ventanaCerrada: true }, { ventanaFounderExpira: { lte: new Date() } }],
+    },
+    select: { id: true },
+  })
+  return !!camp
+}
+
+/**
  * Se llama cada vez que una carrera pasa a FINALIZADA. Si pertenece a una iniciación y ya se ha
  * corrido la carrera 4 (o todas, si el campeonato tiene menos), abre la ventana Founder de 120h y
  * avisa a los inscritos. Idempotente: si la ventana ya se abrió no la reinicia.
