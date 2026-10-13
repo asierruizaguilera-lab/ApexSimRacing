@@ -36,6 +36,7 @@ export async function GET(req: NextRequest) {
     duracionTexto: c.duracionTexto,
     numeroTecnicas: c.numeroTecnicas,
     tieneVideo: Boolean(c.youtubeUrl),
+    linkPresentacion: c.linkPresentacion,
     orden: c.orden,
     totalVistas: c._count.vistas,
     vistaPorMi: c.vistas.length > 0,

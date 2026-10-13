@@ -22,9 +22,9 @@ export async function POST(req: NextRequest) {
   if (session?.user?.role !== 'ADMIN') return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
 
   const body = await req.json()
-  const { titulo, descripcion, disciplina, youtubeUrl, duracionMin, orden, publicada } = body
+  const { titulo, descripcion, disciplina, youtubeUrl, linkPresentacion, duracionMin, orden, publicada } = body
 
-  if (!titulo || !disciplina || !youtubeUrl) {
+  if (!titulo || !disciplina) {
     return NextResponse.json({ error: 'Faltan campos obligatorios' }, { status: 400 })
   }
 
@@ -33,7 +33,8 @@ export async function POST(req: NextRequest) {
       titulo,
       descripcion: descripcion || null,
       disciplina,
-      youtubeUrl,
+      youtubeUrl: youtubeUrl || null,
+      linkPresentacion: linkPresentacion || null,
       duracionMin: duracionMin ? Number(duracionMin) : null,
       orden: orden ? Number(orden) : 0,
       publicada: Boolean(publicada),

@@ -89,6 +89,20 @@ async function runMigrationSimuladorIfRequested() {
   }
 }
 
+// Limpieza opcional de la Academia: si RUN_CLEANUP_ACADEMIA=true, borra las clases sin numeroModulo
+// y el colaborador Vadosan. Va DESPUÉS del seed (necesita la columna numeroModulo) y es best-effort.
+async function runCleanupAcademiaIfRequested() {
+  if (process.env.RUN_CLEANUP_ACADEMIA !== 'true') return
+
+  console.log('[BOOT] RUN_CLEANUP_ACADEMIA=true — ejecutando scripts/cleanup-academia.ts...')
+  try {
+    runTs('scripts/cleanup-academia.ts')
+    console.log('[BOOT] ✅ Limpieza de la Academia completada')
+  } catch (err) {
+    console.error('[BOOT] ❌ Error en la limpieza de la Academia:', err.message)
+  }
+}
+
 const app = next({ dev, hostname, port })
 const handle = app.getRequestHandler()
 
@@ -124,6 +138,7 @@ function canalDM(a, b) {
 
 runMigrationSimuladorIfRequested()
   .then(() => runSeedOnStartIfRequested())
+  .then(() => runCleanupAcademiaIfRequested())
   .then(() => app.prepare()).then(() => {
   const httpServer = createServer(async (req, res) => {
     try {

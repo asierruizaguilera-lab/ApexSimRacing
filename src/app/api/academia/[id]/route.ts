@@ -26,6 +26,7 @@ export async function GET(_: NextRequest, { params }: { params: { id: string } }
     thumbnailUrl: clase.youtubeUrl ? getThumbnailUrl(clase.youtubeUrl) : null,
     duracionTexto: clase.duracionTexto,
     numeroTecnicas: clase.numeroTecnicas,
+    linkPresentacion: clase.linkPresentacion,
     duracionMin: clase.duracionMin,
     totalVistas: clase._count.vistas,
   })

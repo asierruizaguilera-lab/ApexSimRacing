@@ -481,6 +481,7 @@ model Clase {
   numeroModulo   String? // "0", "1.1", "1.2", "2"...
   duracionTexto  String? // "≈ 6 MIN + 30 MIN DE PREPARACIÓN"
   numeroTecnicas Int?
+  linkPresentacion String? // URL de Google Drive (o similar) de la presentación del módulo
   orden         Int          @default(0)
   publicada     Boolean      @default(false)
   creadoEn      DateTime     @default(now())

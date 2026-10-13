@@ -16,6 +16,7 @@
     "update:cars": "ts-node --transpile-only --compiler-options {\"module\":\"CommonJS\",\"moduleResolution\":\"node\"} scripts/update-cars.ts",
     "migrate:simulador": "ts-node --transpile-only --compiler-options {\"module\":\"CommonJS\",\"moduleResolution\":\"node\"} scripts/migrate-simulador.ts",
     "migrate:canal-drift": "ts-node --transpile-only --compiler-options {\"module\":\"CommonJS\",\"moduleResolution\":\"node\"} scripts/migrate-canal-drift.ts",
+    "cleanup:academia": "ts-node --transpile-only --compiler-options {\"module\":\"CommonJS\",\"moduleResolution\":\"node\"} scripts/cleanup-academia.ts",
     "recalc:stats": "ts-node --transpile-only --compiler-options {\"module\":\"CommonJS\",\"moduleResolution\":\"node\"} scripts/recalcular-stats-individuales.ts"
   },
   "dependencies": {

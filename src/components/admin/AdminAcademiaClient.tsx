@@ -15,6 +15,7 @@ interface Clase {
   descripcion: string | null
   disciplina: string
   youtubeUrl: string | null
+  linkPresentacion: string | null
   duracionMin: number | null
   orden: number
   publicada: boolean
@@ -27,6 +28,7 @@ const EMPTY = {
   descripcion: '',
   disciplina: 'RALLY',
   youtubeUrl: '',
+  linkPresentacion: '',
   duracionMin: '',
   orden: '0',
   publicada: false,
@@ -62,6 +64,7 @@ export function AdminAcademiaClient({ clases: initial }: { clases: Clase[] }) {
       descripcion: c.descripcion || '',
       disciplina: c.disciplina,
       youtubeUrl: c.youtubeUrl ?? '',
+      linkPresentacion: c.linkPresentacion ?? '',
       duracionMin: c.duracionMin?.toString() || '',
       orden: c.orden.toString(),
       publicada: c.publicada,
@@ -78,14 +81,14 @@ export function AdminAcademiaClient({ clases: initial }: { clases: Clase[] }) {
 
   async function guardar(e: React.FormEvent) {
     e.preventDefault()
-    if (!form.youtubeUrl.trim()) { toast.error('La URL de YouTube es obligatoria'); return }
     setLoading(true)
     try {
       const payload = {
         titulo: form.titulo,
         descripcion: form.descripcion || null,
         disciplina: form.disciplina,
-        youtubeUrl: form.youtubeUrl.trim(),
+        youtubeUrl: form.youtubeUrl.trim() || null,
+        linkPresentacion: form.linkPresentacion.trim() || null,
         duracionMin: form.duracionMin ? Number(form.duracionMin) : null,
         orden: Number(form.orden) || 0,
         publicada: form.publicada,
@@ -193,13 +196,23 @@ export function AdminAcademiaClient({ clases: initial }: { clases: Clase[] }) {
           </div>
 
           <div>
-            <label className={LabelClass}>URL de YouTube *</label>
-            <input type="text" value={form.youtubeUrl} onChange={set('youtubeUrl')} required
+            <label className={LabelClass}>URL de YouTube</label>
+            <input type="text" value={form.youtubeUrl} onChange={set('youtubeUrl')}
               placeholder="https://www.youtube.com/watch?v=... o solo el ID"
               className={InputClass} />
             {youtubeIdPreview && (
               <p className="mt-1 text-xs text-apex-muted font-mono">ID: {youtubeIdPreview}</p>
             )}
+          </div>
+
+          <div>
+            <label className={LabelClass}>Link de presentación</label>
+            <input type="url" value={form.linkPresentacion} onChange={set('linkPresentacion')}
+              placeholder="https://drive.google.com/file/d/.../view"
+              className={InputClass} />
+            <p className="mt-1 text-xs text-apex-muted">
+              Si está vacío, la Academia muestra «Presentación próximamente». En Drive, comparte el archivo como «Cualquier persona con el enlace».
+            </p>
           </div>
 
           {/* Preview */}

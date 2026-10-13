@@ -8,7 +8,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   if (session?.user?.role !== 'ADMIN') return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
 
   const body = await req.json()
-  const { titulo, descripcion, disciplina, youtubeUrl, duracionMin, orden, publicada } = body
+  const { titulo, descripcion, disciplina, youtubeUrl, linkPresentacion, duracionMin, orden, publicada } = body
 
   const clase = await prisma.clase.update({
     where: { id: params.id },
@@ -16,7 +16,8 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       ...(titulo !== undefined && { titulo }),
       ...(descripcion !== undefined && { descripcion: descripcion || null }),
       ...(disciplina !== undefined && { disciplina }),
-      ...(youtubeUrl !== undefined && { youtubeUrl }),
+      ...(youtubeUrl !== undefined && { youtubeUrl: youtubeUrl || null }),
+      ...(linkPresentacion !== undefined && { linkPresentacion: linkPresentacion || null }),
       ...(duracionMin !== undefined && { duracionMin: duracionMin ? Number(duracionMin) : null }),
       ...(orden !== undefined && { orden: Number(orden) }),
       ...(publicada !== undefined && { publicada: Boolean(publicada) }),

@@ -10,23 +10,16 @@ export const metadata = { title: 'Academia APEX' }
 export default async function AcademiaPage() {
   const session = await getServerSession(authOptions)
 
-  const [clases, patrocinadores] = await Promise.all([
-    prisma.clase.findMany({
-      where: { publicada: true },
-      orderBy: [{ orden: 'asc' }, { creadoEn: 'asc' }],
-      include: {
-        _count: { select: { vistas: true } },
-        vistas: session?.user?.id
-          ? { where: { userId: session.user.id }, select: { id: true } }
-          : undefined,
-      },
-    }),
-    prisma.patrocinador.findMany({
-      where: { activo: true, ubicaciones: { hasSome: ['ACADEMIA', 'TODAS'] } },
-      orderBy: [{ orden: 'asc' }, { creadoEn: 'asc' }],
-      select: { id: true, nombre: true, descripcion: true, logoUrl: true, linkExterno: true, esColaborador: true },
-    }),
-  ])
+  const clases = await prisma.clase.findMany({
+    where: { publicada: true, numeroModulo: { not: null } },
+    orderBy: [{ orden: 'asc' }, { creadoEn: 'asc' }],
+    include: {
+      _count: { select: { vistas: true } },
+      vistas: session?.user?.id
+        ? { where: { userId: session.user.id }, select: { id: true } }
+        : undefined,
+    },
+  })
 
   const clasesSerializadas = clases.map(c => ({
     id: c.id,
@@ -37,6 +30,7 @@ export default async function AcademiaPage() {
     duracionMin: c.duracionMin,
     duracionTexto: c.duracionTexto,
     numeroTecnicas: c.numeroTecnicas,
+    linkPresentacion: c.linkPresentacion,
     totalVistas: c._count.vistas,
     vistaPorMi: (c.vistas?.length ?? 0) > 0,
   }))
@@ -53,7 +47,7 @@ export default async function AcademiaPage() {
         </div>
       </div>
 
-      <AcademiaClient clases={clasesSerializadas} patrocinadores={patrocinadores} />
+      <AcademiaClient clases={clasesSerializadas} />
     </div>
   )
 }
