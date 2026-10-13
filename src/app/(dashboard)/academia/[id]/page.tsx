@@ -1,31 +1,23 @@
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { getEmbedUrl, getThumbnailUrl } from '@/lib/youtube'
+import { getEmbedUrl } from '@/lib/youtube'
+import { getPresentacionEmbedUrl } from '@/lib/presentacion'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
-import { cn, DISCIPLINA_LABELS } from '@/lib/utils'
-import { ChevronRight, Clock, Eye } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Clock, ExternalLink, Eye, ListChecks } from 'lucide-react'
 
 export const dynamic = 'force-dynamic'
 
-const BADGE_COLORS: Record<string, string> = {
-  RALLY: 'bg-orange-500/20 text-orange-400 border-orange-500/30',
-  CIRCUITO: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
-  DRIFT: 'bg-purple-500/20 text-purple-400 border-purple-500/30',
-  KARTCROSS: 'bg-green-500/20 text-green-400 border-green-500/30',
-  MONOPLAZA: 'bg-red-500/20 text-red-400 border-red-500/30',
-}
-
-export default async function ClasePage({ params }: { params: { id: string } }) {
+export default async function ModuloPage({ params }: { params: { id: string } }) {
   const session = await getServerSession(authOptions)
 
   const clase = await prisma.clase.findUnique({
     where: { id: params.id, publicada: true },
     include: { _count: { select: { vistas: true } } },
   })
-  // Módulos sin vídeo todavía ("Próximamente"): no hay nada que reproducir
-  if (!clase || !clase.youtubeUrl) notFound()
+  // Sin presentación ni vídeo no hay nada que mostrar
+  if (!clase || (!clase.linkPresentacion && !clase.youtubeUrl)) notFound()
 
   // Registrar vista automáticamente
   if (session?.user?.id) {
@@ -36,20 +28,26 @@ export default async function ClasePage({ params }: { params: { id: string } }) 
     })
   }
 
-  // Más clases de la misma disciplina
-  const masClases = await prisma.clase.findMany({
-    where: { publicada: true, disciplina: clase.disciplina, id: { not: clase.id }, youtubeUrl: { not: null } },
-    orderBy: [{ orden: 'asc' }, { creadoEn: 'asc' }],
-    take: 4,
-    include: {
-      _count: { select: { vistas: true } },
-      vistas: session?.user?.id
-        ? { where: { userId: session.user.id }, select: { id: true } }
-        : undefined,
-    },
-  })
+  // Módulo anterior y siguiente en el orden de aprendizaje (solo los que tienen contenido)
+  const conContenido = {
+    publicada: true,
+    numeroModulo: { not: null },
+    OR: [{ linkPresentacion: { not: null } }, { youtubeUrl: { not: null } }],
+  }
+  const [anterior, siguiente] = await Promise.all([
+    prisma.clase.findFirst({
+      where: { ...conContenido, orden: { lt: clase.orden } },
+      orderBy: { orden: 'desc' },
+      select: { id: true, numeroModulo: true, titulo: true },
+    }),
+    prisma.clase.findFirst({
+      where: { ...conContenido, orden: { gt: clase.orden } },
+      orderBy: { orden: 'asc' },
+      select: { id: true, numeroModulo: true, titulo: true },
+    }),
+  ])
 
-  const embedUrl = getEmbedUrl(clase.youtubeUrl)
+  const duracion = clase.duracionTexto ?? (clase.duracionMin ? `${clase.duracionMin} MIN` : null)
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
@@ -57,79 +55,92 @@ export default async function ClasePage({ params }: { params: { id: string } }) 
       <nav className="flex items-center gap-1 text-xs text-apex-muted">
         <Link href="/academia" className="hover:text-apex-text transition-colors">Academia</Link>
         <ChevronRight size={12} />
-        <span className="text-apex-muted">{DISCIPLINA_LABELS[clase.disciplina as string]}</span>
-        <ChevronRight size={12} />
-        <span className="text-apex-text truncate max-w-[200px]">{clase.titulo}</span>
+        <span className="text-apex-text truncate max-w-[240px]">
+          {clase.numeroModulo !== null ? `Módulo ${clase.numeroModulo} — ` : ''}{clase.titulo}
+        </span>
       </nav>
 
-      {/* Player */}
-      <div className="relative w-full aspect-video bg-black rounded-xl overflow-hidden shadow-2xl">
-        <iframe
-          src={embedUrl}
-          title={clase.titulo}
-          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-          allowFullScreen
-          className="absolute inset-0 w-full h-full"
-        />
-      </div>
-
-      {/* Info */}
-      <div className="bg-apex-card border border-apex-border rounded-xl p-5">
-        <div className="flex flex-wrap items-start justify-between gap-3 mb-3">
-          <div className="flex items-center gap-2">
-            <span className={cn('text-xs px-2 py-0.5 rounded-full border', BADGE_COLORS[clase.disciplina as string])}>
-              {DISCIPLINA_LABELS[clase.disciplina as string]}
-            </span>
-            {clase.duracionMin && (
-              <span className="flex items-center gap-1 text-xs text-apex-muted">
-                <Clock size={12} />{clase.duracionMin} min
+      {/* Cabecera */}
+      <div className="bg-apex-card border border-apex-border rounded-xl p-5 flex items-start gap-4">
+        {clase.numeroModulo !== null && (
+          <div className="w-16 shrink-0 text-center">
+            <span className="block text-[10px] font-semibold tracking-widest text-apex-muted uppercase">Módulo</span>
+            <span className="block text-4xl font-black text-apex-red leading-none tabular-nums">{clase.numeroModulo}</span>
+          </div>
+        )}
+        <div className="flex-1 min-w-0">
+          <h1 className="text-xl font-bold leading-snug">{clase.titulo}</h1>
+          {clase.descripcion && (
+            <p className="text-apex-muted text-sm leading-relaxed mt-1">{clase.descripcion}</p>
+          )}
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-3 text-xs text-apex-muted">
+            {duracion && <span className="flex items-center gap-1"><Clock size={12} />{duracion}</span>}
+            {clase.numeroTecnicas !== null && (
+              <span className="flex items-center gap-1">
+                <ListChecks size={12} />{clase.numeroTecnicas} {clase.numeroTecnicas === 1 ? 'técnica' : 'técnicas'}
               </span>
             )}
-            <span className="flex items-center gap-1 text-xs text-apex-muted">
-              <Eye size={12} />{clase._count.vistas + 1} vistas
-            </span>
-          </div>
-          <div className="flex items-center gap-1 bg-green-500/20 text-green-400 border border-green-500/30 px-3 py-1 rounded-full text-xs font-medium">
-            ✓ Vista
+            <span className="flex items-center gap-1"><Eye size={12} />{clase._count.vistas + 1} vistas</span>
           </div>
         </div>
-        <h1 className="text-xl font-bold mb-2">{clase.titulo}</h1>
-        {clase.descripcion && (
-          <p className="text-apex-muted text-sm leading-relaxed">{clase.descripcion}</p>
-        )}
       </div>
 
-      {/* Más clases */}
-      {masClases.length > 0 && (
-        <div>
-          <h2 className="font-semibold mb-3 text-sm text-apex-muted uppercase tracking-wider">
-            Más clases de {DISCIPLINA_LABELS[clase.disciplina as string]}
-          </h2>
-          <div className="grid sm:grid-cols-2 gap-3">
-            {masClases.map(c => (
-              <Link key={c.id} href={`/academia/${c.id}`} className="group flex gap-3 bg-apex-card border border-apex-border rounded-xl p-3 hover:border-apex-red/40 transition-all">
-                <div className="relative w-24 aspect-video bg-apex-surface rounded-lg overflow-hidden flex-shrink-0">
-                  <img
-                    src={getThumbnailUrl(c.youtubeUrl!)}
-                    alt={c.titulo}
-                    className="w-full h-full object-cover"
-                  />
-                  {(c.vistas?.length ?? 0) > 0 && (
-                    <div className="absolute top-1 right-1 w-4 h-4 bg-green-500 rounded-full flex items-center justify-center">
-                      <span className="text-white text-[8px] font-bold">✓</span>
-                    </div>
-                  )}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium leading-snug group-hover:text-apex-red transition-colors line-clamp-2">{c.titulo}</p>
-                  <div className="flex items-center gap-2 mt-1">
-                    {c.duracionMin && <span className="text-xs text-apex-muted">{c.duracionMin} min</span>}
-                    <span className="text-xs text-apex-muted">{c._count.vistas} vistas</span>
-                  </div>
-                </div>
-              </Link>
-            ))}
+      {/* Presentación embebida */}
+      {clase.linkPresentacion && (
+        <div className="space-y-2">
+          <div className="relative w-full aspect-video bg-black rounded-xl overflow-hidden shadow-2xl">
+            <iframe
+              src={getPresentacionEmbedUrl(clase.linkPresentacion)}
+              title={`Presentación — ${clase.titulo}`}
+              allowFullScreen
+              className="absolute inset-0 w-full h-full"
+            />
           </div>
+          <div className="flex justify-end">
+            <a
+              href={clase.linkPresentacion}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 text-xs font-medium text-apex-muted hover:text-apex-text transition-colors"
+            >
+              <ExternalLink size={12} /> Ver en Drive
+            </a>
+          </div>
+        </div>
+      )}
+
+      {/* Vídeo */}
+      {clase.youtubeUrl && (
+        <div className="relative w-full aspect-video bg-black rounded-xl overflow-hidden shadow-2xl">
+          <iframe
+            src={getEmbedUrl(clase.youtubeUrl)}
+            title={clase.titulo}
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowFullScreen
+            className="absolute inset-0 w-full h-full"
+          />
+        </div>
+      )}
+
+      {/* Navegación entre módulos */}
+      {(anterior || siguiente) && (
+        <div className="grid sm:grid-cols-2 gap-3">
+          {anterior ? (
+            <Link href={`/academia/${anterior.id}`} className="group bg-apex-card border border-apex-border rounded-xl p-4 hover:border-apex-red/40 transition-colors">
+              <span className="flex items-center gap-1 text-xs text-apex-muted"><ChevronLeft size={12} />Anterior</span>
+              <span className="block text-sm font-semibold mt-1 group-hover:text-apex-red transition-colors truncate">
+                {anterior.numeroModulo} — {anterior.titulo}
+              </span>
+            </Link>
+          ) : <div className="hidden sm:block" />}
+          {siguiente && (
+            <Link href={`/academia/${siguiente.id}`} className="group bg-apex-card border border-apex-border rounded-xl p-4 text-right hover:border-apex-red/40 transition-colors">
+              <span className="flex items-center justify-end gap-1 text-xs text-apex-muted">Siguiente<ChevronRight size={12} /></span>
+              <span className="block text-sm font-semibold mt-1 group-hover:text-apex-red transition-colors truncate">
+                {siguiente.numeroModulo} — {siguiente.titulo}
+              </span>
+            </Link>
+          )}
         </div>
       )}
     </div>

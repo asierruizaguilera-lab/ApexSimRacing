@@ -50,14 +50,12 @@ function ModuloCard({ clase }: { clase: Clase }) {
 
       <div className="shrink-0 flex flex-wrap gap-2 sm:pl-2">
         {clase.linkPresentacion ? (
-          <a
-            href={clase.linkPresentacion}
-            target="_blank"
-            rel="noopener noreferrer"
+          <Link
+            href={`/academia/${clase.id}`}
             className="inline-flex items-center gap-2 bg-apex-red hover:bg-apex-red/90 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors"
           >
             <FileText size={14} /> Ver presentación
-          </a>
+          </Link>
         ) : (
           <button
             type="button"
