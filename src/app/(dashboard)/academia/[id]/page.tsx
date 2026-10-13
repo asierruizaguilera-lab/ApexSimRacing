@@ -88,7 +88,7 @@ export default async function ModuloPage({ params }: { params: { id: string } })
       {/* Presentación embebida */}
       {clase.linkPresentacion && (
         <div className="space-y-2">
-          <div className="relative w-full aspect-video bg-black rounded-xl overflow-hidden shadow-2xl">
+          <div className="relative w-full aspect-video bg-apex-bg rounded-xl overflow-hidden shadow-2xl">
             <iframe
               src={getPresentacionEmbedUrl(clase.linkPresentacion)}
               title={`Presentación — ${clase.titulo}`}
@@ -101,9 +101,9 @@ export default async function ModuloPage({ params }: { params: { id: string } })
               href={clase.linkPresentacion}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 text-xs font-medium text-apex-muted hover:text-apex-text transition-colors"
+              className="inline-flex items-center gap-2 bg-apex-card border border-apex-border hover:border-apex-red/40 text-apex-text text-sm font-semibold px-4 py-2 rounded-lg transition-colors"
             >
-              <ExternalLink size={12} /> Ver en Drive
+              <ExternalLink size={14} /> Ver en Google Slides
             </a>
           </div>
         </div>
