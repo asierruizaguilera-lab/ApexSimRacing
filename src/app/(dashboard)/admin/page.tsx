@@ -8,6 +8,8 @@ import { etiquetaTemporada, getTemporadaActiva, mesYAnio, rankingEquiposMes } fr
 import { formatFecha, DISCIPLINA_LABELS, DISCIPLINA_COLORS, cn } from '@/lib/utils'
 import { resumenIniciacionAdmin } from '@/lib/iniciacion'
 import { AdminIniciacionPanel } from '@/components/admin/AdminIniciacionPanel'
+import { AdminTemporadaGratuitaToggle } from '@/components/admin/AdminTemporadaGratuitaToggle'
+import { getTemporadaGratuitaActiva } from '@/lib/config'
 
 export const metadata = { title: 'Panel Admin' }
 
@@ -16,11 +18,12 @@ export default async function AdminPage() {
   if (session?.user?.role !== 'ADMIN') redirect('/dashboard')
 
   const hoy = mesYAnio()
-  const [equiposActivos, temporadaActiva, rankingMes, iniciaciones] = await Promise.all([
+  const [equiposActivos, temporadaActiva, rankingMes, iniciaciones, temporadaGratuitaActiva] = await Promise.all([
     prisma.equipo.count({ where: { activo: true } }),
     getTemporadaActiva(),
     rankingEquiposMes(hoy.mes, hoy.anio),
     resumenIniciacionAdmin(),
+    getTemporadaGratuitaActiva(),
   ])
   const equipoLider = rankingMes[0]?.puntosMes > 0 ? rankingMes[0] : null
 
@@ -84,6 +87,9 @@ export default async function AdminPage() {
           </div>
         ))}
       </div>
+
+      {/* Modo Temporada Gratuita: acceso completo sin suscripción */}
+      <AdminTemporadaGratuitaToggle activa={temporadaGratuitaActiva} />
 
       {/* Temporada de iniciación y ventana Founder */}
       <AdminIniciacionPanel iniciaciones={iniciaciones} />

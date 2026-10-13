@@ -18,6 +18,7 @@ interface Suscripcion {
 interface Props {
   suscripcionActual: Suscripcion | null
   userId?: string
+  temporadaGratuitaActiva?: boolean
 }
 
 interface FounderInfo {
@@ -73,7 +74,7 @@ const PLAN_COLORES_BG: Record<string, string> = {
   ELITE: 'border-yellow-500/30',
 }
 
-export function PlanesGrid({ suscripcionActual, userId }: Props) {
+export function PlanesGrid({ suscripcionActual, userId, temporadaGratuitaActiva = false }: Props) {
   const router = useRouter()
   const [modalPlan, setModalPlan] = useState<string | null>(null)
   const [confirmCancel, setConfirmCancel] = useState(false)
@@ -93,7 +94,9 @@ export function PlanesGrid({ suscripcionActual, userId }: Props) {
   const mostrarPreciosFounder = founderInfo?.modoPrecio === 'FOUNDER'
   // Planes visibles con la ventana Founder abierta (precio Founder) o, cerrada ya la ventana tras
   // la temporada de iniciación, a precio estándar. Antes de eso se muestra un aviso.
-  const planesDisponibles = mostrarPreciosFounder || !!founderInfo?.temporadaIniciacionFinalizada
+  // Con el modo "Temporada gratuita" activo no se venden planes: el acceso es completo sin coste.
+  const planesDisponibles = !temporadaGratuitaActiva &&
+    (mostrarPreciosFounder || !!founderInfo?.temporadaIniciacionFinalizada)
   const esSuscripcionFounder = !!suscripcionActual?.esFounder && suscripcionActual.estado === 'ACTIVA'
 
   async function cancelarSuscripcion() {
@@ -187,7 +190,15 @@ export function PlanesGrid({ suscripcionActual, userId }: Props) {
         </div>
       )}
 
-      {founderCargado && !planesDisponibles && (
+      {temporadaGratuitaActiva && (
+        <div className="bg-emerald-500/10 border-2 border-emerald-500/40 rounded-2xl p-8 text-center">
+          <p className="text-emerald-300 font-semibold text-lg">
+            🏁 Temporada de iniciación gratuita activa — acceso completo sin coste
+          </p>
+        </div>
+      )}
+
+      {founderCargado && !temporadaGratuitaActiva && !planesDisponibles && (
         <div className="bg-apex-card border border-apex-border rounded-2xl p-8 text-center">
           <p className="text-apex-text font-semibold">
             Los planes estarán disponibles al finalizar la temporada de iniciación gratuita. ¡Mantente atento!

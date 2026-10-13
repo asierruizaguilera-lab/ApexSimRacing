@@ -812,3 +812,12 @@ model LiquidacionReferido {
   @@index([userId])
   @@map("liquidaciones_referido")
 }
+
+// Configuración global de la plataforma (fila única con id "global")
+model ConfigGlobal {
+  id                      String   @id @default("global")
+  temporadaGratuitaActiva Boolean  @default(false) // acceso completo para todos los registrados sin suscripción
+  actualizadoEn           DateTime @updatedAt
+
+  @@map("config_global")
+}

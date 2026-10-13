@@ -3,6 +3,7 @@ import { PrismaAdapter } from '@auth/prisma-adapter'
 import CredentialsProvider from 'next-auth/providers/credentials'
 import bcrypt from 'bcryptjs'
 import { prisma } from './prisma'
+import { getTemporadaGratuitaActiva } from './config'
 
 export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(prisma) as any,
@@ -33,6 +34,7 @@ export const authOptions: NextAuthOptions = {
         if (!valid) return null
 
         const hasSuscripcion = esAccesoActivo(user.suscripcion)
+        const temporadaGratuita = await getTemporadaGratuitaActiva().catch(() => false)
 
         return {
           id: user.id,
@@ -42,6 +44,7 @@ export const authOptions: NextAuthOptions = {
           role: user.role,
           baneado: user.baneado,
           hasSuscripcion,
+          temporadaGratuita,
         }
       },
     }),
@@ -54,6 +57,7 @@ export const authOptions: NextAuthOptions = {
         token.username = user.name ?? ''
         token.baneado = (user as any).baneado ?? false
         token.hasSuscripcion = (user as any).hasSuscripcion ?? false
+        token.temporadaGratuita = (user as any).temporadaGratuita ?? false
       }
 
       if (trigger === 'update' && session) {
@@ -78,6 +82,7 @@ export const authOptions: NextAuthOptions = {
         session.user.username = token.username as string
         session.user.baneado = token.baneado as boolean
         session.user.hasSuscripcion = token.hasSuscripcion as boolean
+        session.user.temporadaGratuita = !!token.temporadaGratuita
       }
       return session
     },
@@ -93,18 +98,19 @@ function esAccesoActivo(suscripcion: { estado: string; fechaExpiracionManual: Da
 
 async function refreshSuscripcionToken(token: any) {
   try {
-    const user = await prisma.user.findUnique({
+    const [user, temporadaGratuita] = await Promise.all([prisma.user.findUnique({
       where: { email: token.email as string },
       select: {
         id: true,
         baneado: true,
         suscripcion: { select: { estado: true, fechaExpiracionManual: true } },
       },
-    })
+    }), getTemporadaGratuitaActiva().catch(() => false)])
     if (user) {
       token.id = user.id
       token.baneado = user.baneado
       token.hasSuscripcion = esAccesoActivo(user.suscripcion)
+      token.temporadaGratuita = temporadaGratuita
       token.lastChecked = Date.now()
     }
   } catch {}
@@ -121,6 +127,7 @@ declare module 'next-auth' {
       username: string
       baneado: boolean
       hasSuscripcion: boolean
+      temporadaGratuita: boolean
     }
   }
 }
@@ -132,6 +139,7 @@ declare module 'next-auth/jwt' {
     username: string
     baneado: boolean
     hasSuscripcion: boolean
+    temporadaGratuita?: boolean
     lastChecked?: number
   }
 }

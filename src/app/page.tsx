@@ -6,7 +6,7 @@ import { LandingClient } from '@/components/landing/LandingClient'
 export default async function LandingPage() {
   const session = await getServerSession(authOptions)
 
-  if (session?.user?.hasSuscripcion) {
+  if (session?.user?.hasSuscripcion || session?.user?.temporadaGratuita) {
     redirect('/dashboard')
   }
 

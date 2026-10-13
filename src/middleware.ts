@@ -32,6 +32,9 @@ export default withAuth(
     // Admin siempre tiene acceso (aunque no tenga suscripción en BD)
     if (token.role === 'ADMIN') return NextResponse.next()
 
+    // Modo "Temporada gratuita": cualquier usuario registrado tiene acceso completo sin suscripción
+    if (token.temporadaGratuita) return NextResponse.next()
+
     // Sin suscripción activa → redirigir a landing
     if (!token.hasSuscripcion) {
       // Permitir acceso a /planes para que puedan suscribirse

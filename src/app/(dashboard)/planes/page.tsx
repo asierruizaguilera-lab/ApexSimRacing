@@ -1,6 +1,7 @@
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { getTemporadaGratuitaActiva } from '@/lib/config'
 import { PlanesGrid } from '@/components/planes/PlanesGrid'
 import { Star } from 'lucide-react'
 
@@ -9,11 +10,14 @@ export const metadata = { title: 'Planes de Suscripción' }
 export default async function PlanesPage() {
   const session = await getServerSession(authOptions)
 
-  const suscripcion = session?.user?.id
-    ? await prisma.suscripcion.findFirst({
-        where: { userId: session.user.id, estado: { in: ['ACTIVA', 'GRATUITA'] } },
-      })
-    : null
+  const [suscripcion, temporadaGratuitaActiva] = await Promise.all([
+    session?.user?.id
+      ? prisma.suscripcion.findFirst({
+          where: { userId: session.user.id, estado: { in: ['ACTIVA', 'GRATUITA'] } },
+        })
+      : null,
+    getTemporadaGratuitaActiva(),
+  ])
 
   return (
     <div>
@@ -37,6 +41,7 @@ export default async function PlanesPage() {
           esFounder: suscripcion.esFounder,
         } : null}
         userId={session?.user?.id}
+        temporadaGratuitaActiva={temporadaGratuitaActiva}
       />
     </div>
   )
