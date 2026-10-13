@@ -14,7 +14,7 @@ interface Clase {
   titulo: string
   descripcion: string | null
   disciplina: string
-  youtubeUrl: string
+  youtubeUrl: string | null
   duracionMin: number | null
   orden: number
   publicada: boolean
@@ -61,7 +61,7 @@ export function AdminAcademiaClient({ clases: initial }: { clases: Clase[] }) {
       titulo: c.titulo,
       descripcion: c.descripcion || '',
       disciplina: c.disciplina,
-      youtubeUrl: c.youtubeUrl,
+      youtubeUrl: c.youtubeUrl ?? '',
       duracionMin: c.duracionMin?.toString() || '',
       orden: c.orden.toString(),
       publicada: c.publicada,

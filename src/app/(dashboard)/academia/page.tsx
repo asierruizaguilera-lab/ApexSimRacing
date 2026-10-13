@@ -13,7 +13,7 @@ export default async function AcademiaPage() {
   const [clases, patrocinadores] = await Promise.all([
     prisma.clase.findMany({
       where: { publicada: true },
-      orderBy: [{ disciplina: 'asc' }, { orden: 'asc' }, { creadoEn: 'asc' }],
+      orderBy: [{ orden: 'asc' }, { creadoEn: 'asc' }],
       include: {
         _count: { select: { vistas: true } },
         vistas: session?.user?.id
@@ -32,9 +32,11 @@ export default async function AcademiaPage() {
     id: c.id,
     titulo: c.titulo,
     descripcion: c.descripcion,
-    disciplina: c.disciplina as string,
-    thumbnailUrl: getThumbnailUrl(c.youtubeUrl),
+    numeroModulo: c.numeroModulo,
+    thumbnailUrl: c.youtubeUrl ? getThumbnailUrl(c.youtubeUrl) : null,
     duracionMin: c.duracionMin,
+    duracionTexto: c.duracionTexto,
+    numeroTecnicas: c.numeroTecnicas,
     totalVistas: c._count.vistas,
     vistaPorMi: (c.vistas?.length ?? 0) > 0,
   }))

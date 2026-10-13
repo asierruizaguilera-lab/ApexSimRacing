@@ -474,8 +474,13 @@ model Clase {
   titulo        String
   descripcion   String?
   disciplina    Disciplina
-  youtubeUrl    String
+  youtubeUrl    String? // null = vídeo aún no grabado ("Próximamente")
   duracionMin   Int?
+  // Módulos de formación. Opcionales y sin @unique a propósito: así `db push` no necesita
+  // --accept-data-loss en una tabla con filas. El seed hace upsert manual por numeroModulo.
+  numeroModulo   String? // "0", "1.1", "1.2", "2"...
+  duracionTexto  String? // "≈ 6 MIN + 30 MIN DE PREPARACIÓN"
+  numeroTecnicas Int?
   orden         Int          @default(0)
   publicada     Boolean      @default(false)
   creadoEn      DateTime     @default(now())

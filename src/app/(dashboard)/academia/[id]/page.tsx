@@ -24,7 +24,8 @@ export default async function ClasePage({ params }: { params: { id: string } }) 
     where: { id: params.id, publicada: true },
     include: { _count: { select: { vistas: true } } },
   })
-  if (!clase) notFound()
+  // Módulos sin vídeo todavía ("Próximamente"): no hay nada que reproducir
+  if (!clase || !clase.youtubeUrl) notFound()
 
   // Registrar vista automáticamente
   if (session?.user?.id) {
@@ -37,7 +38,7 @@ export default async function ClasePage({ params }: { params: { id: string } }) 
 
   // Más clases de la misma disciplina
   const masClases = await prisma.clase.findMany({
-    where: { publicada: true, disciplina: clase.disciplina, id: { not: clase.id } },
+    where: { publicada: true, disciplina: clase.disciplina, id: { not: clase.id }, youtubeUrl: { not: null } },
     orderBy: [{ orden: 'asc' }, { creadoEn: 'asc' }],
     take: 4,
     include: {
@@ -109,7 +110,7 @@ export default async function ClasePage({ params }: { params: { id: string } }) 
               <Link key={c.id} href={`/academia/${c.id}`} className="group flex gap-3 bg-apex-card border border-apex-border rounded-xl p-3 hover:border-apex-red/40 transition-all">
                 <div className="relative w-24 aspect-video bg-apex-surface rounded-lg overflow-hidden flex-shrink-0">
                   <img
-                    src={getThumbnailUrl(c.youtubeUrl)}
+                    src={getThumbnailUrl(c.youtubeUrl!)}
                     alt={c.titulo}
                     className="w-full h-full object-cover"
                   />

@@ -21,8 +21,11 @@ export async function GET(_: NextRequest, { params }: { params: { id: string } }
     titulo: clase.titulo,
     descripcion: clase.descripcion,
     disciplina: clase.disciplina,
-    embedUrl: getEmbedUrl(clase.youtubeUrl),
-    thumbnailUrl: getThumbnailUrl(clase.youtubeUrl),
+    numeroModulo: clase.numeroModulo,
+    embedUrl: clase.youtubeUrl ? getEmbedUrl(clase.youtubeUrl) : null,
+    thumbnailUrl: clase.youtubeUrl ? getThumbnailUrl(clase.youtubeUrl) : null,
+    duracionTexto: clase.duracionTexto,
+    numeroTecnicas: clase.numeroTecnicas,
     duracionMin: clase.duracionMin,
     totalVistas: clase._count.vistas,
   })

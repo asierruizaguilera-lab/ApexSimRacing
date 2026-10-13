@@ -76,6 +76,38 @@ async function main() {
     ? `   ✅ ${temporadasCreadas} temporadas de ${anio} creadas (inactivas)`
     : `   ⏭️  Temporadas de ${anio} ya existen — omitiendo`)
 
+  // ── 4. Módulos de la Academia — upsert por numeroModulo, nunca borra clases ──
+  // Al actualizar no se tocan youtubeUrl ni publicada: el vídeo lo añade el admin cuando se graba.
+  const modulos = [
+    { numeroModulo: '0', titulo: 'BIENVENIDA', descripcion: 'Cómo funciona la academia, en qué orden aprender y qué necesitas antes de rodar.', numeroTecnicas: 6, duracionTexto: '≈ 6 MIN + 30 MIN DE PREPARACIÓN' },
+    { numeroModulo: '1.1', titulo: 'TÉCNICAS BASE DE VOLANTE', descripcion: 'Cómo sujetar el volante, cómo se reparte el agarre y cómo corregir cuando el coche no hace lo que pides.', numeroTecnicas: 4, duracionTexto: '≈ 8 MIN + PRÁCTICA' },
+    { numeroModulo: '1.2', titulo: 'TÉCNICAS DE PIES', descripcion: 'Acelerador, freno y embrague: cómo mueven el peso del coche, cuándo cambiar y cómo reducir sin descolocarlo.', numeroTecnicas: 5, duracionTexto: '≈ 10 MIN + PRÁCTICA' },
+    { numeroModulo: '1.3', titulo: 'TÉCNICAS DE VISIÓN Y POSICIÓN', descripcion: 'Dónde te sientas, hacia dónde miras y dónde colocas el coche en la pista.', numeroTecnicas: 6, duracionTexto: '≈ 12 MIN + PRÁCTICA' },
+    { numeroModulo: '2', titulo: 'FRENADA', descripcion: 'Donde más tiempo se gana y se pierde: de configurar el pedal a girar el coche con el freno.', numeroTecnicas: 9, duracionTexto: '≈ 12 MIN + PRÁCTICA' },
+    { numeroModulo: '3', titulo: 'TRAZADA', descripcion: 'La trazada ideal no es la más rápida en la curva: es la que te hace llegar antes al final de la recta.', numeroTecnicas: 10, duracionTexto: null },
+    { numeroModulo: '4', titulo: 'CÓMO FUNCIONA ASSETTO CORSA', descripcion: 'En AC casi todo depende de que el neumático trabaje en su ventana de presión y temperatura.', numeroTecnicas: 9, duracionTexto: '≈ 11 MIN + PRÁCTICA' },
+    { numeroModulo: '5', titulo: 'SETUPS', descripcion: 'El setup hace que el coche obedezca en cada fase de la curva. No sustituye a la técnica: la completa.', numeroTecnicas: 11, duracionTexto: null },
+    { numeroModulo: '6', titulo: 'TÉCNICAS DE CARRERA', descripcion: 'La carrera no la gana la vuelta más rápida, sino quien termina más arriba sin errores.', numeroTecnicas: 10, duracionTexto: null },
+    { numeroModulo: '7', titulo: 'GESTIÓN MENTAL', descripcion: 'Se pierde más tiempo por la cabeza que por la técnica. La mente se entrena igual que una frenada.', numeroTecnicas: 8, duracionTexto: '≈ 8 MIN + PRÁCTICA' },
+    { numeroModulo: '8', titulo: 'PLAN Y PRIMER CAMPEONATO', descripcion: 'Cuatro semanas para pasar de «dar vueltas» a competir limpio, y cómo aplicarlo a la temporada de iniciación con el Honda Civic.', numeroTecnicas: 5, duracionTexto: '≈ 7 MIN + 4 SEMANAS' },
+  ]
+  let modulosCreados = 0
+  let modulosActualizados = 0
+  for (let orden = 0; orden < modulos.length; orden++) {
+    const m = modulos[orden]
+    const existente = await prisma.clase.findFirst({ where: { numeroModulo: m.numeroModulo }, select: { id: true } })
+    if (existente) {
+      await prisma.clase.update({ where: { id: existente.id }, data: { ...m, orden } })
+      modulosActualizados++
+    } else {
+      await prisma.clase.create({
+        data: { ...m, orden, disciplina: 'CIRCUITO', youtubeUrl: null, publicada: true },
+      })
+      modulosCreados++
+    }
+  }
+  console.log(`   🎓 Academia: ${modulosCreados} módulos creados, ${modulosActualizados} actualizados`)
+
   console.log('✅ Seed completado')
 }
 
