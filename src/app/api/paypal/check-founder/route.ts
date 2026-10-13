@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { getEstadoFounder, getPlanId } from '@/lib/paypal'
 import { temporadaIniciacionFinalizada } from '@/lib/iniciacion'
+import { getTemporadaGratuitaActiva } from '@/lib/config'
 import { PLAN_PRECIOS, PLAN_PRECIOS_NORMAL } from '@/lib/utils'
 
 export const dynamic = 'force-dynamic'
@@ -32,7 +33,14 @@ export async function GET(req: NextRequest) {
     horasRestantes,
     modoPrecio: (founderActivo || esElegibleFounder) ? 'FOUNDER' : 'NORMAL',
     temporadaIniciacionFinalizada: await temporadaIniciacionFinalizada(),
+    modoTemporadaGratuita: false,
     precios: { FOUNDER: PLAN_PRECIOS, NORMAL: PLAN_PRECIOS_NORMAL },
+  }
+
+  // Modo "Temporada gratuita": acceso completo sin coste, no se venden planes
+  if (await getTemporadaGratuitaActiva().catch(() => false)) {
+    body.temporadaIniciacionFinalizada = false
+    body.modoTemporadaGratuita = true
   }
 
   // Si se solicita un plan concreto y hay sesión, devolvemos también el Plan ID de PayPal resuelto

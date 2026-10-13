@@ -28,6 +28,7 @@ interface FounderInfo {
   horasRestantes: number | null
   modoPrecio: 'FOUNDER' | 'NORMAL'
   temporadaIniciacionFinalizada: boolean
+  modoTemporadaGratuita?: boolean
 }
 
 function formatCuentaAtras(ms: number): string {
@@ -95,7 +96,8 @@ export function PlanesGrid({ suscripcionActual, userId, temporadaGratuitaActiva 
   // Planes visibles con la ventana Founder abierta (precio Founder) o, cerrada ya la ventana tras
   // la temporada de iniciación, a precio estándar. Antes de eso se muestra un aviso.
   // Con el modo "Temporada gratuita" activo no se venden planes: el acceso es completo sin coste.
-  const planesDisponibles = !temporadaGratuitaActiva &&
+  const modoGratuito = temporadaGratuitaActiva || !!founderInfo?.modoTemporadaGratuita
+  const planesDisponibles = !modoGratuito &&
     (mostrarPreciosFounder || !!founderInfo?.temporadaIniciacionFinalizada)
   const esSuscripcionFounder = !!suscripcionActual?.esFounder && suscripcionActual.estado === 'ACTIVA'
 
@@ -190,7 +192,7 @@ export function PlanesGrid({ suscripcionActual, userId, temporadaGratuitaActiva 
         </div>
       )}
 
-      {temporadaGratuitaActiva && (
+      {modoGratuito && (
         <div className="bg-emerald-500/10 border-2 border-emerald-500/40 rounded-2xl p-8 text-center">
           <p className="text-emerald-300 font-semibold text-lg">
             🏁 Temporada de iniciación gratuita activa — acceso completo sin coste
@@ -198,7 +200,7 @@ export function PlanesGrid({ suscripcionActual, userId, temporadaGratuitaActiva 
         </div>
       )}
 
-      {founderCargado && !temporadaGratuitaActiva && !planesDisponibles && (
+      {founderCargado && !modoGratuito && !planesDisponibles && (
         <div className="bg-apex-card border border-apex-border rounded-2xl p-8 text-center">
           <p className="text-apex-text font-semibold">
             Los planes estarán disponibles al finalizar la temporada de iniciación gratuita. ¡Mantente atento!
