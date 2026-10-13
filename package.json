@@ -17,6 +17,7 @@
     "migrate:simulador": "ts-node --transpile-only --compiler-options {\"module\":\"CommonJS\",\"moduleResolution\":\"node\"} scripts/migrate-simulador.ts",
     "migrate:canal-drift": "ts-node --transpile-only --compiler-options {\"module\":\"CommonJS\",\"moduleResolution\":\"node\"} scripts/migrate-canal-drift.ts",
     "cleanup:academia": "ts-node --transpile-only --compiler-options {\"module\":\"CommonJS\",\"moduleResolution\":\"node\"} scripts/cleanup-academia.ts",
+    "update:academia-links": "node --max-old-space-size=256 -r ts-node/register/transpile-only scripts/update-academia-links.ts",
     "recalc:stats": "ts-node --transpile-only --compiler-options {\"module\":\"CommonJS\",\"moduleResolution\":\"node\"} scripts/recalcular-stats-individuales.ts"
   },
   "dependencies": {

@@ -103,6 +103,20 @@ async function runCleanupAcademiaIfRequested() {
   }
 }
 
+// Links de presentaciones de la Academia: si RUN_UPDATE_ACADEMIA_LINKS=true, asigna el link de Google
+// Slides a cada módulo. Va DESPUÉS del seed (necesita la columna linkPresentacion) y es best-effort.
+async function runUpdateAcademiaLinksIfRequested() {
+  if (process.env.RUN_UPDATE_ACADEMIA_LINKS !== 'true') return
+
+  console.log('[BOOT] RUN_UPDATE_ACADEMIA_LINKS=true — ejecutando scripts/update-academia-links.ts...')
+  try {
+    runTs('scripts/update-academia-links.ts')
+    console.log('[BOOT] ✅ Links de presentaciones actualizados')
+  } catch (err) {
+    console.error('[BOOT] ❌ Error actualizando los links de presentaciones:', err.message)
+  }
+}
+
 const app = next({ dev, hostname, port })
 const handle = app.getRequestHandler()
 
@@ -139,6 +153,7 @@ function canalDM(a, b) {
 runMigrationSimuladorIfRequested()
   .then(() => runSeedOnStartIfRequested())
   .then(() => runCleanupAcademiaIfRequested())
+  .then(() => runUpdateAcademiaLinksIfRequested())
   .then(() => app.prepare()).then(() => {
   const httpServer = createServer(async (req, res) => {
     try {
