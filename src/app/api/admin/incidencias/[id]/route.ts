@@ -5,6 +5,7 @@ import { prisma } from '@/lib/prisma'
 import { banearUsuario } from '@/lib/suscripciones'
 import { recalcularStatsPiloto } from '@/lib/statsPiloto'
 import type { EstadoQueja, TipoSancion } from '@prisma/client'
+import { registrarAccionAdmin } from '@/lib/actividad'
 
 const ESTADOS: EstadoQueja[] = ['ABIERTA', 'EN_REVISION', 'RESUELTA', 'ARCHIVADA']
 const SANCIONES: TipoSancion[] = ['ADVERTENCIA', 'PENALIZACION_PUNTOS', 'EXCLUSION_CARRERA', 'SUSPENSION_TEMPORAL', 'BAN_PERMANENTE']
@@ -57,7 +58,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     } else if (sancion === 'PENALIZACION_PUNTOS') {
       // El total se recalcula más abajo a partir de los resultados y las penalizaciones guardadas
       const puntos = puntosPenalizados ? Number(puntosPenalizados) : 0
-      await prisma.logAccionAdmin.create({
+      await registrarAccionAdmin({
         data: { adminId: session.user.id, targetUserId: targetId, accion: 'SANCION_PUNTOS', detalle: `-${puntos} pts. ${detalle}` },
       })
     } else if (sancion === 'EXCLUSION_CARRERA' && existing.carreraId) {
@@ -68,11 +69,11 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
           data: { estado: 'CANCELADA' },
         })
       }
-      await prisma.logAccionAdmin.create({
+      await registrarAccionAdmin({
         data: { adminId: session.user.id, targetUserId: targetId, accion: 'SANCION_EXCLUSION_CARRERA', detalle },
       })
     } else {
-      await prisma.logAccionAdmin.create({
+      await registrarAccionAdmin({
         data: { adminId: session.user.id, targetUserId: targetId, accion: `SANCION_${sancion}`, detalle },
       })
     }

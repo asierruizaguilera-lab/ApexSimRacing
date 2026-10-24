@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { crearCodigoParaUsuario, getResumenAdminReferidos } from '@/lib/referidos'
+import { registrarAccionAdmin } from '@/lib/actividad'
 
 export const dynamic = 'force-dynamic'
 
@@ -27,7 +28,7 @@ export async function POST(req: NextRequest) {
   if (!user) return NextResponse.json({ error: 'Usuario no encontrado' }, { status: 404 })
 
   const codigo = await crearCodigoParaUsuario(user.id)
-  await prisma.logAccionAdmin.create({
+  await registrarAccionAdmin({
     data: {
       adminId: session.user.id,
       targetUserId: user.id,

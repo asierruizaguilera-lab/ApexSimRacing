@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { prisma } from '@/lib/prisma'
 import { setTemporadaGratuitaActiva } from '@/lib/config'
+import { registrarAccionAdmin } from '@/lib/actividad'
 
 // Activa o desactiva el modo "Temporada gratuita". Body: { activa: boolean }
 export async function PATCH(req: NextRequest) {
@@ -14,7 +14,7 @@ export async function PATCH(req: NextRequest) {
 
   const config = await setTemporadaGratuitaActiva(activa)
 
-  await prisma.logAccionAdmin.create({
+  await registrarAccionAdmin({
     data: {
       adminId: session.user.id,
       targetUserId: session.user.id,

@@ -7,6 +7,7 @@ import { activarPlan } from '@/lib/suscripciones'
 import { vincularReferido } from '@/lib/referidos'
 import { sendEmail, emailSuscripcionActiva } from '@/lib/email'
 import type { PlanSuscripcion } from '@prisma/client'
+import { logActividad, datosCliente } from '@/lib/actividad'
 
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions)
@@ -31,6 +32,15 @@ export async function POST(req: NextRequest) {
     const { precio, fechaRenovacion } = await activarPlan(session.user.id, plan as PlanSuscripcion, {
       paypalSubscriptionId: subscriptionId,
       esFounder,
+    })
+
+    logActividad({
+      tipo: 'PAGO',
+      userId: session.user.id,
+      ruta: '/api/paypal/capture-subscription',
+      metodo: 'POST',
+      ...datosCliente(req),
+      detalle: { evento: 'suscripcion_capturada', plan, precio, founder: esFounder },
     })
 
     // Si se registró con un código de referido, el primer pago lo vincula con su referidor

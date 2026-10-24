@@ -8,6 +8,7 @@ import {
   LayoutDashboard, Trophy, Calendar, MessageSquare,
   User, Shield, TrendingUp, Menu, X, Star, Car, Users, GraduationCap, Handshake, AlertTriangle, RefreshCw,
   MessageCircle, CalendarRange, Lightbulb, Settings2, Gift,
+  Activity,
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { PatrocinadoresSidebar, type Patrocinador } from '@/components/patrocinadores/PatrocinadoresStrip'
@@ -42,6 +43,7 @@ const adminItems = [
   { href: '/admin/referidos', icon: Gift, label: 'Referidos' },
   { href: '/admin/patrocinadores', icon: Handshake, label: 'Patrocinadores' },
   { href: '/admin/sync-sheet', icon: RefreshCw, label: 'Sync Sheet' },
+  { href: '/admin/actividad', icon: Activity, label: 'Actividad' },
 ]
 
 export function Sidebar() {

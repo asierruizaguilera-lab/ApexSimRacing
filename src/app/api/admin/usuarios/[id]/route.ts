@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { darAccesoManual, banearUsuario, desbanearUsuario } from '@/lib/suscripciones'
 import type { PlanSuscripcion } from '@prisma/client'
+import { registrarAccionAdmin, logActividad } from '@/lib/actividad'
 
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
   const session = await getServerSession(authOptions)
@@ -43,7 +44,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
         data: { notasAdmin: notas },
       })
       try {
-        await prisma.logAccionAdmin.create({
+        await registrarAccionAdmin({
           data: { adminId, targetUserId: userId, accion: 'NOTA', detalle: notas },
         })
       } catch (logErr) {
@@ -56,8 +57,9 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
         where: { userId, estado: { in: ['ACTIVA', 'GRATUITA'] } },
         data: { estado: 'CANCELADA', fechaCancelacion: new Date() },
       })
+      logActividad({ tipo: 'CAMBIO_PLAN', userId, detalle: { estado: 'CANCELADA', porAdmin: adminId } })
       try {
-        await prisma.logAccionAdmin.create({
+        await registrarAccionAdmin({
           data: { adminId, targetUserId: userId, accion: 'CANCELAR_SUSCRIPCION', detalle: notas },
         })
       } catch (logErr) {

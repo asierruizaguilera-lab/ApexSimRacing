@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { disolverEquipo, emitir, activarPlanEquipoFounder } from '@/lib/equipos'
+import { registrarAccionAdmin } from '@/lib/actividad'
 
 // Moderación de equipos. Body: { accion: 'DISOLVER' } | { accion: 'CAMBIAR_LIDER', nuevoLiderId } | { accion: 'ACTIVAR_FOUNDER' }
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
@@ -17,7 +18,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
 
   if (accion === 'DISOLVER') {
     await disolverEquipo(equipo.id)
-    await prisma.logAccionAdmin.create({
+    await registrarAccionAdmin({
       data: { adminId: session.user.id, targetUserId: equipo.liderId, accion: 'DISOLVER_EQUIPO', detalle: equipo.nombre },
     })
     return NextResponse.json({ ok: true })
@@ -26,7 +27,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   if (accion === 'ACTIVAR_FOUNDER') {
     const r = await activarPlanEquipoFounder(equipo.id)
     if (!r.ok) return NextResponse.json({ error: r.error }, { status: 400 })
-    await prisma.logAccionAdmin.create({
+    await registrarAccionAdmin({
       data: { adminId: session.user.id, targetUserId: equipo.liderId, accion: 'ACTIVAR_EQUIPO_FOUNDER', detalle: equipo.nombre },
     })
     return NextResponse.json({ ok: true })
@@ -45,7 +46,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     await prisma.notificacion.create({
       data: { userId: nuevo.userId, tipo: 'EQUIPO', mensaje: `Un administrador te ha nombrado líder de ${equipo.nombre}`, link: `/equipos/${equipo.id}` },
     })
-    await prisma.logAccionAdmin.create({
+    await registrarAccionAdmin({
       data: { adminId: session.user.id, targetUserId: nuevo.userId, accion: 'CAMBIAR_LIDER_EQUIPO', detalle: equipo.nombre },
     })
     emitir(`equipo:${equipo.id}`, 'equipo:actualizado', { id: equipo.id })

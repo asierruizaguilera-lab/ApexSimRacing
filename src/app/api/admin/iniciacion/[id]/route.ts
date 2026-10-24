@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { cerrarVentanaFounder } from '@/lib/iniciacion'
+import { registrarAccionAdmin } from '@/lib/actividad'
 
 // Cierre manual (emergencia) de la ventana Founder de un campeonato de iniciación. Body: { accion: 'CERRAR_VENTANA' }
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
@@ -18,7 +19,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   const cerrada = await cerrarVentanaFounder(params.id)
   if (!cerrada) return NextResponse.json({ error: 'La ventana ya estaba cerrada' }, { status: 400 })
 
-  await prisma.logAccionAdmin.create({
+  await registrarAccionAdmin({
     data: { adminId: session.user.id, targetUserId: session.user.id, accion: 'CERRAR_VENTANA_FOUNDER', detalle: camp.nombre },
   })
   return NextResponse.json({ ok: true })

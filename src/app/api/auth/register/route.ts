@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs'
 import { prisma } from '@/lib/prisma'
 import { sendEmail, emailBienvenida } from '@/lib/email'
 import { buscarCodigoValido } from '@/lib/referidos'
+import { logActividad, datosCliente } from '@/lib/actividad'
 
 export async function POST(req: NextRequest) {
   try {
@@ -54,6 +55,16 @@ export async function POST(req: NextRequest) {
         codigoReferidoPendienteId: codigoReferidoId,
       },
       select: { id: true, username: true, email: true, role: true },
+    })
+
+    logActividad({
+      tipo: 'REGISTRO',
+      userId: user.id,
+      ruta: '/api/auth/register',
+      metodo: 'POST',
+      estado: 201,
+      ...datosCliente(req),
+      detalle: { conReferido: !!codigoReferidoId },
     })
 
     // Email de bienvenida (async, no bloquea el registro)

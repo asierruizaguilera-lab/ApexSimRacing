@@ -4,6 +4,7 @@ import CredentialsProvider from 'next-auth/providers/credentials'
 import bcrypt from 'bcryptjs'
 import { prisma } from './prisma'
 import { getTemporadaGratuitaActiva } from './config'
+import { logActividad, datosCliente } from './actividad'
 
 export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(prisma) as any,
@@ -20,21 +21,36 @@ export const authOptions: NextAuthOptions = {
         email: { label: 'Email', type: 'email' },
         password: { label: 'Contraseña', type: 'password' },
       },
-      async authorize(credentials) {
+      async authorize(credentials, req) {
         if (!credentials?.email || !credentials?.password) return null
+        const cliente = datosCliente(req as any)
+        // El email intentado no se guarda: si no existe la cuenta, solo queda el motivo
+        const fallido = (motivo: string, userId?: string) => {
+          logActividad({ tipo: 'LOGIN_FALLIDO', userId, ruta: '/api/auth/callback/credentials', metodo: 'POST', ...cliente, detalle: { motivo } })
+          return null
+        }
 
         const user = await prisma.user.findUnique({
           where: { email: credentials.email },
           include: { suscripcion: { select: { estado: true, fechaExpiracionManual: true } } },
         })
 
-        if (!user || !user.password) return null
+        if (!user || !user.password) return fallido('usuario_inexistente')
 
         const valid = await bcrypt.compare(credentials.password, user.password)
-        if (!valid) return null
+        if (!valid) return fallido('password_incorrecta', user.id)
 
         const hasSuscripcion = esAccesoActivo(user.suscripcion)
         const temporadaGratuita = await getTemporadaGratuitaActiva().catch(() => false)
+
+        logActividad({
+          tipo: 'LOGIN_OK',
+          userId: user.id,
+          ruta: '/api/auth/callback/credentials',
+          metodo: 'POST',
+          ...cliente,
+          ...(user.baneado ? { detalle: { baneado: true } } : {}),
+        })
 
         return {
           id: user.id,
@@ -49,6 +65,11 @@ export const authOptions: NextAuthOptions = {
       },
     }),
   ],
+  events: {
+    async signOut({ token }) {
+      logActividad({ tipo: 'LOGOUT', userId: (token?.id as string | undefined) ?? null })
+    },
+  },
   callbacks: {
     async jwt({ token, user, trigger, session }) {
       if (user) {

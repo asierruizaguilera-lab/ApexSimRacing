@@ -5,6 +5,8 @@ const { Server } = require('socket.io')
 const cron = require('node-cron')
 const { execFileSync } = require('child_process')
 const { getToken } = require('next-auth/jwt')
+const { AsyncLocalStorage } = require('async_hooks')
+const { createHash } = require('crypto')
 
 const dev = process.env.NODE_ENV !== 'production'
 const hostname = '0.0.0.0'
@@ -145,6 +147,77 @@ function parseCookies(header) {
   return out
 }
 
+// ── Log de actividad a nivel HTTP ──────────────────────────────────────────────────────────────
+// Cada petición corre dentro de este AsyncLocalStorage; src/lib/actividad.ts marca en él
+// `adminRegistrado` cuando una ruta admin ya dejó su acción con detalle, para no duplicarla aquí.
+const actividadCtx = new AsyncLocalStorage()
+global.__actividadCtx = actividadCtx
+
+// Misma lógica que hashIp() en src/lib/actividad.ts: IPv4 /24, IPv6 /48, sha256 con LOG_SALT
+function hashIp(ip) {
+  const salt = process.env.LOG_SALT
+  if (!ip || !salt) return null
+  let limpia = String(ip).trim().replace(/^::ffff:/, '')
+  if (/^\d+\.\d+\.\d+\.\d+$/.test(limpia)) limpia = limpia.split('.').slice(0, 3).join('.') + '.0'
+  else if (limpia.includes(':')) limpia = limpia.split(':').slice(0, 3).join(':') + '::'
+  else return null
+  return createHash('sha256').update(salt + limpia).digest('hex').slice(0, 32)
+}
+
+const METODOS_LECTURA = new Set(['GET', 'HEAD', 'OPTIONS'])
+
+// Solo se registran: errores 5xx, mutaciones en /api/admin y accesos denegados a /api/admin.
+// Nunca se lee el body ni la query (la ruta se guarda sin query: puede llevar ?secret=).
+async function registrarRespuesta(req, res, store) {
+  try {
+    const ruta = (req.url || '').split('?')[0]
+    if (ruta.startsWith('/_next') || ruta.startsWith('/socket.io')) return
+    const estado = res.statusCode
+    const metodo = req.method || 'GET'
+    const esAdminApi = ruta.startsWith('/api/admin')
+
+    let tipo = null
+    let detalle
+    if (estado >= 500) tipo = 'ERROR_API'
+    else if (esAdminApi && (estado === 401 || estado === 403)) {
+      tipo = 'SEGURIDAD'
+      detalle = { motivo: 'acceso_admin_denegado' }
+    } else if (esAdminApi && !METODOS_LECTURA.has(metodo) && estado < 400 && !store.adminRegistrado) {
+      tipo = 'ADMIN'
+      detalle = { generico: true }
+    }
+    if (!tipo) return
+
+    let userId = null
+    try {
+      const token = await getToken({
+        req: { headers: req.headers, cookies: parseCookies(req.headers.cookie) },
+        secret: process.env.NEXTAUTH_SECRET ?? process.env.SECRET,
+      })
+      userId = token?.id ?? null
+    } catch {}
+
+    const xff = req.headers['x-forwarded-for']
+    const ip = (Array.isArray(xff) ? xff[0] : xff)?.split(',')[0]?.trim() || req.socket?.remoteAddress
+    const ua = req.headers['user-agent']
+
+    await getPrisma().logActividad.create({
+      data: {
+        tipo,
+        userId,
+        ruta: ruta.slice(0, 300),
+        metodo,
+        estado,
+        ipHash: hashIp(ip),
+        userAgent: ua ? String(ua).slice(0, 200) : null,
+        detalle,
+      },
+    })
+  } catch (err) {
+    console.error('[Actividad] No se pudo registrar la respuesta:', err.message)
+  }
+}
+
 // Canal privado de una conversación 1 a 1: ids siempre ordenados para que ambos lados coincidan
 function canalDM(a, b) {
   return `dm:${[a, b].sort().join('-')}`
@@ -158,7 +231,9 @@ runMigrationSimuladorIfRequested()
   const httpServer = createServer(async (req, res) => {
     try {
       const parsedUrl = parse(req.url, true)
-      await handle(req, res, parsedUrl)
+      const store = {}
+      res.on('finish', () => { registrarRespuesta(req, res, store) })
+      await actividadCtx.run(store, () => handle(req, res, parsedUrl))
     } catch (err) {
       console.error('Error handling request:', err)
       res.statusCode = 500
@@ -310,12 +385,28 @@ runMigrationSimuladorIfRequested()
     timezone: 'Europe/Madrid',
   })
 
+  // Retención del log de actividad — cada día a las 4:30: vistas >90 días, resto >12 meses
+  cron.schedule('30 4 * * *', async () => {
+    try {
+      const base = process.env.NEXTAUTH_URL || `http://localhost:${port}`
+      const secretQs = process.env.CRON_SECRET ? `?secret=${process.env.CRON_SECRET}` : ''
+      const res = await fetch(`${base}/api/cron/limpiar-actividad${secretQs}`)
+      const data = await res.json()
+      console.log('[CRON] Limpieza actividad:', data)
+    } catch (err) {
+      console.error('[CRON] Error limpiando actividad:', err)
+    }
+  }, {
+    timezone: 'Europe/Madrid',
+  })
+
   httpServer.listen(port, hostname, () => {
     console.log(`\n🏁 APEX SimRacing Platform`)
     console.log(`   ✅ Servidor: http://localhost:${port}`)
     console.log(`   ✅ Socket.io: activo`)
     console.log(`   ✅ Modo: ${dev ? 'desarrollo' : 'producción'}\n`)
     console.log(`   🔄 Sync Sheet: lunes 6:00 AM (Europe/Madrid)`)
-    console.log(`   🏆 Cierre de temporada: diario 23:59 (Europe/Madrid)\n`)
+    console.log(`   🏆 Cierre de temporada: diario 23:59 (Europe/Madrid)`)
+    console.log(`   🧹 Limpieza log actividad: diario 4:30 (Europe/Madrid)\n`)
   })
 })

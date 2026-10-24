@@ -5,6 +5,7 @@ import { prisma } from '@/lib/prisma'
 import { Sidebar } from '@/components/layout/Sidebar'
 import { Header } from '@/components/layout/Header'
 import { PatrocinadoresTopBar } from '@/components/layout/PatrocinadoresTopBar'
+import { RastreadorVistas } from '@/components/layout/RastreadorVistas'
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const session = await getServerSession(authOptions)
@@ -23,6 +24,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
       className="min-h-screen bg-apex-bg"
       style={{ '--topbar-height': topbarH } as React.CSSProperties}
     >
+      <RastreadorVistas />
       <PatrocinadoresTopBar patrocinadores={patrocinadores} />
       <Sidebar />
       <Header />

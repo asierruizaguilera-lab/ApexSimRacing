@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { activarPlan } from '@/lib/suscripciones'
 import type { PlanSuscripcion } from '@prisma/client'
+import { logActividad } from '@/lib/actividad'
 
 export const dynamic = 'force-dynamic'
 
@@ -35,6 +36,7 @@ export async function GET(req: NextRequest) {
         where: { id: sub.id },
         data: { estado: 'EXPIRADA', fechaCancelacion: now },
       })
+      logActividad({ tipo: 'CAMBIO_PLAN', userId: sub.userId, detalle: { estado: 'EXPIRADA', plan: sub.plan } })
       await prisma.notificacion.create({
         data: {
           userId: sub.userId,

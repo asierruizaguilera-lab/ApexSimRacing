@@ -1,6 +1,7 @@
 import { prisma } from './prisma'
 import { PlanSuscripcion } from '@prisma/client'
 import { PLAN_PRECIOS_NORMAL, DESCUENTO_MERCH_POR_PLAN } from './utils'
+import { registrarAccionAdmin, logActividad } from './actividad'
 
 export const PLAN_ORDER: PlanSuscripcion[] = ['ROOKIE', 'AMATEUR', 'PRO', 'ELITE']
 
@@ -120,6 +121,19 @@ export async function activarPlan(
 
   await desbloquearCoches(userId, plan)
 
+  logActividad({
+    tipo: 'CAMBIO_PLAN',
+    userId,
+    detalle: {
+      plan,
+      planAnterior: suscripcionAnterior?.plan ?? null,
+      estadoAnterior: suscripcionAnterior?.estado ?? null,
+      estado,
+      precio,
+      founder: marcarComoFounder,
+    },
+  })
+
   const mensaje = plan === 'ELITE'
     ? '¡Bienvenido al plan Elite! Tu kit de bienvenida APEX está en camino. Te contactaremos por email para la dirección de envío.'
     : `¡Tu plan ${plan} está activo! Ya puedes inscribirte en campeonatos.`
@@ -155,10 +169,11 @@ export async function activarPlan(
 }
 
 export async function cancelarSuscripcion(userId: string): Promise<void> {
-  await prisma.suscripcion.updateMany({
+  const { count } = await prisma.suscripcion.updateMany({
     where: { userId, estado: { in: ['ACTIVA', 'GRATUITA'] } },
     data: { estado: 'CANCELADA', fechaCancelacion: new Date() },
   })
+  if (count > 0) logActividad({ tipo: 'CAMBIO_PLAN', userId, detalle: { estado: 'CANCELADA' } })
   await prisma.notificacion.create({
     data: {
       userId,
@@ -187,7 +202,7 @@ export async function darAccesoManual(
     notasAdmin: notas,
   })
 
-  await prisma.logAccionAdmin.create({
+  await registrarAccionAdmin({
     data: {
       adminId,
       targetUserId: userId,
@@ -204,7 +219,7 @@ export async function cambiarPlanAdmin(
   notas?: string
 ): Promise<void> {
   await activarPlan(userId, plan, { notasAdmin: notas })
-  await prisma.logAccionAdmin.create({
+  await registrarAccionAdmin({
     data: {
       adminId,
       targetUserId: userId,
@@ -219,7 +234,7 @@ export async function banearUsuario(adminId: string, userId: string, motivo: str
     where: { id: userId },
     data: { baneado: true, motivoBan: motivo },
   })
-  await prisma.logAccionAdmin.create({
+  await registrarAccionAdmin({
     data: { adminId, targetUserId: userId, accion: 'BAN', detalle: motivo },
   })
 }
@@ -229,7 +244,7 @@ export async function desbanearUsuario(adminId: string, userId: string): Promise
     where: { id: userId },
     data: { baneado: false, motivoBan: null },
   })
-  await prisma.logAccionAdmin.create({
+  await registrarAccionAdmin({
     data: { adminId, targetUserId: userId, accion: 'DESBAN', detalle: 'Cuenta desbaneada' },
   })
 }

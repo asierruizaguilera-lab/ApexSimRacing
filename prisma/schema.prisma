@@ -821,3 +821,37 @@ model ConfigGlobal {
 
   @@map("config_global")
 }
+
+// Log de actividad (auditoría y métricas). Sin FK a User a propósito: el log sobrevive al borrado
+// del usuario y escribir aquí nunca puede fallar por integridad referencial.
+// Nunca se guardan contraseñas, tokens, bodies ni mensajes de chat.
+enum TipoActividad {
+  LOGIN_OK
+  LOGIN_FALLIDO
+  LOGOUT
+  REGISTRO
+  VISTA
+  PAGO
+  CAMBIO_PLAN
+  ADMIN
+  SEGURIDAD
+  ERROR_API
+}
+
+model LogActividad {
+  id        String        @id @default(cuid())
+  tipo      TipoActividad
+  userId    String?
+  ruta      String?
+  metodo    String?
+  estado    Int?
+  ipHash    String? // IP truncada (/24 o /48) + sha256 con LOG_SALT
+  userAgent String?       @db.VarChar(200)
+  detalle   Json?
+  creadoEn  DateTime      @default(now())
+
+  @@index([creadoEn])
+  @@index([userId, creadoEn])
+  @@index([tipo, creadoEn])
+  @@map("log_actividad")
+}

@@ -6,6 +6,7 @@ import { activarPlanEquipoFounder } from '@/lib/equipos'
 import { vincularReferido, registrarComisionPago, desactivarUsoReferido } from '@/lib/referidos'
 import { sendEmail, emailSuscripcionActiva, emailSuscripcionCancelada } from '@/lib/email'
 import type { PlanSuscripcion } from '@prisma/client'
+import { logActividad, datosCliente } from '@/lib/actividad'
 
 export const dynamic = 'force-dynamic'
 
@@ -49,8 +50,27 @@ export async function POST(req: NextRequest) {
   const verificado = await verificarWebhookPayPal(req.headers, body)
   if (verificado === false) {
     console.warn('[PayPal Webhook] Firma inválida — evento ignorado:', eventType)
+    logActividad({
+      tipo: 'SEGURIDAD',
+      ruta: '/api/paypal/webhook',
+      metodo: 'POST',
+      estado: 400,
+      ...datosCliente(req),
+      detalle: { motivo: 'webhook_firma_invalida', evento: String(eventType ?? '').slice(0, 60) },
+    })
     return NextResponse.json({ error: 'Firma inválida' }, { status: 400 })
   }
+
+  logActividad({
+    tipo: 'PAGO',
+    ruta: '/api/paypal/webhook',
+    metodo: 'POST',
+    detalle: {
+      evento: String(eventType ?? '').slice(0, 60),
+      recurso: typeof body.resource?.id === 'string' ? body.resource.id.slice(0, 60) : null,
+      verificado: verificado === true,
+    },
+  })
 
   try {
     // Suscripciones del plan de equipo (las paga el líder): custom_id = { equipoId }
@@ -150,6 +170,7 @@ export async function POST(req: NextRequest) {
               select: { userId: true, precioMensual: true },
             })
             if (sub) await registrarComisionPago(sub.userId, resource.id, sub.precioMensual)
+            if (sub) logActividad({ tipo: 'PAGO', userId: sub.userId, detalle: { evento: 'cobro_renovacion', importe: sub.precioMensual } })
           } else {
             console.warn('[PayPal Webhook] PAYPAL_WEBHOOK_ID no configurado — comisiones de referido desactivadas')
           }
