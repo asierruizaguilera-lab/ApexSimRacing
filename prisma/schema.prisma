@@ -135,6 +135,11 @@ model User {
   // 20% en el primer mes del plan individual para quien sale de un Equipo Founder (no acumulable con el referido)
   descuentoTransicionEquipo Boolean @default(false)
 
+  // RGPD: cuenta eliminada por el usuario (datos personales anonimizados; se conserva el histórico deportivo)
+  eliminadoEn        DateTime?
+  // Al restablecer la contraseña por email se invalidan las sesiones iniciadas antes de esta fecha
+  passwordCambiadoEn DateTime?
+
   accounts            Account[]
   sessions            Session[]
   inscripciones       Inscripcion[]
@@ -470,23 +475,23 @@ model SyncLog {
 }
 
 model Clase {
-  id            String       @id @default(cuid())
-  titulo        String
-  descripcion   String?
-  disciplina    Disciplina
-  youtubeUrl    String? // null = vídeo aún no grabado ("Próximamente")
-  duracionMin   Int?
+  id               String       @id @default(cuid())
+  titulo           String
+  descripcion      String?
+  disciplina       Disciplina
+  youtubeUrl       String? // null = vídeo aún no grabado ("Próximamente")
+  duracionMin      Int?
   // Módulos de formación. Opcionales y sin @unique a propósito: así `db push` no necesita
   // --accept-data-loss en una tabla con filas. El seed hace upsert manual por numeroModulo.
-  numeroModulo   String? // "0", "1.1", "1.2", "2"...
-  duracionTexto  String? // "≈ 6 MIN + 30 MIN DE PREPARACIÓN"
-  numeroTecnicas Int?
+  numeroModulo     String? // "0", "1.1", "1.2", "2"...
+  duracionTexto    String? // "≈ 6 MIN + 30 MIN DE PREPARACIÓN"
+  numeroTecnicas   Int?
   linkPresentacion String? // URL de Google Drive (o similar) de la presentación del módulo
-  orden         Int          @default(0)
-  publicada     Boolean      @default(false)
-  creadoEn      DateTime     @default(now())
-  actualizadoEn DateTime     @updatedAt
-  vistas        ClaseVista[]
+  orden            Int          @default(0)
+  publicada        Boolean      @default(false)
+  creadoEn         DateTime     @default(now())
+  actualizadoEn    DateTime     @updatedAt
+  vistas           ClaseVista[]
 
   @@map("clases")
 }
@@ -854,4 +859,24 @@ model LogActividad {
   @@index([userId, creadoEn])
   @@index([tipo, creadoEn])
   @@map("log_actividad")
+}
+
+// Tokens de un solo uso: recuperar contraseña y verificar email. Solo se guarda el sha256 del token.
+enum TipoTokenSeguridad {
+  RECUPERAR_PASSWORD
+  VERIFICAR_EMAIL
+}
+
+model TokenSeguridad {
+  id        String             @id @default(cuid())
+  userId    String
+  tipo      TipoTokenSeguridad
+  tokenHash String
+  expira    DateTime
+  usadoEn   DateTime?
+  creadoEn  DateTime           @default(now())
+
+  @@index([tokenHash])
+  @@index([userId, tipo])
+  @@map("tokens_seguridad")
 }

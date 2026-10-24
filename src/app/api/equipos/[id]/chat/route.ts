@@ -4,6 +4,9 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { bloqueoSpamEquipoHasta } from '@/lib/chatSpam'
 import { MAX_LONGITUD_MENSAJE, USER_MINI_SELECT, emitir } from '@/lib/equipos'
+import { validarBody, z } from '@/lib/validacion'
+
+const Mensaje = z.object({ contenido: z.string().max(5000) })
 
 async function puedeVer(userId: string, role: string, equipoId: string) {
   if (role === 'ADMIN') return true // moderación
@@ -37,7 +40,9 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   const miembro = await prisma.miembroEquipo.findUnique({ where: { userId }, select: { equipoId: true } })
   if (miembro?.equipoId !== params.id) return NextResponse.json({ error: 'Solo los miembros pueden escribir en este chat' }, { status: 403 })
 
-  const { contenido } = await req.json()
+  const v = await validarBody(req, Mensaje)
+  if (!v.ok) return v.res
+  const { contenido } = v.data
   const texto = typeof contenido === 'string' ? contenido.trim() : ''
   if (!texto) return NextResponse.json({ error: 'El mensaje no puede estar vacío' }, { status: 400 })
   if (texto.length > MAX_LONGITUD_MENSAJE) return NextResponse.json({ error: 'Mensaje demasiado largo' }, { status: 400 })

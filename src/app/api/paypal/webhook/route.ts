@@ -41,8 +41,21 @@ async function gestionarSuscripcionEquipo(eventType: string, resource: any): Pro
 }
 
 export async function POST(req: NextRequest) {
-  const body = await req.json()
-  const eventType = body.event_type
+  const body = await req.json().catch(() => null)
+  if (!body || typeof body !== 'object' || typeof body.event_type !== 'string' || body.event_type.length > 100) {
+    return NextResponse.json({ error: 'Evento inválido' }, { status: 400 })
+  }
+  const eventType: string = body.event_type
+
+  // En producción la firma es obligatoria: sin PAYPAL_WEBHOOK_ID no se puede verificar y se rechaza todo
+  if (!process.env.PAYPAL_WEBHOOK_ID && process.env.NODE_ENV === 'production') {
+    console.error('[PayPal Webhook] PAYPAL_WEBHOOK_ID no configurado — evento rechazado:', eventType)
+    logActividad({
+      tipo: 'SEGURIDAD', ruta: '/api/paypal/webhook', metodo: 'POST', estado: 503, ...datosCliente(req),
+      detalle: { motivo: 'webhook_sin_configurar', evento: eventType.slice(0, 60) },
+    })
+    return NextResponse.json({ error: 'Webhook no configurado' }, { status: 503 })
+  }
 
   // Con PAYPAL_WEBHOOK_ID configurado se rechaza cualquier evento sin firma válida.
   // Sin él se mantiene el comportamiento anterior, pero NO se acumulan comisiones de referido

@@ -5,14 +5,19 @@ import { getEstadoFounder, getPlanId } from '@/lib/paypal'
 import { temporadaIniciacionFinalizada } from '@/lib/iniciacion'
 import { getTemporadaGratuitaActiva } from '@/lib/config'
 import { PLAN_PRECIOS, PLAN_PRECIOS_NORMAL } from '@/lib/utils'
+import { usuarioDebeVerificarEmail } from '@/lib/tokensSeguridad'
+import { validarQuery, z, plan } from '@/lib/validacion'
+
+const Consulta = z.object({ plan: plan.optional() })
 
 export const dynamic = 'force-dynamic'
 
 // Accesible sin autenticación — los visitantes siempre ven el precio estándar
 export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions)
-  const { searchParams } = new URL(req.url)
-  const plan = searchParams.get('plan')
+  const q = validarQuery(req.nextUrl.searchParams, Consulta)
+  if (!q.ok) return q.res
+  const { plan } = q.data
 
   let esFounder = false
   let founderActivo = false
@@ -44,7 +49,10 @@ export async function GET(req: NextRequest) {
   }
 
   // Si se solicita un plan concreto y hay sesión, devolvemos también el Plan ID de PayPal resuelto
-  if (plan && session?.user?.id) {
+  // Sin email verificado no se entrega el Plan ID: el modal no llega a mostrar los botones de PayPal
+  if (plan && session?.user?.id && await usuarioDebeVerificarEmail(session.user.id)) {
+    body.emailNoVerificado = true
+  } else if (plan && session?.user?.id) {
     const r = await getPlanId(session.user.id, plan)
     body.planId = r.planId
     body.esFounderParaEstaCompra = r.precioFounder

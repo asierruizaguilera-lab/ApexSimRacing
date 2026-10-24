@@ -3,7 +3,7 @@
 import { useState, useRef } from 'react'
 import toast from 'react-hot-toast'
 import { Plus, Edit2, Trash2, ToggleLeft, ToggleRight, X, Check, Upload, ExternalLink } from 'lucide-react'
-import { cn } from '@/lib/utils'
+import { cn, hrefSeguro } from '@/lib/utils'
 
 type Ubicacion = 'LANDING' | 'SIDEBAR' | 'CAMPEONATOS' | 'ACADEMIA' | 'TODAS'
 
@@ -218,7 +218,7 @@ export function AdminPatrocinadoresClient({ initial }: { initial: Patrocinador[]
                       <div className="text-xs text-apex-muted line-clamp-1 mt-0.5">{p.descripcion}</div>
                     )}
                     {p.linkExterno && (
-                      <a href={p.linkExterno} target="_blank" rel="noopener noreferrer"
+                      <a href={hrefSeguro(p.linkExterno)} target="_blank" rel="noopener noreferrer"
                         className="text-xs text-apex-red flex items-center gap-1 mt-0.5 hover:underline">
                         <ExternalLink size={10} />{p.linkExterno.replace(/^https?:\/\//, '').slice(0, 30)}
                       </a>

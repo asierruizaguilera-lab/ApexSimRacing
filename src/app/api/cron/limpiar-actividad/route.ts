@@ -1,14 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { rechazarCron } from '@/lib/cron'
 
 export const dynamic = 'force-dynamic'
 
 // Retención del log de actividad: vistas 90 días, el resto 12 meses
 export async function GET(req: NextRequest) {
-  const secret = req.headers.get('x-cron-secret') || req.nextUrl.searchParams.get('secret')
-  if (process.env.CRON_SECRET && secret !== process.env.CRON_SECRET) {
-    return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
-  }
+  const rechazo = rechazarCron(req)
+  if (rechazo) return rechazo
 
   const hace90d = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000)
   const hace12m = new Date()

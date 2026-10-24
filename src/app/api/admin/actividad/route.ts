@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { z } from '@/lib/validacion'
 import { whereActividad, nombresUsuarios, kpisActividad24h } from '@/lib/actividadAdmin'
 
 export const dynamic = 'force-dynamic'
@@ -13,7 +14,7 @@ export async function GET(req: NextRequest) {
   if (session?.user?.role !== 'ADMIN') return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
 
   const params = req.nextUrl.searchParams
-  const pagina = Math.max(1, parseInt(params.get('pagina') || '1', 10) || 1)
+  const pagina = z.coerce.number().int().min(1).max(100000).catch(1).parse(params.get('pagina') ?? 1)
   const where = await whereActividad(params)
 
   const [items, total, kpis] = await Promise.all([

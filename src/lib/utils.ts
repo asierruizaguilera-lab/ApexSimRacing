@@ -268,3 +268,11 @@ export const TIPO_SANCION_COLORS: Record<string, string> = {
   SUSPENSION_TEMPORAL: 'bg-red-500/20 text-red-400 border-red-500/30',
   BAN_PERMANENTE: 'bg-red-700/30 text-red-300 border-red-700/40',
 }
+
+/** href para enlaces con URLs de usuarios o del admin: solo http(s) o rutas locales (nunca javascript:, data:…). */
+export function hrefSeguro(url: string | null | undefined): string | undefined {
+  if (!url) return undefined
+  const u = url.trim()
+  if (/^https?:\/\//i.test(u) || (u.startsWith('/') && !u.startsWith('//'))) return u
+  return undefined
+}

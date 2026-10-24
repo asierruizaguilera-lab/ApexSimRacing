@@ -2,11 +2,13 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { usuarioDebeVerificarEmail, RESPUESTA_EMAIL_NO_VERIFICADO } from '@/lib/tokensSeguridad'
 
 // Inscribir al equipo del usuario en un campeonato de equipos (solo el líder)
 export async function POST(_: NextRequest, { params }: { params: { id: string } }) {
   const session = await getServerSession(authOptions)
   if (!session?.user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+  if (await usuarioDebeVerificarEmail(session.user.id)) return NextResponse.json(RESPUESTA_EMAIL_NO_VERIFICADO, { status: 403 })
 
   const camp = await prisma.campeonato.findUnique({
     where: { id: params.id },

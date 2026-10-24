@@ -3,6 +3,12 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { MAX_MIEMBROS_EQUIPO } from '@/lib/equipos'
+import { validarBody, z } from '@/lib/validacion'
+
+const Esquema = z.object({
+  username: z.string().max(40).optional(),
+  userId: z.string().max(64).optional(),
+})
 
 // Invitar a un piloto (solo líder). Body: { username } o { userId }
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
@@ -19,7 +25,9 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     return NextResponse.json({ error: `El equipo ya tiene el máximo de ${MAX_MIEMBROS_EQUIPO} pilotos` }, { status: 400 })
   }
 
-  const { username, userId } = await req.json()
+  const v = await validarBody(req, Esquema)
+  if (!v.ok) return v.res
+  const { username, userId } = v.data
   const invitado = await prisma.user.findFirst({
     where: userId ? { id: String(userId) } : { username: { equals: String(username ?? '').trim(), mode: 'insensitive' } },
     select: { id: true, username: true, baneado: true, miembroEquipo: { select: { equipoId: true } } },

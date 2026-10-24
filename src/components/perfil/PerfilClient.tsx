@@ -9,6 +9,7 @@ import Link from 'next/link'
 import toast from 'react-hot-toast'
 import { CambiarPassword } from './CambiarPassword'
 import { ReferidosPanel } from './ReferidosPanel'
+import { PrivacidadDatos } from './PrivacidadDatos'
 
 interface Badge {
   id: string; icon: string; label: string; desc: string; unlocked: boolean
@@ -347,6 +348,9 @@ export function PerfilClient({ piloto: initialPiloto, rankingGlobal, chartData, 
 
       {/* Programa de referidos — solo en tu propio perfil */}
       {isOwn && <ReferidosPanel />}
+
+      {/* RGPD: descargar datos y eliminar cuenta — solo en tu propio perfil */}
+      {isOwn && <PrivacidadDatos />}
 
       {/* Gráfica puntos */}
       {chartData.length > 0 && (

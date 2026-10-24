@@ -2,6 +2,24 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { validarBody, z, disciplina, fecha, numeroFlexible, plan } from '@/lib/validacion'
+
+const Campeonato = z.object({
+  nombre: z.string().trim().min(1).max(150),
+  disciplina,
+  descripcion: z.string().max(5000),
+  estado: z.enum(['PROXIMO', 'ACTIVO', 'FINALIZADO']).optional(),
+  fechaInicio: fecha,
+  fechaFin: fecha,
+  maxPilotos: numeroFlexible.nullable().optional(),
+  modsReq: z.string().max(2000).nullable().optional(),
+  numEtapas: numeroFlexible.nullable().optional(),
+  categoriaMinima: plan.optional(),
+  soloElite: z.boolean().optional(),
+  esCampeonatoEquipos: z.boolean().optional(),
+  temporadaId: z.string().max(64).nullable().optional(),
+  esIniciacion: z.boolean().optional(),
+})
 
 export async function GET() {
   const campeonatos = await prisma.campeonato.findMany({
@@ -17,10 +35,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
   }
 
-  const body = await req.json()
+  const v = await validarBody(req, Campeonato)
+  if (!v.ok) return v.res
+  const body = v.data
   const { nombre, disciplina, descripcion, estado, fechaInicio, fechaFin, maxPilotos, modsReq, numEtapas, categoriaMinima, soloElite, esCampeonatoEquipos, temporadaId, esIniciacion } = body
 
-  if (!nombre || !disciplina || !descripcion || !fechaInicio || !fechaFin) {
+  if (!descripcion.trim()) {
     return NextResponse.json({ error: 'Campos requeridos faltantes' }, { status: 400 })
   }
 
@@ -29,9 +49,9 @@ export async function POST(req: NextRequest) {
       nombre, disciplina, descripcion, estado: estado || 'PROXIMO',
       fechaInicio: new Date(fechaInicio),
       fechaFin: new Date(fechaFin),
-      maxPilotos: parseInt(maxPilotos) || 20,
+      maxPilotos: Math.trunc(maxPilotos ?? 0) || 20,
       modsReq,
-      numEtapas: parseInt(numEtapas) || 1,
+      numEtapas: Math.trunc(numEtapas ?? 0) || 1,
       // La iniciación es gratuita: sin categoría mínima ni restricción Elite, y siempre individual
       categoriaMinima: esIniciacion ? 'ROOKIE' : (categoriaMinima || 'ROOKIE'),
       soloElite: !esIniciacion && !!soloElite,

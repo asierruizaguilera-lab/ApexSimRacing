@@ -7,13 +7,27 @@ import { calcularPuntos, tieneVueltaRapida } from '@/lib/puntos'
 import { mesYAnio, recalcularPuntosEquipoMes } from '@/lib/temporadas'
 import { recalcularStatsPiloto } from '@/lib/statsPiloto'
 import { abrirVentanaFounderSiProcede } from '@/lib/iniciacion'
+import { validarBody, z, id } from '@/lib/validacion'
+
+const Resultados = z.object({
+  resultados: z.array(z.object({
+    userId: id,
+    posicion: z.number().int().min(0).max(1000),
+    vueltaRapida: z.boolean().optional(),
+    abandono: z.boolean().optional(),
+    tiempo: z.string().max(50).nullable().optional(),
+    equipoId: z.string().max(64).nullable().optional(),
+    puntos: z.number().optional(), // lo manda el cliente, pero se recalcula siempre en el servidor
+  })).max(200),
+})
 
 export async function PUT(req: NextRequest, { params }: { params: { id: string } }) {
   const session = await getServerSession(authOptions)
   if (session?.user?.role !== 'ADMIN') return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
 
-  const { resultados } = await req.json()
-  if (!Array.isArray(resultados)) return NextResponse.json({ error: 'Formato inválido' }, { status: 400 })
+  const v = await validarBody(req, Resultados)
+  if (!v.ok) return v.res
+  const { resultados } = v.data
 
   const carrera = await prisma.carrera.findUnique({
     where: { id: params.id },

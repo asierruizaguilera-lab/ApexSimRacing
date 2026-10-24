@@ -3,17 +3,28 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { bloqueoSpamHasta } from '@/lib/chatSpam'
+import type { CanalChat } from '@prisma/client'
+import { validarBody, validarQuery, z } from '@/lib/validacion'
+
+const Mensaje = z.object({
+  contenido: z.string().max(5000),
+  canal: z.string().max(20).optional(),
+})
+const Consulta = z.object({
+  canal: z.enum(['GENERAL', 'RALLY', 'CIRCUITO', 'ANUNCIOS']).default('GENERAL'),
+  limit: z.coerce.number().int().min(1).max(200).default(100),
+})
 
 const CANALES = ['GENERAL', 'RALLY', 'CIRCUITO', 'ANUNCIOS']
 const USER_SELECT = { id: true, username: true, avatar: true, role: true, esFounder: true, suscripcion: { select: { plan: true, estado: true } } }
 
 export async function GET(req: NextRequest) {
-  const { searchParams } = new URL(req.url)
-  const canal = searchParams.get('canal') || 'GENERAL'
-  const limit = parseInt(searchParams.get('limit') || '100')
+  const q = validarQuery(req.nextUrl.searchParams, Consulta)
+  if (!q.ok) return q.res
+  const { canal, limit } = q.data
 
   const mensajes = await prisma.mensajeChat.findMany({
-    where: { canal: canal as any, eliminado: false },
+    where: { canal, eliminado: false },
     orderBy: { creadoEn: 'desc' },
     take: limit,
     include: { user: { select: USER_SELECT } },
@@ -26,8 +37,10 @@ export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions)
   if (!session?.user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
 
-  const { contenido, canal: canalBody } = await req.json()
-  const canal = CANALES.includes(canalBody) ? canalBody : 'GENERAL'
+  const v = await validarBody(req, Mensaje)
+  if (!v.ok) return v.res
+  const { contenido, canal: canalBody } = v.data
+  const canal = (canalBody && CANALES.includes(canalBody) ? canalBody : 'GENERAL') as CanalChat
   if (!contenido?.trim()) return NextResponse.json({ error: 'El mensaje no puede estar vacío' }, { status: 400 })
   if (contenido.length > 500) return NextResponse.json({ error: 'Mensaje demasiado largo' }, { status: 400 })
 

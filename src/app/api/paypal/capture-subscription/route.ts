@@ -8,13 +8,20 @@ import { vincularReferido } from '@/lib/referidos'
 import { sendEmail, emailSuscripcionActiva } from '@/lib/email'
 import type { PlanSuscripcion } from '@prisma/client'
 import { logActividad, datosCliente } from '@/lib/actividad'
+import { validarBody, z, plan } from '@/lib/validacion'
+
+const Esquema = z.object({
+  subscriptionId: z.string().min(1).max(100),
+  plan,
+})
 
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions)
   if (!session?.user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
 
-  const { subscriptionId, plan } = await req.json()
-  if (!subscriptionId || !plan) return NextResponse.json({ error: 'Datos incompletos' }, { status: 400 })
+  const v = await validarBody(req, Esquema)
+  if (!v.ok) return v.res
+  const { subscriptionId, plan } = v.data
 
   try {
     // Verificar estado con la API de PayPal (solo si hay credenciales de backend)

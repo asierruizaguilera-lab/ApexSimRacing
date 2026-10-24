@@ -4,7 +4,7 @@ import { useCallback, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import toast from 'react-hot-toast'
 import { Plus, Pencil, Trash2, Palette, Car, Download } from 'lucide-react'
-import { cn } from '@/lib/utils'
+import { cn, hrefSeguro } from '@/lib/utils'
 import { Modal } from '@/components/equipos/Modal'
 
 interface CocheEquipo {
@@ -117,7 +117,7 @@ export function AdminGarajeEquipoClient({ coches, equipos }: { coches: CocheEqui
                     <Palette size={13} />Skins
                   </button>
                   {c.linkDescarga && (
-                    <a href={c.linkDescarga} target="_blank" rel="noopener noreferrer" title="Link del mod"
+                    <a href={hrefSeguro(c.linkDescarga)} target="_blank" rel="noopener noreferrer" title="Link del mod"
                       className="p-1.5 rounded-lg bg-apex-surface border border-apex-border hover:border-apex-red/40 transition-colors"><Download size={13} /></a>
                   )}
                   <button onClick={() => abrir(c)} title="Editar"

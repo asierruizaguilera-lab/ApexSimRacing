@@ -40,12 +40,12 @@ function leerHeader(req: ConHeaders, nombre: string): string | null {
   return Array.isArray(v) ? v[0] ?? null : v ?? null
 }
 
-/** IP del cliente (primera de x-forwarded-for: Render va detrás de proxy) y user-agent. */
+/** IP del cliente (cf-connecting-ip o primera de x-forwarded-for: Render va detrás de proxy) y user-agent. */
 export function datosCliente(req: ConHeaders | null | undefined): { ip: string | null; userAgent: string | null } {
   if (!req) return { ip: null, userAgent: null }
   const xff = leerHeader(req, 'x-forwarded-for')
   return {
-    ip: xff?.split(',')[0]?.trim() || leerHeader(req, 'x-real-ip'),
+    ip: leerHeader(req, 'cf-connecting-ip')?.trim() || xff?.split(',')[0]?.trim() || leerHeader(req, 'x-real-ip'),
     userAgent: leerHeader(req, 'user-agent'),
   }
 }

@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { Check, Star, Trophy } from 'lucide-react'
-import { PLAN_LABELS, PLAN_PRECIOS_NORMAL, PLAN_FEATURES, DISCIPLINA_COLORS, DISCIPLINA_LABELS, cn } from '@/lib/utils'
+import { PLAN_LABELS, PLAN_PRECIOS_NORMAL, PLAN_FEATURES, DISCIPLINA_COLORS, DISCIPLINA_LABELS, cn, hrefSeguro } from '@/lib/utils'
 import { useEffect, useState } from 'react'
 import type { Patrocinador } from '@/components/patrocinadores/PatrocinadoresStrip'
 
@@ -277,7 +277,7 @@ export function LandingClient() {
                   </div>
                 )
                 return p.linkExterno ? (
-                  <a key={p.id} href={p.linkExterno} target="_blank" rel="noopener noreferrer">{card}</a>
+                  <a key={p.id} href={hrefSeguro(p.linkExterno)} target="_blank" rel="noopener noreferrer">{card}</a>
                 ) : <div key={p.id}>{card}</div>
               })}
             </div>
@@ -290,6 +290,11 @@ export function LandingClient() {
         <img src="/logo-apex-medio.jpg" alt="APEX" className="h-8 w-auto object-contain mx-auto mb-3 opacity-70" />
         <p className="text-apex-muted text-sm font-medium">Del Simulador al Tramo Real</p>
         <p className="text-apex-muted/60 text-xs mt-2">© 2025 APEX SimRacing</p>
+        <nav className="flex justify-center gap-4 mt-3 text-xs text-apex-muted">
+          <a href="/privacidad" className="hover:text-apex-text">Privacidad</a>
+          <a href="/terminos" className="hover:text-apex-text">Términos</a>
+          <a href="/cookies" className="hover:text-apex-text">Cookies</a>
+        </nav>
       </footer>
     </div>
   )

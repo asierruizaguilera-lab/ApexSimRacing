@@ -3,6 +3,9 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { getThumbnailUrl } from '@/lib/youtube'
+import { validarQuery, z, disciplina } from '@/lib/validacion'
+
+const Consulta = z.object({ disciplina: disciplina.optional() })
 
 export const dynamic = 'force-dynamic'
 
@@ -10,13 +13,14 @@ export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions)
   if (!session?.user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
 
-  const { searchParams } = new URL(req.url)
-  const disciplina = searchParams.get('disciplina')
+  const q = validarQuery(req.nextUrl.searchParams, Consulta)
+  if (!q.ok) return q.res
+  const { disciplina } = q.data
 
   const clases = await prisma.clase.findMany({
     where: {
       publicada: true,
-      ...(disciplina ? { disciplina: disciplina as any } : {}),
+      ...(disciplina ? { disciplina } : {}),
     },
     orderBy: [{ orden: 'asc' }, { creadoEn: 'asc' }],
     include: {

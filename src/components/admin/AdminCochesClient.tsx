@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import toast from 'react-hot-toast'
 import { Plus, Trash2, Edit2, Save, X, Download } from 'lucide-react'
-import { DISCIPLINA_COLORS, DISCIPLINA_LABELS, PLAN_COLORS, PLAN_LABELS, cn } from '@/lib/utils'
+import { DISCIPLINA_COLORS, DISCIPLINA_LABELS, PLAN_COLORS, PLAN_LABELS, cn, hrefSeguro } from '@/lib/utils'
 
 const DISCIPLINAS = ['CIRCUITO', 'RALLY', 'DRIFT', 'KARTCROSS', 'MONOPLAZA']
 const PLANES = ['ROOKIE', 'AMATEUR', 'PRO', 'ELITE']
@@ -170,7 +170,7 @@ export function AdminCochesClient({ coches: initial }: { coches: Coche[] }) {
                     <div className="min-w-0">
                       <div className="font-medium text-sm">{c.nombre}</div>
                       {c.linkDescarga
-                        ? <a href={c.linkDescarga} target="_blank" rel="noopener noreferrer" className="text-xs text-green-400 hover:underline inline-flex items-center gap-1"><Download size={10} />Link de descarga</a>
+                        ? <a href={hrefSeguro(c.linkDescarga)} target="_blank" rel="noopener noreferrer" className="text-xs text-green-400 hover:underline inline-flex items-center gap-1"><Download size={10} />Link de descarga</a>
                         : <div className="text-xs text-apex-muted">Sin link · Próximamente</div>}
                     </div>
                   </div>

@@ -2,8 +2,16 @@ import { withAuth, NextRequestWithAuth } from 'next-auth/middleware'
 import { NextResponse } from 'next/server'
 
 // Rutas públicas que no requieren ni login ni suscripción
-const PUBLIC_PATHS = ['/', '/login', '/register', '/registro', '/bloqueado']
+const PUBLIC_PATHS = [
+  '/', '/login', '/register', '/registro', '/bloqueado',
+  '/recuperar', '/restablecer', '/verificar-email', '/privacidad', '/terminos', '/cookies',
+  '/api/health',
+]
 const PUBLIC_PREFIXES = ['/api/auth', '/api/paypal', '/api/cron', '/api/patrocinadores', '/api/referidos/validar', '/_next', '/favicon']
+
+function esZonaAdmin(pathname: string): boolean {
+  return pathname === '/admin' || pathname.startsWith('/admin/') || pathname.startsWith('/api/admin')
+}
 
 function isPublic(pathname: string): boolean {
   if (PUBLIC_PATHS.includes(pathname)) return true
@@ -18,7 +26,14 @@ export default withAuth(
     if (isPublic(pathname)) return NextResponse.next()
 
     if (!token) {
+      if (pathname.startsWith('/api/')) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
       return NextResponse.redirect(new URL('/', req.url))
+    }
+
+    // /admin y /api/admin solo para ADMIN (cada página y ruta lo vuelve a comprobar en el servidor)
+    if (esZonaAdmin(pathname) && token.role !== 'ADMIN') {
+      if (pathname.startsWith('/api/')) return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
+      return NextResponse.redirect(new URL('/dashboard', req.url))
     }
 
     // Usuario baneado
@@ -37,8 +52,11 @@ export default withAuth(
 
     // Sin suscripción activa → redirigir a landing
     if (!token.hasSuscripcion) {
-      // Permitir acceso a /planes para que puedan suscribirse
+      // Permitir acceso a /planes para que puedan suscribirse, y a su perfil (verificar email,
+      // descargar sus datos o eliminar la cuenta son derechos que no dependen de pagar)
       if (pathname.startsWith('/planes')) return NextResponse.next()
+      if (pathname === '/perfil' || pathname === `/perfil/${token.id}`) return NextResponse.next()
+      if (pathname.startsWith('/api/perfil') || pathname === '/api/actividad/vista') return NextResponse.next()
       return NextResponse.redirect(new URL('/', req.url))
     }
 

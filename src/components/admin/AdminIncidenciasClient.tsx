@@ -8,7 +8,7 @@ import { ChevronDown, ChevronUp, Flag, MessageSquareWarning, Paperclip, Save } f
 import {
   cn, formatFecha, formatFechaHora,
   TIPO_QUEJA_LABELS, ESTADO_QUEJA_LABELS, ESTADO_QUEJA_COLORS,
-  TIPO_SANCION_LABELS,
+  TIPO_SANCION_LABELS, hrefSeguro,
 } from '@/lib/utils'
 
 interface UsuarioMini { id: string; username: string; avatar: string | null }
@@ -158,7 +158,7 @@ export function AdminIncidenciasClient({ quejas: initial }: { quejas: Queja[] })
 
                     {q.carrera && q.vuelta && <p className="text-xs text-apex-muted">Vuelta {q.vuelta}</p>}
                     {q.linkRepeticion && (
-                      <a href={q.linkRepeticion} target="_blank" rel="noopener noreferrer" className="inline-block text-sm text-apex-red hover:underline">
+                      <a href={hrefSeguro(q.linkRepeticion)} target="_blank" rel="noopener noreferrer" className="inline-block text-sm text-apex-red hover:underline">
                         📺 Ver repetición del incidente
                       </a>
                     )}
@@ -172,7 +172,7 @@ export function AdminIncidenciasClient({ quejas: initial }: { quejas: Queja[] })
                               <div className="text-xs text-apex-muted mb-1">{p.user.username} · {formatFechaHora(p.creadoEn)}</div>
                               <p className="text-apex-text/90">{p.descripcion}</p>
                               {p.linkPrueba && (
-                                <a href={p.linkPrueba} target="_blank" rel="noopener noreferrer" className="text-xs text-apex-red hover:underline">🔗 Ver prueba</a>
+                                <a href={hrefSeguro(p.linkPrueba)} target="_blank" rel="noopener noreferrer" className="text-xs text-apex-red hover:underline">🔗 Ver prueba</a>
                               )}
                             </div>
                           ))}

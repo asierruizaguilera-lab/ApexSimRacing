@@ -1,6 +1,6 @@
 'use client'
 
-import { cn } from '@/lib/utils'
+import { cn, hrefSeguro } from '@/lib/utils'
 
 interface Patrocinador {
   id: string
@@ -51,7 +51,7 @@ export function PatrocinadoresTopBar({ patrocinadores }: { patrocinadores: Patro
             return p.linkExterno ? (
               <a
                 key={p.id}
-                href={p.linkExterno}
+                href={hrefSeguro(p.linkExterno)}
                 target="_blank"
                 rel="noopener noreferrer"
               >

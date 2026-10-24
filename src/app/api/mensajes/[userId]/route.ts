@@ -4,6 +4,9 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { bloqueoSpamDMHasta } from '@/lib/chatSpam'
 import { MAX_LONGITUD_MENSAJE, canalDM, emitir } from '@/lib/equipos'
+import { validarBody, z } from '@/lib/validacion'
+
+const Mensaje = z.object({ contenido: z.string().max(5000) })
 
 export const dynamic = 'force-dynamic'
 
@@ -50,7 +53,9 @@ export async function POST(req: NextRequest, { params }: { params: { userId: str
   if (!destinatario || destinatario.baneado) return NextResponse.json({ error: 'Usuario no encontrado' }, { status: 404 })
   if (remitente?.silenciado) return NextResponse.json({ error: 'Tu cuenta está silenciada' }, { status: 403 })
 
-  const { contenido } = await req.json()
+  const v = await validarBody(req, Mensaje)
+  if (!v.ok) return v.res
+  const { contenido } = v.data
   const texto = typeof contenido === 'string' ? contenido.trim() : ''
   if (!texto) return NextResponse.json({ error: 'El mensaje no puede estar vacío' }, { status: 400 })
   if (texto.length > MAX_LONGITUD_MENSAJE) return NextResponse.json({ error: 'Mensaje demasiado largo' }, { status: 400 })

@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { validarQuery, z } from '@/lib/validacion'
+
+const Consulta = z.object({ q: z.string().max(40).default('') })
 
 export const dynamic = 'force-dynamic'
 
@@ -10,11 +13,13 @@ export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions)
   if (!session?.user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
 
-  const q = (req.nextUrl.searchParams.get('q') || '').trim()
+  const consulta = validarQuery(req.nextUrl.searchParams, Consulta)
+  if (!consulta.ok) return consulta.res
+  const q = consulta.data.q.trim()
   if (q.length < 2) return NextResponse.json([])
 
   const usuarios = await prisma.user.findMany({
-    where: { username: { contains: q, mode: 'insensitive' }, baneado: false, id: { not: session.user.id } },
+    where: { username: { contains: q, mode: 'insensitive' }, baneado: false, eliminadoEn: null, id: { not: session.user.id } },
     orderBy: { username: 'asc' },
     take: 8,
     select: {

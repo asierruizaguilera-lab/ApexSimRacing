@@ -6,8 +6,9 @@ interface EmailPayload {
 
 export async function sendEmail({ to, subject, html }: EmailPayload): Promise<boolean> {
   if (!process.env.RESEND_API_KEY) {
-    console.log(`[Email] Sin RESEND_API_KEY — email a ${to}: ${subject}`)
-    return true
+    // Sin Resend se degrada sin romper: el flujo sigue, pero el email no sale (no se loguea la dirección)
+    console.warn(`[Email] Sin RESEND_API_KEY — no se envía: ${subject}`)
+    return false
   }
 
   try {
@@ -27,6 +28,11 @@ export async function sendEmail({ to, subject, html }: EmailPayload): Promise<bo
 }
 
 const BASE_URL = process.env.NEXTAUTH_URL || 'https://apexsimracing.gg'
+
+// Los datos de usuario (username, nombres de campeonato…) se escapan antes de meterlos en el HTML
+function esc(v: string | number | null | undefined): string {
+  return String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!))
+}
 
 const baseWrapper = (content: string) => `
   <div style="font-family:Inter,sans-serif;background:#111111;color:#F5F5F5;padding:0;margin:0;">
@@ -50,7 +56,7 @@ const btnRojo = (href: string, text: string) =>
 
 export function emailBienvenida(username: string): string {
   return baseWrapper(`
-    <h2 style="color:#F5F5F5;font-size:22px;margin:0 0 16px;">¡Bienvenido a APEX, ${username}! 🏁</h2>
+    <h2 style="color:#F5F5F5;font-size:22px;margin:0 0 16px;">¡Bienvenido a APEX, ${esc(username)}! 🏁</h2>
     <p style="color:#AAAAAA;line-height:1.6;margin:0 0 12px;">Tu cuenta ha sido creada. Bienvenido a la comunidad hispanohablante del motor.</p>
     <p style="color:#C0392B;font-style:italic;font-size:15px;margin:0 0 20px;">"Del Simulador al Tramo Real"</p>
     <div style="background:#2A2A2A;padding:16px;border-radius:8px;margin:0 0 20px;">
@@ -70,16 +76,16 @@ export function emailSuscripcionActiva(
   esFounder?: boolean
 ): string {
   return baseWrapper(`
-    <h2 style="color:#F5F5F5;font-size:22px;margin:0 0 16px;">¡Tu plan ${plan} está activo! ⚡</h2>
-    <p style="color:#AAAAAA;line-height:1.6;margin:0 0 16px;">Hola <strong style="color:#F5F5F5;">${username}</strong>,</p>
+    <h2 style="color:#F5F5F5;font-size:22px;margin:0 0 16px;">¡Tu plan ${esc(plan)} está activo! ⚡</h2>
+    <p style="color:#AAAAAA;line-height:1.6;margin:0 0 16px;">Hola <strong style="color:#F5F5F5;">${esc(username)}</strong>,</p>
     ${esFounder ? `
     <div style="background:#3d2e0a;border:1px solid #C0392B;padding:14px 16px;border-radius:8px;margin:0 0 16px;">
       <p style="margin:0;color:#F5C542;font-weight:700;">🏆 ¡Eres Piloto Fundador APEX!</p>
       <p style="margin:6px 0 0;color:#F5F5F5;font-size:13px;">Tu precio queda congelado de por vida y llevarás el badge Fundador en tu perfil para siempre.</p>
     </div>` : ''}
     <div style="background:#2A2A2A;padding:16px;border-radius:8px;margin:0 0 20px;">
-      <p style="margin:0;color:#F5F5F5;">✅ Plan: <strong style="color:#C0392B;">${plan}</strong> — ${precio}€/mes</p>
-      ${fechaRenovacion ? `<p style="margin:8px 0 0;color:#AAAAAA;">📅 Próxima renovación: ${fechaRenovacion}</p>` : ''}
+      <p style="margin:0;color:#F5F5F5;">✅ Plan: <strong style="color:#C0392B;">${esc(plan)}</strong> — ${precio}€/mes</p>
+      ${fechaRenovacion ? `<p style="margin:8px 0 0;color:#AAAAAA;">📅 Próxima renovación: ${esc(fechaRenovacion)}</p>` : ''}
       <p style="margin:8px 0 0;color:#F5F5F5;">🚗 Tus coches están desbloqueados en Mi Garaje</p>
       <p style="margin:8px 0 0;color:#F5F5F5;">🏆 Ya puedes inscribirte en campeonatos</p>
     </div>
@@ -90,7 +96,7 @@ export function emailSuscripcionActiva(
 export function emailSuscripcionCancelada(username: string): string {
   return baseWrapper(`
     <h2 style="color:#F5F5F5;font-size:22px;margin:0 0 16px;">Suscripción cancelada</h2>
-    <p style="color:#AAAAAA;line-height:1.6;margin:0 0 12px;">Hola <strong style="color:#F5F5F5;">${username}</strong>,</p>
+    <p style="color:#AAAAAA;line-height:1.6;margin:0 0 12px;">Hola <strong style="color:#F5F5F5;">${esc(username)}</strong>,</p>
     <p style="color:#AAAAAA;line-height:1.6;margin:0 0 20px;">Tu suscripción APEX ha sido cancelada. Puedes volver a suscribirte en cualquier momento.</p>
     <div style="background:#2A2A2A;padding:16px;border-radius:8px;margin:0 0 20px;">
       <p style="margin:0;color:#AAAAAA;">Si cancelas por error, puedes reactivar tu plan desde la plataforma.</p>
@@ -111,18 +117,18 @@ export function emailCarreraProxima(
   const serverInfo = servidorIP ? `
     <div style="background:#1a1a1a;border:1px solid #333;padding:12px;border-radius:6px;margin-top:12px;">
       <p style="margin:0;color:#AAAAAA;font-size:12px;">SERVIDOR</p>
-      <p style="margin:4px 0 0;color:#4ade80;font-family:monospace;">${servidorIP}</p>
-      ${servidorPassword ? `<p style="margin:4px 0 0;color:#AAAAAA;font-size:12px;">Contraseña: <code style="color:#fbbf24;">${servidorPassword}</code></p>` : ''}
+      <p style="margin:4px 0 0;color:#4ade80;font-family:monospace;">${esc(servidorIP)}</p>
+      ${servidorPassword ? `<p style="margin:4px 0 0;color:#AAAAAA;font-size:12px;">Contraseña: <code style="color:#fbbf24;">${esc(servidorPassword)}</code></p>` : ''}
     </div>
   ` : ''
 
   return baseWrapper(`
     <h2 style="color:#F5F5F5;font-size:22px;margin:0 0 16px;">Mañana tienes carrera ⏱</h2>
-    <p style="color:#AAAAAA;line-height:1.6;margin:0 0 16px;">Hola <strong style="color:#F5F5F5;">${username}</strong>, te recordamos tu próxima carrera:</p>
+    <p style="color:#AAAAAA;line-height:1.6;margin:0 0 16px;">Hola <strong style="color:#F5F5F5;">${esc(username)}</strong>, te recordamos tu próxima carrera:</p>
     <div style="background:#2A2A2A;padding:16px;border-radius:8px;margin:0 0 20px;">
-      <p style="margin:0;font-size:18px;font-weight:700;color:#F5F5F5;">${carreraNombre}</p>
-      <p style="margin:4px 0 0;color:#C0392B;">${campeonatoNombre}</p>
-      <p style="margin:8px 0 0;color:#AAAAAA;">🕐 ${fechaHora}</p>
+      <p style="margin:0;font-size:18px;font-weight:700;color:#F5F5F5;">${esc(carreraNombre)}</p>
+      <p style="margin:4px 0 0;color:#C0392B;">${esc(campeonatoNombre)}</p>
+      <p style="margin:8px 0 0;color:#AAAAAA;">🕐 ${esc(fechaHora)}</p>
       ${serverInfo}
     </div>
     ${btnRojo(`${BASE_URL}/campeonatos/${campeonatoId}`, 'Ver detalles →')}
@@ -132,8 +138,8 @@ export function emailCarreraProxima(
 export function emailInscripcionConfirmada(username: string, campeonatoNombre: string): string {
   return baseWrapper(`
     <h2 style="color:#F5F5F5;font-size:22px;margin:0 0 16px;">Inscripción confirmada 🏁</h2>
-    <p style="color:#AAAAAA;line-height:1.6;margin:0 0 12px;">Hola <strong style="color:#F5F5F5;">${username}</strong>,</p>
-    <p style="color:#AAAAAA;line-height:1.6;margin:0 0 20px;">Tu inscripción al campeonato <strong style="color:#C0392B;">${campeonatoNombre}</strong> ha sido confirmada.</p>
+    <p style="color:#AAAAAA;line-height:1.6;margin:0 0 12px;">Hola <strong style="color:#F5F5F5;">${esc(username)}</strong>,</p>
+    <p style="color:#AAAAAA;line-height:1.6;margin:0 0 20px;">Tu inscripción al campeonato <strong style="color:#C0392B;">${esc(campeonatoNombre)}</strong> ha sido confirmada.</p>
     <p style="color:#AAAAAA;">Te notificaremos cuando se acerque la próxima carrera. ¡Prepárate para competir!</p>
     ${btnRojo(`${BASE_URL}/campeonatos`, 'Ver campeonatos →')}
   `)
@@ -148,12 +154,31 @@ export function emailResultadoPublicado(
   const posColor = posicion === 1 ? '#F59E0B' : posicion === 2 ? '#9CA3AF' : posicion === 3 ? '#B45309' : '#F5F5F5'
   return baseWrapper(`
     <h2 style="color:#F5F5F5;font-size:22px;margin:0 0 16px;">Resultados publicados 🏆</h2>
-    <p style="color:#AAAAAA;line-height:1.6;margin:0 0 16px;">Hola <strong style="color:#F5F5F5;">${username}</strong>,</p>
-    <p style="color:#AAAAAA;margin:0 0 16px;">Los resultados de <strong style="color:#C0392B;">${carreraNombre}</strong> han sido publicados.</p>
+    <p style="color:#AAAAAA;line-height:1.6;margin:0 0 16px;">Hola <strong style="color:#F5F5F5;">${esc(username)}</strong>,</p>
+    <p style="color:#AAAAAA;margin:0 0 16px;">Los resultados de <strong style="color:#C0392B;">${esc(carreraNombre)}</strong> han sido publicados.</p>
     <div style="background:#2A2A2A;padding:20px;border-radius:8px;margin:0 0 20px;text-align:center;">
       <p style="margin:0;font-size:36px;font-weight:900;color:${posColor};">${posicion}º</p>
       <p style="margin:8px 0 0;font-size:20px;font-weight:700;color:#C0392B;">+${puntos} puntos</p>
     </div>
     ${btnRojo(`${BASE_URL}/dashboard`, 'Ver ranking →')}
+  `)
+}
+
+export function emailRecuperarPassword(username: string, enlace: string): string {
+  return baseWrapper(`
+    <h2 style="color:#F5F5F5;font-size:22px;margin:0 0 16px;">Restablecer contraseña</h2>
+    <p style="color:#AAAAAA;line-height:1.6;margin:0 0 12px;">Hola <strong style="color:#F5F5F5;">${esc(username)}</strong>,</p>
+    <p style="color:#AAAAAA;line-height:1.6;margin:0 0 12px;">Hemos recibido una solicitud para restablecer la contraseña de tu cuenta APEX. El enlace caduca en 1 hora y solo se puede usar una vez.</p>
+    ${btnRojo(esc(enlace), 'Elegir nueva contraseña →')}
+    <p style="color:#666;font-size:12px;line-height:1.6;margin:20px 0 0;">Si no lo has pedido tú, ignora este email: tu contraseña no cambiará.</p>
+  `)
+}
+
+export function emailVerificarEmail(username: string, enlace: string): string {
+  return baseWrapper(`
+    <h2 style="color:#F5F5F5;font-size:22px;margin:0 0 16px;">Confirma tu email</h2>
+    <p style="color:#AAAAAA;line-height:1.6;margin:0 0 12px;">Hola <strong style="color:#F5F5F5;">${esc(username)}</strong>,</p>
+    <p style="color:#AAAAAA;line-height:1.6;margin:0 0 12px;">Confirma tu dirección de email para poder suscribirte e inscribirte en campeonatos. El enlace caduca en 24 horas.</p>
+    ${btnRojo(esc(enlace), 'Confirmar email →')}
   `)
 }

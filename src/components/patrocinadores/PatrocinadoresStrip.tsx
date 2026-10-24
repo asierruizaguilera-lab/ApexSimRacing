@@ -1,6 +1,6 @@
 'use client'
 
-import { cn } from '@/lib/utils'
+import { cn, hrefSeguro } from '@/lib/utils'
 
 export interface Patrocinador {
   id: string
@@ -47,7 +47,7 @@ function PatrocinadorItem({ p, size = 'md', showName = true }: { p: Patrocinador
 
   if (p.linkExterno) {
     return (
-      <a href={p.linkExterno} target="_blank" rel="noopener noreferrer" title={p.nombre}>
+      <a href={hrefSeguro(p.linkExterno)} target="_blank" rel="noopener noreferrer" title={p.nombre}>
         {content}
       </a>
     )
@@ -113,7 +113,7 @@ export function PatrocinadoresSidebar({ patrocinadores }: { patrocinadores: Patr
             </div>
           )
           return p.linkExterno ? (
-            <a key={p.id} href={p.linkExterno} target="_blank" rel="noopener noreferrer">{content}</a>
+            <a key={p.id} href={hrefSeguro(p.linkExterno)} target="_blank" rel="noopener noreferrer">{content}</a>
           ) : <div key={p.id}>{content}</div>
         })}
       </div>

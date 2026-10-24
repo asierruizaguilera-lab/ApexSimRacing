@@ -3,12 +3,17 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { sendEmail, emailInscripcionConfirmada } from '@/lib/email'
+import { validarBody, z } from '@/lib/validacion'
+
+const Esquema = z.object({ estado: z.enum(['CONFIRMADA', 'CANCELADA']) })
 
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
   const session = await getServerSession(authOptions)
   if (session?.user?.role !== 'ADMIN') return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
 
-  const { estado } = await req.json()
+  const v = await validarBody(req, Esquema)
+  if (!v.ok) return v.res
+  const { estado } = v.data
   if (!['CONFIRMADA', 'CANCELADA'].includes(estado)) {
     return NextResponse.json({ error: 'Estado inválido' }, { status: 400 })
   }

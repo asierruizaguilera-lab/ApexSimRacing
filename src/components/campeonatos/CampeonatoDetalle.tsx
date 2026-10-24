@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import toast from 'react-hot-toast'
 import Link from 'next/link'
-import { DISCIPLINA_COLORS, DISCIPLINA_LABELS, PLAN_LABELS, PLAN_COLORS, planSuficiente, formatFechaHora, formatFecha, getPaisFlag, getPositionColor, cn } from '@/lib/utils'
+import { DISCIPLINA_COLORS, DISCIPLINA_LABELS, PLAN_LABELS, PLAN_COLORS, planSuficiente, formatFechaHora, formatFecha, getPaisFlag, getPositionColor, cn, hrefSeguro } from '@/lib/utils'
 import { Users, Calendar, Trophy, Server, Wifi, Copy, ChevronLeft, ChevronDown, ChevronUp, Flag, Download, Gauge, Lock, Shield } from 'lucide-react'
 import { EquipoLogo } from '@/components/equipos/EquipoLogo'
 
@@ -327,13 +327,13 @@ export function CampeonatoDetalle({ campeonato: c, clasificacion, clasificacionE
                         </span>
                       )}
                       {carrera.linkModCircuito && (
-                        <a href={carrera.linkModCircuito} target="_blank" rel="noopener noreferrer"
+                        <a href={hrefSeguro(carrera.linkModCircuito)} target="_blank" rel="noopener noreferrer"
                           className="text-xs px-2.5 py-1 bg-apex-surface border border-apex-border rounded-full flex items-center gap-1.5 hover:border-apex-red/30 transition-colors">
                           <Download size={12} />Descargar mod circuito
                         </a>
                       )}
                       {carrera.linkModCoche && (
-                        <a href={carrera.linkModCoche} target="_blank" rel="noopener noreferrer"
+                        <a href={hrefSeguro(carrera.linkModCoche)} target="_blank" rel="noopener noreferrer"
                           className="text-xs px-2.5 py-1 bg-apex-surface border border-apex-border rounded-full flex items-center gap-1.5 hover:border-apex-red/30 transition-colors">
                           <Download size={12} />Descargar mod coche
                         </a>
@@ -385,7 +385,7 @@ export function CampeonatoDetalle({ campeonato: c, clasificacion, clasificacionE
                   )}
 
                   {carrera.transmisionUrl && (
-                    <a href={carrera.transmisionUrl} target="_blank" rel="noopener noreferrer"
+                    <a href={hrefSeguro(carrera.transmisionUrl)} target="_blank" rel="noopener noreferrer"
                       className="inline-flex items-center gap-2 mt-3 text-sm text-apex-red hover:underline">
                       📺 Ver transmisión en directo
                     </a>

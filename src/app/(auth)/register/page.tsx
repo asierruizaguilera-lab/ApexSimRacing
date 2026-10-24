@@ -15,6 +15,7 @@ export default function RegisterPage() {
   const [loading, setLoading] = useState(false)
   const [codigoRef, setCodigoRef] = useState('')
   const [estadoRef, setEstadoRef] = useState<'vacio' | 'validando' | 'valido' | 'invalido'>('vacio')
+  const [aceptaTerminos, setAceptaTerminos] = useState(false)
 
   // Prerellenar desde el link compartido (?ref=APEX-USER-1234). Se lee de window.location para no
   // necesitar un Suspense boundary con useSearchParams.
@@ -43,8 +44,8 @@ export default function RegisterPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (form.password.length < 8) {
-      toast.error('La contraseña debe tener al menos 8 caracteres')
+    if (form.password.length < 10) {
+      toast.error('La contraseña debe tener al menos 10 caracteres')
       return
     }
     if (estadoRef === 'invalido' || estadoRef === 'validando') {
@@ -56,7 +57,7 @@ export default function RegisterPage() {
       const res = await fetch('/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...form, codigoReferido: codigoRef.trim() || undefined }),
+        body: JSON.stringify({ ...form, codigoReferido: codigoRef.trim() || undefined, aceptaTerminos }),
       })
       const data = await res.json()
       if (!res.ok) {
@@ -126,9 +127,9 @@ export default function RegisterPage() {
               type={showPwd ? 'text' : 'password'}
               value={form.password}
               onChange={set('password')}
-              placeholder="Mínimo 8 caracteres"
+              placeholder="Mínimo 10 caracteres"
               required
-              minLength={8}
+              minLength={10}
               className="w-full bg-apex-surface border border-apex-border rounded-lg px-3 py-2.5 text-sm focus:border-apex-red focus:outline-none transition-colors pr-10"
             />
             <button type="button" onClick={() => setShowPwd(!showPwd)}
@@ -167,6 +168,14 @@ export default function RegisterPage() {
             </span>
           )}
         </div>
+
+        <label className="flex items-start gap-2 text-xs text-apex-muted">
+          <input type="checkbox" checked={aceptaTerminos} onChange={e => setAceptaTerminos(e.target.checked)} required className="mt-0.5 accent-apex-red" />
+          <span>
+            He leído y acepto los <Link href="/terminos" target="_blank" className="text-apex-red hover:underline">términos y condiciones</Link> y
+            la <Link href="/privacidad" target="_blank" className="text-apex-red hover:underline">política de privacidad</Link>.
+          </span>
+        </label>
 
         <button
           type="submit"

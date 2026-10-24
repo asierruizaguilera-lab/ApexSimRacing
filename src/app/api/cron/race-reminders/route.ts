@@ -2,14 +2,13 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { sendEmail, emailCarreraProxima } from '@/lib/email'
 import { formatFechaHora } from '@/lib/utils'
+import { rechazarCron } from '@/lib/cron'
 
 export const dynamic = 'force-dynamic'
 
 export async function GET(req: NextRequest) {
-  const secret = req.headers.get('x-cron-secret') || req.nextUrl.searchParams.get('secret')
-  if (process.env.CRON_SECRET && secret !== process.env.CRON_SECRET) {
-    return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
-  }
+  const rechazo = rechazarCron(req)
+  if (rechazo) return rechazo
 
   const ahora = new Date()
   // Ventana: carreras entre 23h y 25h desde ahora

@@ -4,6 +4,12 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { disolverEquipo, emitir, activarPlanEquipoFounder } from '@/lib/equipos'
 import { registrarAccionAdmin } from '@/lib/actividad'
+import { validarBody, z } from '@/lib/validacion'
+
+const Esquema = z.object({
+  accion: z.enum(['DISOLVER', 'ACTIVAR_FOUNDER', 'CAMBIAR_LIDER']),
+  nuevoLiderId: z.string().max(64).optional(),
+})
 
 // Moderación de equipos. Body: { accion: 'DISOLVER' } | { accion: 'CAMBIAR_LIDER', nuevoLiderId } | { accion: 'ACTIVAR_FOUNDER' }
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
@@ -14,7 +20,9 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   if (!equipo) return NextResponse.json({ error: 'Equipo no encontrado' }, { status: 404 })
   if (!equipo.activo) return NextResponse.json({ error: 'El equipo ya está disuelto' }, { status: 400 })
 
-  const { accion, nuevoLiderId } = await req.json()
+  const v = await validarBody(req, Esquema)
+  if (!v.ok) return v.res
+  const { accion, nuevoLiderId } = v.data
 
   if (accion === 'DISOLVER') {
     await disolverEquipo(equipo.id)

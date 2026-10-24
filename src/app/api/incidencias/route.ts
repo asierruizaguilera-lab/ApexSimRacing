@@ -2,9 +2,17 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import type { TipoQueja } from '@prisma/client'
+import { validarBody, z, numeroFlexible, urlSegura } from '@/lib/validacion'
 
-const TIPOS: TipoQueja[] = ['INCIDENCIA_CARRERA', 'QUEJA_GENERAL']
+const Incidencia = z.object({
+  tipo: z.enum(['INCIDENCIA_CARRERA', 'QUEJA_GENERAL']),
+  titulo: z.string().max(200),
+  descripcion: z.string().max(5000),
+  denunciadoId: z.string().max(64).nullable().optional(),
+  carreraId: z.string().max(64).nullable().optional(),
+  vuelta: numeroFlexible.nullable().optional(),
+  linkRepeticion: urlSegura.nullable().optional(),
+})
 
 export async function GET() {
   const session = await getServerSession(authOptions)
@@ -28,9 +36,10 @@ export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions)
   if (!session?.user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
 
-  const { tipo, titulo, descripcion, denunciadoId, carreraId, vuelta, linkRepeticion } = await req.json()
+  const v = await validarBody(req, Incidencia)
+  if (!v.ok) return v.res
+  const { tipo, titulo, descripcion, denunciadoId, carreraId, vuelta, linkRepeticion } = v.data
 
-  if (!TIPOS.includes(tipo)) return NextResponse.json({ error: 'Tipo inválido' }, { status: 400 })
   if (!titulo?.trim() || !descripcion?.trim()) {
     return NextResponse.json({ error: 'Título y descripción son requeridos' }, { status: 400 })
   }
@@ -65,7 +74,7 @@ export async function POST(req: NextRequest) {
         denuncianteId: session.user.id,
         denunciadoId: denunciadoId || null,
         carreraId,
-        vuelta: vuelta ? Number(vuelta) : null,
+        vuelta: vuelta ? Math.trunc(vuelta) : null,
         linkRepeticion: linkRepeticion || null,
       },
     })

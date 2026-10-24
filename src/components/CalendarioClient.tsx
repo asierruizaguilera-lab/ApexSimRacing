@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { DISCIPLINA_COLORS, DISCIPLINA_LABELS, formatFechaHora, cn } from '@/lib/utils'
+import { DISCIPLINA_COLORS, DISCIPLINA_LABELS, formatFechaHora, cn, hrefSeguro } from '@/lib/utils'
 import { ChevronLeft, ChevronRight, Calendar, Server, Copy } from 'lucide-react'
 import toast from 'react-hot-toast'
 
@@ -188,7 +188,7 @@ export function CalendarioClient({ carreras, inscripcionIds }: { carreras: Carre
             )}
 
             {selected.transmisionUrl && (
-              <a href={selected.transmisionUrl} target="_blank" rel="noopener noreferrer"
+              <a href={hrefSeguro(selected.transmisionUrl)} target="_blank" rel="noopener noreferrer"
                 className="block text-center py-2 bg-red-600/20 text-red-400 border border-red-500/30 rounded-lg text-sm mb-2 hover:bg-red-600/30 transition-colors">
                 📺 Ver Transmisión
               </a>

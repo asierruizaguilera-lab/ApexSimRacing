@@ -5,11 +5,16 @@ import bcrypt from 'bcryptjs'
 import { prisma } from './prisma'
 import { getTemporadaGratuitaActiva } from './config'
 import { logActividad, datosCliente } from './actividad'
+import { LIMITES, bloqueado, consumir, reiniciar } from './rateLimit'
+
+const SIETE_DIAS_S = 7 * 24 * 60 * 60
 
 export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(prisma) as any,
   secret: process.env.NEXTAUTH_SECRET ?? process.env.SECRET,
-  session: { strategy: 'jwt' },
+  // Sesión de 7 días. server.js además la corta a los 7 días desde el login aunque se renueve (authTime).
+  session: { strategy: 'jwt', maxAge: SIETE_DIAS_S },
+  jwt: { maxAge: SIETE_DIAS_S },
   pages: {
     signIn: '/login',
     error: '/login',
@@ -22,24 +27,36 @@ export const authOptions: NextAuthOptions = {
         password: { label: 'Contraseña', type: 'password' },
       },
       async authorize(credentials, req) {
-        if (!credentials?.email || !credentials?.password) return null
+        if (typeof credentials?.email !== 'string' || typeof credentials?.password !== 'string') return null
+        const email = credentials.email.trim().toLowerCase().slice(0, 254)
+        if (!email || !credentials.password || credentials.password.length > 200) return null
         const cliente = datosCliente(req as any)
+
+        // 5 fallos en 15 min por IP + email. La clave solo vive en memoria (no se guarda el email en logs).
+        const claveRate = `login:${cliente.ip ?? '?'}:${email}`
+        if (bloqueado(claveRate, LIMITES.loginFallido)) {
+          logActividad({ tipo: 'SEGURIDAD', estado: 429, ruta: '/api/auth/callback/credentials', ...cliente, detalle: { motivo: 'rate_limit_login' } })
+          throw new Error('RATE_LIMIT')
+        }
+
         // El email intentado no se guarda: si no existe la cuenta, solo queda el motivo
         const fallido = (motivo: string, userId?: string) => {
+          consumir(claveRate, LIMITES.loginFallido)
           logActividad({ tipo: 'LOGIN_FALLIDO', userId, ruta: '/api/auth/callback/credentials', metodo: 'POST', ...cliente, detalle: { motivo } })
           return null
         }
 
-        const user = await prisma.user.findUnique({
-          where: { email: credentials.email },
+        const user = await prisma.user.findFirst({
+          where: { email: { equals: email, mode: 'insensitive' } },
           include: { suscripcion: { select: { estado: true, fechaExpiracionManual: true } } },
         })
 
-        if (!user || !user.password) return fallido('usuario_inexistente')
+        if (!user || !user.password || user.eliminadoEn) return fallido('usuario_inexistente')
 
         const valid = await bcrypt.compare(credentials.password, user.password)
         if (!valid) return fallido('password_incorrecta', user.id)
 
+        reiniciar(claveRate)
         const hasSuscripcion = esAccesoActivo(user.suscripcion)
         const temporadaGratuita = await getTemporadaGratuitaActiva().catch(() => false)
 
@@ -79,6 +96,9 @@ export const authOptions: NextAuthOptions = {
         token.baneado = (user as any).baneado ?? false
         token.hasSuscripcion = (user as any).hasSuscripcion ?? false
         token.temporadaGratuita = (user as any).temporadaGratuita ?? false
+        // Momento del login: no cambia al renovar la sesión. server.js lo usa para el límite absoluto de 7 días
+        // y para invalidar sesiones anteriores a un restablecimiento de contraseña.
+        token.authTime = Date.now()
       }
 
       if (trigger === 'update' && session) {
@@ -162,5 +182,6 @@ declare module 'next-auth/jwt' {
     hasSuscripcion: boolean
     temporadaGratuita?: boolean
     lastChecked?: number
+    authTime?: number
   }
 }

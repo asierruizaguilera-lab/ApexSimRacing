@@ -3,6 +3,14 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { colorValido, urlOpcional } from '@/lib/equipos'
+import { validarBody, z, id } from '@/lib/validacion'
+
+const Skin = z.object({
+  cocheEquipoId: id,
+  equipoId: id,
+  imagenSkin: z.string().max(2000).nullable().optional(),
+  colorPrimario: z.string().max(20).nullable().optional(),
+})
 
 // Crear/actualizar la skin de un equipo para un coche. Body: { cocheEquipoId, equipoId, imagenSkin?, colorPrimario? }
 // Sin imagen ni color se borra la skin y el equipo vuelve a usar su color.
@@ -10,7 +18,9 @@ export async function PUT(req: NextRequest) {
   const session = await getServerSession(authOptions)
   if (session?.user?.role !== 'ADMIN') return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
 
-  const { cocheEquipoId, equipoId, imagenSkin, colorPrimario } = await req.json()
+  const v = await validarBody(req, Skin)
+  if (!v.ok) return v.res
+  const { cocheEquipoId, equipoId, imagenSkin, colorPrimario } = v.data
   if (!cocheEquipoId || !equipoId) return NextResponse.json({ error: 'Faltan coche o equipo' }, { status: 400 })
 
   const imagen = urlOpcional(imagenSkin)

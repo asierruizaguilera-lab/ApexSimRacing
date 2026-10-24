@@ -8,7 +8,7 @@ import { ChevronLeft, Flag, MessageSquareWarning, Paperclip, Send, Settings, Shi
 import {
   cn, formatFecha, formatFechaHora,
   TIPO_QUEJA_LABELS, ESTADO_QUEJA_LABELS, ESTADO_QUEJA_COLORS,
-  TIPO_SANCION_LABELS, TIPO_SANCION_COLORS,
+  TIPO_SANCION_LABELS, TIPO_SANCION_COLORS, hrefSeguro,
 } from '@/lib/utils'
 
 interface UsuarioMini { id: string; username: string; avatar: string | null }
@@ -129,7 +129,7 @@ export function IncidenciaDetalleClient({ queja: q, userId, isAdmin }: { queja: 
         </div>
 
         {q.linkRepeticion && (
-          <a href={q.linkRepeticion} target="_blank" rel="noopener noreferrer"
+          <a href={hrefSeguro(q.linkRepeticion)} target="_blank" rel="noopener noreferrer"
             className="inline-flex items-center gap-1.5 mt-2 text-sm text-apex-red hover:underline">
             📺 Ver repetición del incidente
           </a>
@@ -184,7 +184,7 @@ export function IncidenciaDetalleClient({ queja: q, userId, isAdmin }: { queja: 
                 </div>
                 <p className="text-sm text-apex-muted whitespace-pre-wrap">{p.descripcion}</p>
                 {p.linkPrueba && (
-                  <a href={p.linkPrueba} target="_blank" rel="noopener noreferrer"
+                  <a href={hrefSeguro(p.linkPrueba)} target="_blank" rel="noopener noreferrer"
                     className="inline-flex items-center gap-1 mt-1.5 text-xs text-apex-red hover:underline">
                     🔗 Ver prueba
                   </a>

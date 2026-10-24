@@ -3,6 +3,12 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { esUltimoMesDeTemporada, getTemporadaActiva } from '@/lib/temporadas'
+import { validarBody, z } from '@/lib/validacion'
+
+const Esquema = z.object({
+  titulo: z.string().max(200),
+  descripcion: z.string().max(5000),
+})
 
 // Propuesta del equipo al admin: solo el líder, solo en el último mes de la temporada, una por temporada
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
@@ -19,7 +25,9 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     return NextResponse.json({ error: 'Las propuestas solo se pueden enviar durante el último mes de la temporada' }, { status: 400 })
   }
 
-  const { titulo, descripcion } = await req.json()
+  const v = await validarBody(req, Esquema)
+  if (!v.ok) return v.res
+  const { titulo, descripcion } = v.data
   const t = typeof titulo === 'string' ? titulo.trim() : ''
   const d = typeof descripcion === 'string' ? descripcion.trim() : ''
   if (t.length < 3 || t.length > 100) return NextResponse.json({ error: 'El título debe tener entre 3 y 100 caracteres' }, { status: 400 })

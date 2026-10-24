@@ -2,6 +2,12 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { validarBody, z, urlSegura } from '@/lib/validacion'
+
+const Prueba = z.object({
+  descripcion: z.string().max(5000),
+  linkPrueba: urlSegura.nullable().optional(),
+})
 
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
   const session = await getServerSession(authOptions)
@@ -21,7 +27,9 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     return NextResponse.json({ error: 'Esta incidencia ya está cerrada' }, { status: 400 })
   }
 
-  const { descripcion, linkPrueba } = await req.json()
+  const v = await validarBody(req, Prueba)
+  if (!v.ok) return v.res
+  const { descripcion, linkPrueba } = v.data
   if (!descripcion?.trim()) {
     return NextResponse.json({ error: 'La descripción de la prueba es requerida' }, { status: 400 })
   }

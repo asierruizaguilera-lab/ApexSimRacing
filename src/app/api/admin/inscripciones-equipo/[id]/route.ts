@@ -2,14 +2,18 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { validarBody, z } from '@/lib/validacion'
+
+const Esquema = z.object({ estado: z.enum(['CONFIRMADA', 'CANCELADA']) })
 
 // Confirmar o cancelar la inscripción de un equipo en un campeonato de equipos
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
   const session = await getServerSession(authOptions)
   if (session?.user?.role !== 'ADMIN') return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
 
-  const { estado } = await req.json()
-  if (!['CONFIRMADA', 'CANCELADA'].includes(estado)) return NextResponse.json({ error: 'Estado inválido' }, { status: 400 })
+  const v = await validarBody(req, Esquema)
+  if (!v.ok) return v.res
+  const { estado } = v.data
 
   const inscripcion = await prisma.inscripcionEquipo.update({
     where: { id: params.id },

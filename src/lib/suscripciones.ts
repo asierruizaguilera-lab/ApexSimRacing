@@ -2,6 +2,7 @@ import { prisma } from './prisma'
 import { PlanSuscripcion } from '@prisma/client'
 import { PLAN_PRECIOS_NORMAL, DESCUENTO_MERCH_POR_PLAN } from './utils'
 import { registrarAccionAdmin, logActividad } from './actividad'
+import { invalidarCacheSesion } from './sesionCache'
 
 export const PLAN_ORDER: PlanSuscripcion[] = ['ROOKIE', 'AMATEUR', 'PRO', 'ELITE']
 
@@ -234,6 +235,7 @@ export async function banearUsuario(adminId: string, userId: string, motivo: str
     where: { id: userId },
     data: { baneado: true, motivoBan: motivo },
   })
+  invalidarCacheSesion(userId)
   await registrarAccionAdmin({
     data: { adminId, targetUserId: userId, accion: 'BAN', detalle: motivo },
   })
@@ -244,6 +246,7 @@ export async function desbanearUsuario(adminId: string, userId: string): Promise
     where: { id: userId },
     data: { baneado: false, motivoBan: null },
   })
+  invalidarCacheSesion(userId)
   await registrarAccionAdmin({
     data: { adminId, targetUserId: userId, accion: 'DESBAN', detalle: 'Cuenta desbaneada' },
   })

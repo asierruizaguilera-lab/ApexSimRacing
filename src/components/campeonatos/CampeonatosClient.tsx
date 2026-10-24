@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import toast from 'react-hot-toast'
-import { DISCIPLINA_COLORS, DISCIPLINA_LABELS, ESTADO_CAMPEONATO_LABELS, PLAN_LABELS, PLAN_COLORS, planSuficiente, formatFecha, cn } from '@/lib/utils'
+import { DISCIPLINA_COLORS, DISCIPLINA_LABELS, ESTADO_CAMPEONATO_LABELS, PLAN_LABELS, PLAN_COLORS, planSuficiente, formatFecha, cn, hrefSeguro } from '@/lib/utils'
 import { Users, Calendar, Trophy, ChevronRight, Lock, Shield } from 'lucide-react'
 
 interface Campeonato {
@@ -110,7 +110,7 @@ export function CampeonatosClient({ campeonatos, userId, userPlan, patrocinadore
                 </div>
               )
               return p.linkExterno ? (
-                <a key={p.id} href={p.linkExterno} target="_blank" rel="noopener noreferrer">{logo}</a>
+                <a key={p.id} href={hrefSeguro(p.linkExterno)} target="_blank" rel="noopener noreferrer">{logo}</a>
               ) : <div key={p.id}>{logo}</div>
             })}
           </div>

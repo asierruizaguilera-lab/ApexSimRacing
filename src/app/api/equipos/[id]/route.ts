@@ -4,6 +4,15 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { colorValido, urlOpcional, emitir } from '@/lib/equipos'
 import { getEquipoDetalle } from '@/lib/equipoDetalle'
+import { validarBody, z } from '@/lib/validacion'
+
+const Esquema = z.object({
+  nombre: z.string().max(100).optional(),
+  descripcion: z.string().max(2000).nullable().optional(),
+  colorPrimario: z.string().max(20).optional(),
+  logoUrl: z.string().max(2000).nullable().optional(),
+  nuevoLiderId: z.string().max(64).optional(),
+})
 
 export const dynamic = 'force-dynamic'
 
@@ -25,7 +34,9 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   if (!equipo || !equipo.activo) return NextResponse.json({ error: 'Equipo no encontrado' }, { status: 404 })
   if (equipo.liderId !== session.user.id) return NextResponse.json({ error: 'Solo el líder puede editar el equipo' }, { status: 403 })
 
-  const body = await req.json()
+  const v = await validarBody(req, Esquema)
+  if (!v.ok) return v.res
+  const body = v.data
   const data: { nombre?: string; descripcion?: string | null; colorPrimario?: string; logoUrl?: string | null } = {}
 
   if (body.nombre !== undefined) {

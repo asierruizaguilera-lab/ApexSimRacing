@@ -4,6 +4,12 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { crearCodigoParaUsuario, getResumenAdminReferidos } from '@/lib/referidos'
 import { registrarAccionAdmin } from '@/lib/actividad'
+import { validarBody, z } from '@/lib/validacion'
+
+const Esquema = z.object({
+  userId: z.string().max(64).optional(),
+  username: z.string().max(40).optional(),
+})
 
 export const dynamic = 'force-dynamic'
 
@@ -18,7 +24,9 @@ export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions)
   if (session?.user?.role !== 'ADMIN') return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
 
-  const { userId, username } = await req.json()
+  const v = await validarBody(req, Esquema)
+  if (!v.ok) return v.res
+  const { userId, username } = v.data
   if (!userId && !username) return NextResponse.json({ error: 'Indica un usuario' }, { status: 400 })
 
   const user = await prisma.user.findFirst({

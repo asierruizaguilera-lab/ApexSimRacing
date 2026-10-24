@@ -11,7 +11,8 @@ export function extraerYouTubeId(input: string): string {
 }
 
 export function getEmbedUrl(youtubeUrl: string): string {
-  return `https://www.youtube.com/embed/${extraerYouTubeId(youtubeUrl)}?rel=0&modestbranding=1`
+  // youtube-nocookie: el reproductor no deja cookies de seguimiento hasta que se pulsa play
+  return `https://www.youtube-nocookie.com/embed/${extraerYouTubeId(youtubeUrl)}?rel=0&modestbranding=1`
 }
 
 export function getThumbnailUrl(youtubeUrl: string): string {

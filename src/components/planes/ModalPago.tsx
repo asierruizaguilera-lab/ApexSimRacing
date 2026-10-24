@@ -24,6 +24,7 @@ export function ModalPago({ plan, isLoggedIn = true, onClose }: Props) {
   const [descuentoReferido, setDescuentoReferido] = useState(false)
   const [descuentoEquipo, setDescuentoEquipo] = useState(false)
   const [loadingPlanId, setLoadingPlanId] = useState(true)
+  const [emailNoVerificado, setEmailNoVerificado] = useState(false)
 
   useEffect(() => {
     if (!isLoggedIn) { setLoadingPlanId(false); return }
@@ -31,6 +32,7 @@ export function ModalPago({ plan, isLoggedIn = true, onClose }: Props) {
       .then(r => r.ok ? r.json() : null)
       .then(data => {
         if (data?.planId) setPlanId(data.planId)
+        setEmailNoVerificado(!!data?.emailNoVerificado)
         setEsFounder(!!data?.esFounderParaEstaCompra)
         setDescuentoReferido(!!data?.descuentoReferido)
         setDescuentoEquipo(!!data?.descuentoTransicionEquipo)
@@ -199,6 +201,11 @@ export function ModalPago({ plan, isLoggedIn = true, onClose }: Props) {
                 {loadingPlanId ? (
                   <div className="flex items-center justify-center gap-2 py-6 text-apex-muted text-sm">
                     <Loader2 size={16} className="animate-spin" />Preparando pago...
+                  </div>
+                ) : emailNoVerificado ? (
+                  <div className="text-center py-6 bg-apex-surface rounded-xl border border-yellow-500/30">
+                    <p className="text-yellow-400 text-sm mb-2">Confirma tu email antes de suscribirte.</p>
+                    <p className="text-xs text-apex-muted">Te enviamos un enlace al registrarte. Puedes reenviarlo desde el aviso del panel o desde tu perfil.</p>
                   </div>
                 ) : paypalConfigurado ? (
                   <PayPalButtons

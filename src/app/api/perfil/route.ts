@@ -5,6 +5,14 @@ import { prisma } from '@/lib/prisma'
 import { PAISES } from '@/lib/utils'
 import fs from 'fs'
 import path from 'path'
+import { validarBody, validarForm, z, urlSegura } from '@/lib/validacion'
+
+const Perfil = z.object({
+  username: z.string().max(40).optional(),
+  bio: z.string().max(1000).nullable().optional(),
+  pais: z.string().max(4).nullable().optional(),
+  avatar: urlSegura.nullable().optional(),
+})
 
 export async function GET() {
   const session = await getServerSession(authOptions)
@@ -39,19 +47,21 @@ export async function PATCH(req: NextRequest) {
 
   if (contentType.includes('multipart/form-data')) {
     const formData = await req.formData()
-    username = formData.get('username') as string | undefined
-    bio = formData.get('bio') as string | undefined
-    pais = formData.get('pais') as string | undefined
+    const v = validarForm(formData, Perfil.omit({ avatar: true }))
+    if (!v.ok) return v.res
+    username = v.data.username
+    bio = v.data.bio ?? undefined
+    pais = v.data.pais ?? undefined
 
-    const file = formData.get('avatar') as File | null
-    if (file && file.size > 0) {
+    const file = formData.get('avatar')
+    if (file instanceof File && file.size > 0) {
       const maxSize = 5 * 1024 * 1024
       if (file.size > maxSize) {
         return NextResponse.json({ error: 'La imagen no puede superar 5MB' }, { status: 400 })
       }
       const ext = (file.name.split('.').pop() || 'jpg').toLowerCase()
       const allowedExts = ['jpg', 'jpeg', 'png', 'webp', 'gif']
-      if (!allowedExts.includes(ext)) {
+      if (!allowedExts.includes(ext) || !file.type.startsWith('image/') || file.type.includes('svg')) {
         return NextResponse.json({ error: 'Formato de imagen no permitido' }, { status: 400 })
       }
       const bytes = await file.arrayBuffer()
@@ -63,11 +73,12 @@ export async function PATCH(req: NextRequest) {
       avatarUrl = `/avatars/${filename}`
     }
   } else {
-    const body = await req.json()
-    username = body.username
-    bio = body.bio
-    pais = body.pais
-    avatarUrl = body.avatar
+    const v = await validarBody(req, Perfil)
+    if (!v.ok) return v.res
+    username = v.data.username
+    bio = v.data.bio ?? undefined
+    pais = v.data.pais ?? undefined
+    avatarUrl = v.data.avatar ?? undefined
   }
 
   // Validaciones

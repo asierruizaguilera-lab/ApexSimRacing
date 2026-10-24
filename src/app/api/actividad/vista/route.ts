@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { logActividad } from '@/lib/actividad'
+import { z } from '@/lib/validacion'
+
+const Vista = z.object({ ruta: z.string().startsWith('/').max(200) })
 
 export const dynamic = 'force-dynamic'
 
@@ -14,16 +17,15 @@ export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions)
   if (!session?.user?.id) return new NextResponse(null, { status: 204 })
 
-  let ruta: unknown
+  // sendBeacon manda text/plain o application/json según el navegador: se parsea el texto a mano
+  let parsed: z.SafeParseReturnType<unknown, { ruta: string }>
   try {
-    ruta = (JSON.parse(await req.text()) as { ruta?: unknown }).ruta
+    parsed = Vista.safeParse(JSON.parse(await req.text()))
   } catch {
     return new NextResponse(null, { status: 204 })
   }
-  if (typeof ruta !== 'string' || !ruta.startsWith('/') || ruta.length > 200) {
-    return new NextResponse(null, { status: 204 })
-  }
-  ruta = ruta.split(/[?#]/)[0]
+  if (!parsed.success) return new NextResponse(null, { status: 204 })
+  const ruta = parsed.data.ruta.split(/[?#]/)[0]
 
   const userId = session.user.id
   const ahora = Date.now()
@@ -32,8 +34,8 @@ export async function POST(req: NextRequest) {
     return new NextResponse(null, { status: 204 })
   }
   if (ultimas.size > 5000) ultimas.clear()
-  ultimas.set(userId, { ruta: ruta as string, t: ahora })
+  ultimas.set(userId, { ruta, t: ahora })
 
-  logActividad({ tipo: 'VISTA', userId, ruta: ruta as string })
+  logActividad({ tipo: 'VISTA', userId, ruta })
   return new NextResponse(null, { status: 204 })
 }

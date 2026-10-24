@@ -2,12 +2,19 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { PAYPAL_BASE, getPayPalAccessToken, getPlanId } from '@/lib/paypal'
+import { usuarioDebeVerificarEmail, RESPUESTA_EMAIL_NO_VERIFICADO } from '@/lib/tokensSeguridad'
+import { validarBody, z, plan } from '@/lib/validacion'
+
+const Esquema = z.object({ plan })
 
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions)
   if (!session?.user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+  if (await usuarioDebeVerificarEmail(session.user.id)) return NextResponse.json(RESPUESTA_EMAIL_NO_VERIFICADO, { status: 403 })
 
-  const { plan } = await req.json()
+  const v = await validarBody(req, Esquema)
+  if (!v.ok) return v.res
+  const { plan } = v.data
   const { planId, precioFounder: esFounder } = await getPlanId(session.user.id, plan)
   if (!planId) return NextResponse.json({ error: 'Plan de PayPal no configurado' }, { status: 400 })
 

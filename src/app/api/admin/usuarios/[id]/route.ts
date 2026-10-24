@@ -3,8 +3,18 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { darAccesoManual, banearUsuario, desbanearUsuario } from '@/lib/suscripciones'
-import type { PlanSuscripcion } from '@prisma/client'
 import { registrarAccionAdmin, logActividad } from '@/lib/actividad'
+import { validarBody, z, plan, fecha } from '@/lib/validacion'
+
+const Esquema = z.object({
+  accion: z.enum(['CAMBIO_PLAN', 'BAN', 'NOTA', 'CANCELAR_SUSCRIPCION']),
+  plan: plan.optional(),
+  esGratuita: z.boolean().optional(),
+  fechaExpiracion: fecha.nullable().optional().or(z.literal('')),
+  notas: z.string().max(2000).optional(),
+  baneado: z.boolean().optional(),
+  motivoBan: z.string().max(1000).optional(),
+})
 
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
   const session = await getServerSession(authOptions)
@@ -14,17 +24,18 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   const adminId = session.user.id
   const userId = params.id
 
-  const body = await req.json()
+  const v = await validarBody(req, Esquema)
+  if (!v.ok) return v.res
+  const body = v.data
   const { accion, plan, esGratuita, fechaExpiracion, notas, baneado, motivoBan } = body
 
   switch (accion) {
     case 'CAMBIO_PLAN': {
-      const validPlans: PlanSuscripcion[] = ['ROOKIE', 'AMATEUR', 'PRO', 'ELITE']
-      if (!validPlans.includes(plan)) return NextResponse.json({ error: 'Plan inválido' }, { status: 400 })
+      if (!plan) return NextResponse.json({ error: 'Plan inválido' }, { status: 400 })
       await darAccesoManual(
         adminId,
         userId,
-        plan as PlanSuscripcion,
+        plan,
         fechaExpiracion ? new Date(fechaExpiracion) : undefined,
         notas
       )

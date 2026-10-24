@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import './globals.css'
 import { Providers } from '@/components/layout/Providers'
 import { SplashScreen } from '@/components/SplashScreen'
+import { AvisoCookies } from '@/components/layout/AvisoCookies'
 
 export const metadata: Metadata = {
   title: { default: 'APEX SimRacing', template: '%s | APEX SimRacing' },
@@ -28,6 +29,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <SplashScreen>
           <Providers>{children}</Providers>
         </SplashScreen>
+        <AvisoCookies />
       </body>
     </html>
   )

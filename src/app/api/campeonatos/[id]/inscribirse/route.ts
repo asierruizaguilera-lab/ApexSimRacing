@@ -5,10 +5,12 @@ import { prisma } from '@/lib/prisma'
 import { sendEmail, emailInscripcionConfirmada } from '@/lib/email'
 import { planSuficiente, PLAN_LABELS } from '@/lib/utils'
 import { esMiembroEquipoFounder } from '@/lib/equipos'
+import { usuarioDebeVerificarEmail, RESPUESTA_EMAIL_NO_VERIFICADO } from '@/lib/tokensSeguridad'
 
 export async function POST(_: NextRequest, { params }: { params: { id: string } }) {
   const session = await getServerSession(authOptions)
   if (!session?.user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+  if (await usuarioDebeVerificarEmail(session.user.id)) return NextResponse.json(RESPUESTA_EMAIL_NO_VERIFICADO, { status: 403 })
 
   const camp = await prisma.campeonato.findUnique({
     where: { id: params.id },

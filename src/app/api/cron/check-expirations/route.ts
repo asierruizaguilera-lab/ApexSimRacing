@@ -3,15 +3,13 @@ import { prisma } from '@/lib/prisma'
 import { activarPlan } from '@/lib/suscripciones'
 import type { PlanSuscripcion } from '@prisma/client'
 import { logActividad } from '@/lib/actividad'
+import { rechazarCron } from '@/lib/cron'
 
 export const dynamic = 'force-dynamic'
 
 export async function GET(req: NextRequest) {
-  // Verificar secreto del cron
-  const secret = req.headers.get('x-cron-secret') || req.nextUrl.searchParams.get('secret')
-  if (process.env.CRON_SECRET && secret !== process.env.CRON_SECRET) {
-    return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
-  }
+  const rechazo = rechazarCron(req)
+  if (rechazo) return rechazo
 
   const now = new Date()
   let procesadas = 0

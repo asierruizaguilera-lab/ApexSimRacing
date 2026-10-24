@@ -3,19 +3,22 @@ import { getServerSession } from 'next-auth'
 import bcrypt from 'bcryptjs'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { validarBody, z, password } from '@/lib/validacion'
+
+const Esquema = z.object({
+  actual: z.string().min(1, 'Rellena todos los campos').max(200),
+  nueva: password,
+  confirmar: z.string().max(200),
+})
 
 export async function PATCH(req: NextRequest) {
   const session = await getServerSession(authOptions)
   if (!session?.user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
 
-  const { actual, nueva, confirmar } = await req.json()
+  const v = await validarBody(req, Esquema)
+  if (!v.ok) return v.res
+  const { actual, nueva, confirmar } = v.data
 
-  if (typeof actual !== 'string' || typeof nueva !== 'string' || typeof confirmar !== 'string' || !actual) {
-    return NextResponse.json({ error: 'Rellena todos los campos' }, { status: 400 })
-  }
-  if (nueva.length < 8) {
-    return NextResponse.json({ error: 'La nueva contraseña debe tener al menos 8 caracteres' }, { status: 400 })
-  }
   if (nueva !== confirmar) {
     return NextResponse.json({ error: 'Las nuevas contraseñas no coinciden' }, { status: 400 })
   }

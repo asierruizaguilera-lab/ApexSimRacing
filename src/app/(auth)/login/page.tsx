@@ -25,6 +25,8 @@ export default function LoginPage() {
       toast.success('¡Bienvenido de vuelta!')
       router.push('/dashboard')
       router.refresh()
+    } else if (result?.error === 'RATE_LIMIT') {
+      toast.error('Demasiados intentos fallidos. Espera 15 minutos o restablece tu contraseña.')
     } else {
       toast.error('Email o contraseña incorrectos')
     }
@@ -66,6 +68,12 @@ export default function LoginPage() {
               {showPwd ? <EyeOff size={16} /> : <Eye size={16} />}
             </button>
           </div>
+        </div>
+
+        <div className="text-right -mt-2">
+          <Link href="/recuperar" className="text-xs text-apex-muted hover:text-apex-red transition-colors">
+            ¿Olvidaste tu contraseña?
+          </Link>
         </div>
 
         <button

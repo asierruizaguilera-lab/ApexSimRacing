@@ -119,6 +119,12 @@ async function runUpdateAcademiaLinksIfRequested() {
   }
 }
 
+function cronHeaders() {
+  return process.env.CRON_SECRET ? { 'x-cron-secret': process.env.CRON_SECRET } : {}
+}
+
+avisarVariablesCriticas()
+
 const app = next({ dev, hostname, port })
 const handle = app.getRequestHandler()
 
@@ -197,8 +203,7 @@ async function registrarRespuesta(req, res, store) {
       userId = token?.id ?? null
     } catch {}
 
-    const xff = req.headers['x-forwarded-for']
-    const ip = (Array.isArray(xff) ? xff[0] : xff)?.split(',')[0]?.trim() || req.socket?.remoteAddress
+    const ip = ipCliente(req)
     const ua = req.headers['user-agent']
 
     await getPrisma().logActividad.create({
@@ -218,6 +223,175 @@ async function registrarRespuesta(req, res, store) {
   }
 }
 
+// ── Seguridad a nivel HTTP ─────────────────────────────────────────────────────────────────────
+
+// IP del cliente: cf-connecting-ip (Cloudflare, delante de Render) o la primera de x-forwarded-for
+function ipCliente(req) {
+  const cf = req.headers['cf-connecting-ip']
+  if (cf) return String(cf).trim()
+  const xff = req.headers['x-forwarded-for']
+  return (Array.isArray(xff) ? xff[0] : xff)?.split(',')[0]?.trim() || req.socket?.remoteAddress || '?'
+}
+
+function registrarSeguridad(req, estado, detalle, userId = null) {
+  try {
+    const ua = req.headers['user-agent']
+    getPrisma().logActividad.create({
+      data: {
+        tipo: 'SEGURIDAD', userId, ruta: (req.url || '').split('?')[0].slice(0, 300), metodo: req.method, estado,
+        ipHash: hashIp(ipCliente(req)), userAgent: ua ? String(ua).slice(0, 200) : null, detalle,
+      },
+    }).catch(() => {})
+  } catch {}
+}
+
+// Rate limit general de la API: 120 peticiones/min por IP (ventana fija, en memoria)
+const RATE_API_MAX = 120
+const RATE_API_VENTANA_MS = 60 * 1000
+const RATE_API_EXENTAS = ['/api/paypal/webhook', '/api/health', '/api/cron/']
+const rateApi = new Map()
+
+function excedeRateApi(req, ruta) {
+  if (!ruta.startsWith('/api/') || RATE_API_EXENTAS.some(r => ruta.startsWith(r))) return false
+  const ahora = Date.now()
+  if (rateApi.size > 20000) rateApi.forEach((c, k) => { if (c.reinicio <= ahora) rateApi.delete(k) })
+  const ip = ipCliente(req)
+  let c = rateApi.get(ip)
+  if (!c || c.reinicio <= ahora) {
+    c = { n: 0, reinicio: ahora + RATE_API_VENTANA_MS, avisado: false }
+    rateApi.set(ip, c)
+  }
+  c.n++
+  if (c.n <= RATE_API_MAX) return false
+  // Un solo log por IP y ventana, para no inundar la tabla durante un abuso
+  if (!c.avisado) { c.avisado = true; registrarSeguridad(req, 429, { motivo: 'rate_limit_api' }) }
+  return Math.ceil((c.reinicio - ahora) / 1000)
+}
+
+// Tamaño máximo del body en la API: 256 KB para JSON, 6 MB para subidas (avatar ≤5 MB, logos ≤2 MB).
+// Evita que un body enorme agote la memoria al parsearlo/validarlo (instancia de 512 MB).
+const MAX_BODY_JSON = 256 * 1024
+const MAX_BODY_MULTIPART = 6 * 1024 * 1024
+
+function cuerpoDemasiadoGrande(req, ruta) {
+  if (!ruta.startsWith('/api/')) return false
+  const largo = parseInt(req.headers['content-length'] || '0', 10)
+  if (!largo) return false
+  const multipart = String(req.headers['content-type'] || '').includes('multipart/form-data')
+  return largo > (multipart ? MAX_BODY_MULTIPART : MAX_BODY_JSON)
+}
+
+// Estado del usuario de la sesión (baneado, eliminado, restablecimiento de contraseña), con caché
+// corta para no consultar la BD en cada petición. src/lib/sesionCache.ts la invalida al banear/eliminar.
+const SESION_TTL_MS = 15 * 1000
+const SIETE_DIAS_MS = 7 * 24 * 60 * 60 * 1000
+const sesionCache = new Map()
+global.__apexSesionCache = sesionCache
+
+async function estadoUsuario(userId) {
+  const c = sesionCache.get(userId)
+  if (c && c.exp > Date.now()) return c.datos
+  const datos = await getPrisma().user.findUnique({
+    where: { id: userId },
+    select: { baneado: true, eliminadoEn: true, passwordCambiadoEn: true },
+  })
+  if (sesionCache.size > 5000) sesionCache.clear()
+  sesionCache.set(userId, { datos, exp: Date.now() + SESION_TTL_MS })
+  return datos
+}
+
+const COOKIE_SESION = /^(__Secure-)?next-auth\.session-token(\.\d+)?$/
+
+function borrarCookiesSesion(req, res) {
+  const cookies = parseCookies(req.headers.cookie)
+  const borrar = Object.keys(cookies).filter(k => COOKIE_SESION.test(k))
+    .map(k => `${k}=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; HttpOnly; SameSite=Lax${k.startsWith('__Secure-') ? '; Secure' : ''}`)
+  if (borrar.length) res.setHeader('Set-Cookie', borrar)
+}
+
+function esEstatico(ruta) {
+  return ruta.startsWith('/_next') || ruta.startsWith('/socket.io') || /\.[a-z0-9]{2,5}$/i.test(ruta)
+}
+
+// Comprueba en cada petición que la sesión sigue siendo válida. Devuelve true si ya respondió.
+async function comprobarSesion(req, res, ruta) {
+  if (esEstatico(ruta) || ruta === '/api/health') return false
+  // NextAuth necesita /api/auth/* (salvo /session, que renovaría una sesión inválida)
+  if (ruta.startsWith('/api/auth/') && ruta !== '/api/auth/session') return false
+  if (!/next-auth\.session-token/.test(req.headers.cookie || '')) return false
+
+  let token = null
+  try {
+    token = await getToken({
+      req: { headers: req.headers, cookies: parseCookies(req.headers.cookie) },
+      secret: process.env.NEXTAUTH_SECRET ?? process.env.SECRET,
+    })
+  } catch {}
+  if (!token?.id) return false
+
+  let usuario
+  try {
+    usuario = await estadoUsuario(token.id)
+  } catch (err) {
+    console.error('[Sesión] No se pudo comprobar el usuario:', err.message)
+    return false // si la BD falla no se expulsa a nadie: las rutas responderán con su propio error
+  }
+
+  const authTime = token.authTime || 0
+  const caducada = authTime && Date.now() - authTime > SIETE_DIAS_MS
+  const invalidada = usuario?.passwordCambiadoEn && authTime < new Date(usuario.passwordCambiadoEn).getTime()
+  if (!usuario || usuario.eliminadoEn || caducada || invalidada) {
+    borrarCookiesSesion(req, res)
+    if (ruta.startsWith('/api/')) {
+      res.statusCode = 401
+      res.setHeader('Content-Type', 'application/json')
+      res.end(JSON.stringify({ error: 'Sesión caducada. Vuelve a iniciar sesión.' }))
+    } else {
+      res.statusCode = 302
+      res.setHeader('Location', '/login')
+      res.end()
+    }
+    return true
+  }
+
+  if (usuario.baneado) {
+    if (ruta.startsWith('/api/')) {
+      res.statusCode = 403
+      res.setHeader('Content-Type', 'application/json')
+      res.end(JSON.stringify({ error: 'Tu cuenta está bloqueada', code: 'BANEADO' }))
+      return true
+    }
+    if (ruta !== '/bloqueado') {
+      res.statusCode = 302
+      res.setHeader('Location', '/bloqueado')
+      res.end()
+      return true
+    }
+  }
+  return false
+}
+
+// Aviso al arrancar si faltan variables críticas (no impide arrancar)
+function avisarVariablesCriticas() {
+  const prod = process.env.NODE_ENV === 'production'
+  const faltan = []
+  if (!process.env.DATABASE_URL) faltan.push('DATABASE_URL')
+  if (!process.env.NEXTAUTH_SECRET && !process.env.SECRET) faltan.push('NEXTAUTH_SECRET')
+  if (!process.env.NEXTAUTH_URL) faltan.push('NEXTAUTH_URL')
+  if (!process.env.CRON_SECRET) faltan.push('CRON_SECRET (los crons responderán 503)')
+  if (!process.env.LOG_SALT) faltan.push('LOG_SALT (el log de actividad no guardará ipHash)')
+  if (!process.env.RESEND_API_KEY) faltan.push('RESEND_API_KEY (sin emails: recuperación y verificación desactivadas)')
+  if (!process.env.PAYPAL_CLIENT_ID || !process.env.PAYPAL_CLIENT_SECRET) faltan.push('PAYPAL_CLIENT_ID / PAYPAL_CLIENT_SECRET')
+  if (!process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID) faltan.push('NEXT_PUBLIC_PAYPAL_CLIENT_ID')
+  if (prod && !process.env.PAYPAL_WEBHOOK_ID) faltan.push('PAYPAL_WEBHOOK_ID (en producción el webhook rechazará todos los eventos)')
+  for (const v of faltan) console.warn(`[BOOT] ⚠️  Falta variable: ${v}`)
+}
+
+const CANALES_PUBLICOS = ['GENERAL', 'RALLY', 'CIRCUITO', 'ANUNCIOS']
+function canalPublico(c) {
+  return CANALES_PUBLICOS.includes(c) ? c : 'GENERAL'
+}
+
 // Canal privado de una conversación 1 a 1: ids siempre ordenados para que ambos lados coincidan
 function canalDM(a, b) {
   return `dm:${[a, b].sort().join('-')}`
@@ -231,6 +405,24 @@ runMigrationSimuladorIfRequested()
   const httpServer = createServer(async (req, res) => {
     try {
       const parsedUrl = parse(req.url, true)
+      const ruta = parsedUrl.pathname || '/'
+
+      const espera = excedeRateApi(req, ruta)
+      if (espera) {
+        res.statusCode = 429
+        res.setHeader('Content-Type', 'application/json')
+        res.setHeader('Retry-After', String(espera))
+        res.end(JSON.stringify({ error: 'Demasiadas peticiones. Espera un momento.' }))
+        return
+      }
+      if (cuerpoDemasiadoGrande(req, ruta)) {
+        res.statusCode = 413
+        res.setHeader('Content-Type', 'application/json')
+        res.end(JSON.stringify({ error: 'Petición demasiado grande' }))
+        return
+      }
+      if (await comprobarSesion(req, res, ruta)) return
+
       const store = {}
       res.on('finish', () => { registrarRespuesta(req, res, store) })
       await actividadCtx.run(store, () => handle(req, res, parsedUrl))
@@ -247,6 +439,8 @@ runMigrationSimuladorIfRequested()
       methods: ['GET', 'POST'],
     },
     transports: ['websocket', 'polling'],
+    // Los eventos del cliente son pequeños (ids, nombre de canal): 16 KB es margen de sobra
+    maxHttpBufferSize: 16 * 1024,
   })
 
   // Exportar io para usarlo desde API routes via global
@@ -271,6 +465,20 @@ runMigrationSimuladorIfRequested()
 
   io.on('connection', (socket) => {
     console.log(`[Socket] Conectado: ${socket.id}`)
+
+    // Máximo 30 eventos cada 10 s por socket; quien lo supere se desconecta
+    let eventosVentana = 0
+    let finVentana = Date.now() + 10000
+    socket.use((_packet, next) => {
+      const ahora = Date.now()
+      if (ahora > finVentana) { eventosVentana = 0; finVentana = ahora + 10000 }
+      if (++eventosVentana > 30) {
+        console.warn(`[Socket] ${socket.id} excede el límite de eventos — desconectado`)
+        socket.disconnect(true)
+        return
+      }
+      next()
+    })
 
     // Sala personal: avisos de mensajes directos nuevos (badge de la sidebar, bandeja de entrada)
     if (socket.data.userId) socket.join(`user:${socket.data.userId}`)
@@ -312,23 +520,26 @@ runMigrationSimuladorIfRequested()
     })
 
     // Usuario se identifica al conectar
-    socket.on('user:join', ({ userId, username, canal }) => {
-      usuariosConectados.set(socket.id, { userId, username, canal: canal || 'GENERAL' })
-      socket.join(canal || 'GENERAL')
+    // Solo se puede entrar en los canales públicos del chat: las salas privadas (dm:*, equipo:*, user:*)
+    // tienen sus propios eventos con comprobación de identidad
+    socket.on('user:join', ({ username, canal } = {}) => {
+      const c = canalPublico(canal)
+      usuariosConectados.set(socket.id, { userId: socket.data.userId ?? null, username: String(username ?? '').slice(0, 30), canal: c })
+      socket.join(c)
 
       // Emitir lista actualizada de usuarios conectados
       const conectados = Array.from(usuariosConectados.values())
       io.emit('users:online', conectados.length)
-      console.log(`[Socket] ${username} se unió a #${canal}`)
     })
 
     // Cambiar de canal
-    socket.on('canal:join', ({ canal, prevCanal }) => {
-      if (prevCanal) socket.leave(prevCanal)
-      socket.join(canal)
+    socket.on('canal:join', ({ canal, prevCanal } = {}) => {
+      if (CANALES_PUBLICOS.includes(prevCanal)) socket.leave(prevCanal)
+      const c = canalPublico(canal)
+      socket.join(c)
       const userData = usuariosConectados.get(socket.id)
       if (userData) {
-        usuariosConectados.set(socket.id, { ...userData, canal })
+        usuariosConectados.set(socket.id, { ...userData, canal: c })
       }
     })
 
@@ -336,8 +547,9 @@ runMigrationSimuladorIfRequested()
     // aplica el anti-spam y los difunde con global.io. Así nadie puede saltarse el límite por socket.
 
     // Typing indicator
-    socket.on('chat:typing', ({ canal, username }) => {
-      socket.to(canal).emit('chat:typing', { username })
+    socket.on('chat:typing', ({ canal, username } = {}) => {
+      if (!socket.data.userId || !CANALES_PUBLICOS.includes(canal) || typeof username !== 'string') return
+      socket.to(canal).emit('chat:typing', { username: username.slice(0, 30) })
     })
 
     // Desconexión
@@ -357,8 +569,7 @@ runMigrationSimuladorIfRequested()
     console.log('[CRON] Sincronizando carreras desde Google Sheets...')
     try {
       const base = process.env.NEXTAUTH_URL || `http://localhost:${port}`
-      const secretQs = process.env.CRON_SECRET ? `?secret=${process.env.CRON_SECRET}` : ''
-      const res = await fetch(`${base}/api/cron/sync-sheet${secretQs}`)
+      const res = await fetch(`${base}/api/cron/sync-sheet`, { headers: cronHeaders() })
       const data = await res.json()
       console.log('[CRON] Resultado:', data)
     } catch (err) {
@@ -374,8 +585,7 @@ runMigrationSimuladorIfRequested()
     console.log('[CRON] Comprobando fin de temporada...')
     try {
       const base = process.env.NEXTAUTH_URL || `http://localhost:${port}`
-      const secretQs = process.env.CRON_SECRET ? `?secret=${process.env.CRON_SECRET}` : ''
-      const res = await fetch(`${base}/api/cron/temporadas${secretQs}`)
+      const res = await fetch(`${base}/api/cron/temporadas`, { headers: cronHeaders() })
       const data = await res.json()
       console.log('[CRON] Temporadas:', data)
     } catch (err) {
@@ -389,8 +599,7 @@ runMigrationSimuladorIfRequested()
   cron.schedule('30 4 * * *', async () => {
     try {
       const base = process.env.NEXTAUTH_URL || `http://localhost:${port}`
-      const secretQs = process.env.CRON_SECRET ? `?secret=${process.env.CRON_SECRET}` : ''
-      const res = await fetch(`${base}/api/cron/limpiar-actividad${secretQs}`)
+      const res = await fetch(`${base}/api/cron/limpiar-actividad`, { headers: cronHeaders() })
       const data = await res.json()
       console.log('[CRON] Limpieza actividad:', data)
     } catch (err) {

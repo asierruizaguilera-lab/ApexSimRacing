@@ -41,13 +41,13 @@ export function CambiarPassword() {
   const [visible, setVisible] = useState(false)
   const [saving, setSaving] = useState(false)
 
-  const cortaNueva = nueva.length > 0 && nueva.length < 8
+  const cortaNueva = nueva.length > 0 && nueva.length < 10
   const noCoinciden = confirmar.length > 0 && nueva !== confirmar
 
   async function submit(e: React.FormEvent) {
     e.preventDefault()
     if (!actual || !nueva || !confirmar) { toast.error('Rellena todos los campos'); return }
-    if (nueva.length < 8) { toast.error('La nueva contraseña debe tener al menos 8 caracteres'); return }
+    if (nueva.length < 10) { toast.error('La nueva contraseña debe tener al menos 10 caracteres'); return }
     if (nueva !== confirmar) { toast.error('Las nuevas contraseñas no coinciden'); return }
 
     setSaving(true)
@@ -81,7 +81,7 @@ export function CambiarPassword() {
 
       <CampoPassword label="Nueva contraseña" value={nueva} onChange={setNueva}
         autoComplete="new-password" visible={visible} onToggle={() => setVisible(v => !v)}
-        hint={<p className={cn('text-xs mt-1', cortaNueva ? 'text-red-400' : 'text-apex-muted')}>Mínimo 8 caracteres</p>} />
+        hint={<p className={cn('text-xs mt-1', cortaNueva ? 'text-red-400' : 'text-apex-muted')}>Mínimo 10 caracteres</p>} />
 
       <CampoPassword label="Confirmar nueva contraseña" value={confirmar} onChange={setConfirmar}
         autoComplete="new-password" visible={visible} onToggle={() => setVisible(v => !v)}

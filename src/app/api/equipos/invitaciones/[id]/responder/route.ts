@@ -3,6 +3,9 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { MAX_MIEMBROS_EQUIPO, emitir } from '@/lib/equipos'
+import { validarBody, z } from '@/lib/validacion'
+
+const Esquema = z.object({ aceptar: z.boolean() })
 
 // Aceptar o rechazar una invitación. Body: { aceptar: boolean }
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
@@ -17,7 +20,9 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   if (!invitacion || invitacion.invitadoId !== userId) return NextResponse.json({ error: 'Invitación no encontrada' }, { status: 404 })
   if (invitacion.estado !== 'PENDIENTE') return NextResponse.json({ error: 'Esta invitación ya fue respondida' }, { status: 409 })
 
-  const { aceptar } = await req.json()
+  const v = await validarBody(req, Esquema)
+  if (!v.ok) return v.res
+  const { aceptar } = v.data
 
   if (!aceptar) {
     await prisma.invitacionEquipo.update({ where: { id: invitacion.id }, data: { estado: 'RECHAZADA' } })

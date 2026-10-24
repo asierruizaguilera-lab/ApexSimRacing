@@ -6,6 +6,7 @@ import { Sidebar } from '@/components/layout/Sidebar'
 import { Header } from '@/components/layout/Header'
 import { PatrocinadoresTopBar } from '@/components/layout/PatrocinadoresTopBar'
 import { RastreadorVistas } from '@/components/layout/RastreadorVistas'
+import { AvisoVerificarEmail } from '@/components/layout/AvisoVerificarEmail'
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const session = await getServerSession(authOptions)
@@ -33,6 +34,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
         style={{ paddingTop: 'calc(var(--topbar-height, 0px) + 3.5rem)' }}
       >
         <div className="p-4 lg:p-6 max-w-7xl mx-auto animate-fade-in">
+          <AvisoVerificarEmail />
           {children}
         </div>
       </main>

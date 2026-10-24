@@ -4,6 +4,13 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { colorValido, esEliteActivo, COLOR_EQUIPO_DEFECTO } from '@/lib/equipos'
 import { etiquetaTemporada, getTemporadaActiva, mesYAnio, rankingEquiposMes } from '@/lib/temporadas'
+import { validarBody, z } from '@/lib/validacion'
+
+const Esquema = z.object({
+  nombre: z.string().max(100),
+  descripcion: z.string().max(2000).nullable().optional(),
+  colorPrimario: z.string().max(20).optional(),
+})
 
 export const dynamic = 'force-dynamic'
 
@@ -32,7 +39,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Solo los pilotos Elite pueden crear un equipo', code: 'SOLO_ELITE' }, { status: 403 })
   }
 
-  const body = await req.json()
+  const v = await validarBody(req, Esquema)
+  if (!v.ok) return v.res
+  const body = v.data
   const nombre = typeof body.nombre === 'string' ? body.nombre.trim() : ''
   const descripcion = typeof body.descripcion === 'string' ? body.descripcion.trim().slice(0, 500) || null : null
   const colorPrimario = colorValido(body.colorPrimario) ? body.colorPrimario : COLOR_EQUIPO_DEFECTO

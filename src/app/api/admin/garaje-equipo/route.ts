@@ -3,6 +3,15 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { urlOpcional } from '@/lib/equipos'
+import { validarBody, z } from '@/lib/validacion'
+
+const CocheEquipo = z.object({
+  nombre: z.string().max(120).optional(),
+  descripcion: z.string().max(2000).nullable().optional(),
+  imagenBase: z.string().max(2000).nullable().optional(),
+  linkDescarga: z.string().max(2000).nullable().optional(),
+  activo: z.boolean().optional(),
+})
 
 export const dynamic = 'force-dynamic'
 
@@ -25,7 +34,9 @@ export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions)
   if (session?.user?.role !== 'ADMIN') return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
 
-  const body = await req.json()
+  const v = await validarBody(req, CocheEquipo)
+  if (!v.ok) return v.res
+  const body = v.data
   const nombre = typeof body.nombre === 'string' ? body.nombre.trim() : ''
   if (!nombre) return NextResponse.json({ error: 'El nombre es obligatorio' }, { status: 400 })
 

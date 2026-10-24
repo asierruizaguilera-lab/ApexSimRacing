@@ -6,6 +6,15 @@ import { banearUsuario } from '@/lib/suscripciones'
 import { recalcularStatsPiloto } from '@/lib/statsPiloto'
 import type { EstadoQueja, TipoSancion } from '@prisma/client'
 import { registrarAccionAdmin } from '@/lib/actividad'
+import { validarBody, z, numeroFlexible } from '@/lib/validacion'
+
+const Esquema = z.object({
+  estado: z.enum(['ABIERTA', 'EN_REVISION', 'RESUELTA', 'ARCHIVADA']).optional(),
+  resolucion: z.string().max(5000).optional(),
+  sancion: z.enum(['ADVERTENCIA', 'PENALIZACION_PUNTOS', 'EXCLUSION_CARRERA', 'SUSPENSION_TEMPORAL', 'BAN_PERMANENTE']).nullable().optional(),
+  puntosPenalizados: numeroFlexible.nullable().optional(),
+  diasSuspension: numeroFlexible.nullable().optional(),
+})
 
 const ESTADOS: EstadoQueja[] = ['ABIERTA', 'EN_REVISION', 'RESUELTA', 'ARCHIVADA']
 const SANCIONES: TipoSancion[] = ['ADVERTENCIA', 'PENALIZACION_PUNTOS', 'EXCLUSION_CARRERA', 'SUSPENSION_TEMPORAL', 'BAN_PERMANENTE']
@@ -17,7 +26,9 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   const existing = await prisma.queja.findUnique({ where: { id: params.id } })
   if (!existing) return NextResponse.json({ error: 'No encontrada' }, { status: 404 })
 
-  const { estado, resolucion, sancion, puntosPenalizados, diasSuspension } = await req.json()
+  const v = await validarBody(req, Esquema)
+  if (!v.ok) return v.res
+  const { estado, resolucion, sancion, puntosPenalizados, diasSuspension } = v.data
 
   if (estado && !ESTADOS.includes(estado)) return NextResponse.json({ error: 'Estado inválido' }, { status: 400 })
   if (sancion && !SANCIONES.includes(sancion)) return NextResponse.json({ error: 'Sanción inválida' }, { status: 400 })

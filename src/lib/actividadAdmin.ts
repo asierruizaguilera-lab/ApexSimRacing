@@ -1,4 +1,6 @@
+import { TipoActividad as TipoActividadEnum } from '@prisma/client'
 import type { Prisma, TipoActividad } from '@prisma/client'
+import { z } from './validacion'
 import { prisma } from './prisma'
 
 export const TIPOS_ACTIVIDAD: TipoActividad[] = [
@@ -6,14 +8,22 @@ export const TIPOS_ACTIVIDAD: TipoActividad[] = [
   'PAGO', 'CAMBIO_PLAN', 'ADMIN', 'SEGURIDAD', 'ERROR_API',
 ]
 
+const Filtros = z.object({
+  tipo: z.nativeEnum(TipoActividadEnum).optional().catch(undefined),
+  usuario: z.string().max(100).optional().catch(undefined),
+  desde: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().catch(undefined),
+  hasta: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().catch(undefined),
+})
+
 /** Filtros de /admin/actividad (tipo, usuario por nombre/email, rango de fechas) → where de Prisma. */
 export async function whereActividad(params: URLSearchParams): Promise<Prisma.LogActividadWhereInput> {
   const where: Prisma.LogActividadWhereInput = {}
+  // .catch(undefined): un filtro mal formado se ignora en vez de romper la página
+  const f = Filtros.parse(Object.fromEntries(params))
 
-  const tipo = params.get('tipo')
-  if (tipo && (TIPOS_ACTIVIDAD as string[]).includes(tipo)) where.tipo = tipo as TipoActividad
+  if (f.tipo) where.tipo = f.tipo
 
-  const usuario = params.get('usuario')?.trim()
+  const usuario = f.usuario?.trim()
   if (usuario) {
     const users = await prisma.user.findMany({
       where: { OR: [{ username: { contains: usuario, mode: 'insensitive' } }, { email: { contains: usuario, mode: 'insensitive' } }] },
@@ -24,8 +34,7 @@ export async function whereActividad(params: URLSearchParams): Promise<Prisma.Lo
     where.userId = { in: [...users.map(u => u.id), usuario] }
   }
 
-  const desde = params.get('desde')
-  const hasta = params.get('hasta')
+  const { desde, hasta } = f
   const creadoEn: Prisma.DateTimeFilter = {}
   if (desde && !isNaN(Date.parse(desde))) creadoEn.gte = new Date(`${desde}T00:00:00`)
   if (hasta && !isNaN(Date.parse(hasta))) creadoEn.lte = new Date(`${hasta}T23:59:59.999`)

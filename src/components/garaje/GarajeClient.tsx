@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { DISCIPLINA_COLORS, DISCIPLINA_LABELS, PLAN_LABELS, PLAN_COLORS, formatFechaHora, cn } from '@/lib/utils'
+import { DISCIPLINA_COLORS, DISCIPLINA_LABELS, PLAN_LABELS, PLAN_COLORS, formatFechaHora, cn, hrefSeguro } from '@/lib/utils'
 import { Car, Lock, Star, Download, Flag, Clock, X, FolderOpen } from 'lucide-react'
 
 interface Coche {
@@ -98,7 +98,7 @@ function CocheCard({ coche, onOpen }: { coche: Coche; onOpen: () => void }) {
         <div className="mt-auto">
           {coche.linkDescarga ? (
             <a
-              href={coche.linkDescarga}
+              href={hrefSeguro(coche.linkDescarga)}
               target="_blank"
               rel="noopener noreferrer"
               onClick={e => e.stopPropagation()}
@@ -173,7 +173,7 @@ function CocheModal({ coche, onClose }: { coche: Coche; onClose: () => void }) {
 
           {coche.linkDescarga ? (
             <a
-              href={coche.linkDescarga}
+              href={hrefSeguro(coche.linkDescarga)}
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center justify-center gap-2 w-full px-6 py-3.5 bg-apex-red hover:bg-apex-red-dark text-white rounded-xl font-bold transition-colors"
@@ -212,13 +212,13 @@ function ModsCarrerasSection({ carreras }: { carreras: CarreraMods[] }) {
             )}
             <div className="flex flex-wrap gap-2">
               {c.linkModCircuito && (
-                <a href={c.linkModCircuito} target="_blank" rel="noopener noreferrer"
+                <a href={hrefSeguro(c.linkModCircuito)} target="_blank" rel="noopener noreferrer"
                   className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 bg-apex-surface border border-apex-border rounded-lg hover:border-apex-red/30 transition-colors">
                   <Download size={12} />Mod circuito
                 </a>
               )}
               {c.linkModCoche && (
-                <a href={c.linkModCoche} target="_blank" rel="noopener noreferrer"
+                <a href={hrefSeguro(c.linkModCoche)} target="_blank" rel="noopener noreferrer"
                   className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 bg-apex-surface border border-apex-border rounded-lg hover:border-apex-red/30 transition-colors">
                   <Download size={12} />Mod coche
                 </a>
