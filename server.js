@@ -123,6 +123,34 @@ function cronHeaders() {
   return process.env.CRON_SECRET ? { 'x-cron-secret': process.env.CRON_SECRET } : {}
 }
 
+// Flags de funcionalidades (por defecto apagadas). Se leen en cada uso, así que basta con cambiar
+// la variable de entorno y reiniciar. Con la flag apagada, sus páginas y su API responden 404.
+function flagActiva(nombre) {
+  return process.env[nombre] === 'true'
+}
+const RUTAS_EQUIPOS = [
+  '/equipos', '/api/equipos',
+  '/admin/equipos', '/api/admin/equipos',
+  '/admin/temporadas', '/api/admin/temporadas',
+  '/admin/garaje-equipo', '/api/admin/garaje-equipo',
+  '/admin/propuestas', '/api/admin/inscripciones-equipo',
+  '/api/temporadas',
+]
+const RUTAS_DM = ['/mensajes', '/api/mensajes']
+
+function coincidePrefijo(ruta, prefijos) {
+  return prefijos.some(p => ruta === p || ruta.startsWith(p + '/'))
+}
+
+function rutaDesactivada(ruta) {
+  if (!flagActiva('FEATURE_EQUIPOS')) {
+    if (coincidePrefijo(ruta, RUTAS_EQUIPOS)) return true
+    if (/^\/api\/campeonatos\/[^/]+\/inscribir-equipo\/?$/.test(ruta)) return true
+  }
+  if (!flagActiva('FEATURE_DM') && coincidePrefijo(ruta, RUTAS_DM)) return true
+  return false
+}
+
 avisarVariablesCriticas()
 
 const app = next({ dev, hostname, port })
@@ -422,6 +450,16 @@ runMigrationSimuladorIfRequested()
         return
       }
       if (await comprobarSesion(req, res, ruta)) return
+      if (rutaDesactivada(ruta)) {
+        if (ruta.startsWith('/api/')) {
+          res.statusCode = 404
+          res.setHeader('Content-Type', 'application/json')
+          res.end(JSON.stringify({ error: 'No encontrado' }))
+        } else {
+          await app.render404(req, res, parsedUrl)
+        }
+        return
+      }
 
       const store = {}
       res.on('finish', () => { registrarRespuesta(req, res, store) })
@@ -485,6 +523,7 @@ runMigrationSimuladorIfRequested()
 
     // Chat de equipo: solo miembros del equipo (o admins, para moderar)
     socket.on('equipo:join', async ({ equipoId } = {}, ack) => {
+      if (!flagActiva('FEATURE_EQUIPOS')) { if (typeof ack === 'function') ack({ ok: false }); return }
       const userId = socket.data.userId
       let ok = false
       try {
@@ -503,6 +542,7 @@ runMigrationSimuladorIfRequested()
     })
 
     socket.on('equipo:leave', ({ equipoId } = {}) => {
+      if (!flagActiva('FEATURE_EQUIPOS')) return
       if (typeof equipoId === 'string') socket.leave(`equipo:${equipoId}`)
     })
 
@@ -510,11 +550,13 @@ runMigrationSimuladorIfRequested()
     // unirse a una conversación de la que no forma parte. El envío va por POST /api/mensajes/[userId]
     // (guarda en BD, aplica anti-spam y difunde con global.io), igual que el chat general.
     socket.on('dm:join', ({ otroUserId } = {}) => {
+      if (!flagActiva('FEATURE_DM')) return
       const userId = socket.data.userId
       if (userId && typeof otroUserId === 'string') socket.join(canalDM(userId, otroUserId))
     })
 
     socket.on('dm:leave', ({ otroUserId } = {}) => {
+      if (!flagActiva('FEATURE_DM')) return
       const userId = socket.data.userId
       if (userId && typeof otroUserId === 'string') socket.leave(canalDM(userId, otroUserId))
     })
