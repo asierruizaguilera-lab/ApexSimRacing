@@ -5,6 +5,7 @@ import { notFound } from 'next/navigation'
 import { getSuscripcionActiva } from '@/lib/suscripciones'
 import { CampeonatoDetalle } from '@/components/campeonatos/CampeonatoDetalle'
 import { getMembresia, esMiembroEquipoFounder } from '@/lib/equipos'
+import { featureEquipos } from '@/lib/features'
 
 export default async function CampeonatoPage({ params }: { params: { id: string } }) {
   const session = await getServerSession(authOptions)
@@ -33,8 +34,9 @@ export default async function CampeonatoPage({ params }: { params: { id: string 
 
   if (!campeonato) notFound()
   const esEquipos = campeonato.esCampeonatoEquipos
-  const membresia = esEquipos && session?.user?.id ? await getMembresia(session.user.id) : null
-  const bloqueoEquipoFounder = !esEquipos && !!session?.user?.id && await esMiembroEquipoFounder(session.user.id)
+  const equiposOn = featureEquipos()
+  const membresia = equiposOn && esEquipos && session?.user?.id ? await getMembresia(session.user.id) : null
+  const bloqueoEquipoFounder = equiposOn && !esEquipos && !!session?.user?.id && await esMiembroEquipoFounder(session.user.id)
 
   // Clasificación del campeonato
   const pilotos = campeonato.inscripciones.map(i => i.user)

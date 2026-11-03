@@ -5,6 +5,7 @@ import { prisma } from '@/lib/prisma'
 import { sendEmail, emailInscripcionConfirmada } from '@/lib/email'
 import { planSuficiente, PLAN_LABELS } from '@/lib/utils'
 import { esMiembroEquipoFounder } from '@/lib/equipos'
+import { featureEquipos } from '@/lib/features'
 import { usuarioDebeVerificarEmail, RESPUESTA_EMAIL_NO_VERIFICADO } from '@/lib/tokensSeguridad'
 
 export async function POST(_: NextRequest, { params }: { params: { id: string } }) {
@@ -22,7 +23,8 @@ export async function POST(_: NextRequest, { params }: { params: { id: string } 
     return NextResponse.json({ error: 'Este campeonato es por equipos: solo el líder puede inscribir a su equipo', code: 'SOLO_EQUIPOS' }, { status: 400 })
   }
 
-  if (await esMiembroEquipoFounder(session.user.id)) {
+  // Con FEATURE_EQUIPOS apagada no hay campeonatos de equipos a los que remitir: no se bloquea
+  if (featureEquipos() && await esMiembroEquipoFounder(session.user.id)) {
     return NextResponse.json({
       error: 'Los miembros de un Equipo Founder solo pueden competir en campeonatos de equipos.',
       code: 'EQUIPO_FOUNDER',

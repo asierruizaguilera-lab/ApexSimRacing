@@ -46,13 +46,19 @@ const adminItems = [
   { href: '/admin/actividad', icon: Activity, label: 'Actividad' },
 ]
 
-export function Sidebar() {
+// Rutas que dependen de una flag de funcionalidad (FEATURE_EQUIPOS / FEATURE_DM)
+const RUTAS_EQUIPOS = ['/equipos', '/admin/equipos', '/admin/temporadas', '/admin/garaje-equipo', '/admin/propuestas']
+const RUTAS_DM = ['/mensajes']
+
+export function Sidebar({ equipos = false, dm = false }: { equipos?: boolean; dm?: boolean }) {
   const pathname = usePathname()
   const { data: session } = useSession()
   const [mobileOpen, setMobileOpen] = useState(false)
   const [sidebarSponsors, setSidebarSponsors] = useState<Patrocinador[]>([])
   const [badges, setBadges] = useState<Record<string, number>>({})
   const isAdmin = session?.user?.role === 'ADMIN'
+  const visible = (item: { href: string }) =>
+    (equipos || !RUTAS_EQUIPOS.includes(item.href)) && (dm || !RUTAS_DM.includes(item.href))
 
   useEffect(() => {
     fetch('/api/patrocinadores?ubicacion=SIDEBAR')
@@ -66,11 +72,11 @@ export function Sidebar() {
     fetchBadges()
     const interval = setInterval(fetchBadges, 30000)
     return () => clearInterval(interval)
-  }, [session, isAdmin])
+  }, [session, isAdmin, equipos, dm])
 
   // Mensajes directos sin leer: en tiempo real por socket, además del sondeo cada 30 s
   useEffect(() => {
-    if (!session?.user) return
+    if (!session?.user || !dm) return
     const s = getSocket()
     const refrescar = () => { fetchNoLeidos() }
     s.on('dm:notify', refrescar)
@@ -81,9 +87,10 @@ export function Sidebar() {
       s.off('dm:leidos', refrescar)
       window.removeEventListener('mensajes:leidos', refrescar)
     }
-  }, [session])
+  }, [session, dm])
 
   async function fetchNoLeidos() {
+    if (!dm) return
     try {
       const res = await fetch('/api/mensajes/no-leidos')
       if (res.ok) {
@@ -111,7 +118,7 @@ export function Sidebar() {
           setBadges(prev => ({ ...prev, '/admin/incidencias': data.length }))
         }
       } catch {}
-      try {
+      if (equipos) try {
         const res = await fetch('/api/admin/equipos/propuestas?estado=PENDIENTE')
         if (res.ok) {
           const data = await res.json()
@@ -166,7 +173,7 @@ export function Sidebar() {
 
       {/* Nav */}
       <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
-        {navItems.map(item => <NavLink key={item.href} {...item} />)}
+        {navItems.filter(visible).map(item => <NavLink key={item.href} {...item} />)}
 
         {isAdmin && (
           <>
@@ -175,7 +182,7 @@ export function Sidebar() {
                 Administración
               </span>
             </div>
-            {adminItems.map(item => <NavLink key={item.href} {...item} />)}
+            {adminItems.filter(visible).map(item => <NavLink key={item.href} {...item} />)}
           </>
         )}
       </nav>

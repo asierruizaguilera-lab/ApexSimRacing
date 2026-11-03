@@ -10,6 +10,7 @@ import { resumenIniciacionAdmin } from '@/lib/iniciacion'
 import { AdminIniciacionPanel } from '@/components/admin/AdminIniciacionPanel'
 import { AdminTemporadaGratuitaToggle } from '@/components/admin/AdminTemporadaGratuitaToggle'
 import { getTemporadaGratuitaActiva } from '@/lib/config'
+import { featureEquipos } from '@/lib/features'
 
 export const metadata = { title: 'Panel Admin' }
 
@@ -18,10 +19,11 @@ export default async function AdminPage() {
   if (session?.user?.role !== 'ADMIN') redirect('/dashboard')
 
   const hoy = mesYAnio()
+  const equipos = featureEquipos()
   const [equiposActivos, temporadaActiva, rankingMes, iniciaciones, temporadaGratuitaActiva] = await Promise.all([
-    prisma.equipo.count({ where: { activo: true } }),
-    getTemporadaActiva(),
-    rankingEquiposMes(hoy.mes, hoy.anio),
+    equipos ? prisma.equipo.count({ where: { activo: true } }) : 0,
+    equipos ? getTemporadaActiva() : null,
+    equipos ? rankingEquiposMes(hoy.mes, hoy.anio) : [],
     resumenIniciacionAdmin(),
     getTemporadaGratuitaActiva(),
   ])
@@ -95,6 +97,7 @@ export default async function AdminPage() {
       <AdminIniciacionPanel iniciaciones={iniciaciones} />
 
       {/* Liga por equipos */}
+      {equipos && (
       <div className="grid sm:grid-cols-3 gap-4">
         <Link href="/admin/equipos" className="bg-apex-card border border-apex-border rounded-xl p-5 hover:border-apex-red/30 transition-all">
           <div className="text-apex-muted text-sm flex items-center gap-2"><Shield size={15} className="text-cyan-400" />Equipos activos</div>
@@ -119,6 +122,7 @@ export default async function AdminPage() {
           </div>
         </Link>
       </div>
+      )}
 
       <div className="grid lg:grid-cols-2 gap-6">
         {/* Gestión Campeonatos */}

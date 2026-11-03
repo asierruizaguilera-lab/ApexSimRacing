@@ -4,12 +4,13 @@ import { authOptions } from '@/lib/auth'
 import { getSuscripcionActiva } from '@/lib/suscripciones'
 import { CampeonatosClient } from '@/components/campeonatos/CampeonatosClient'
 import { getMembresia } from '@/lib/equipos'
+import { featureEquipos } from '@/lib/features'
 
 export const metadata = { title: 'Campeonatos' }
 
 export default async function CampeonatosPage() {
   const session = await getServerSession(authOptions)
-  const membresia = session?.user?.id ? await getMembresia(session.user.id) : null
+  const membresia = featureEquipos() && session?.user?.id ? await getMembresia(session.user.id) : null
   const miEquipoId = membresia?.equipoId
 
   const [campeonatos, patrocinadores, suscripcion] = await Promise.all([

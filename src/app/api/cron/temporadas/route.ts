@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { cerrarTemporadaSiTerminada } from '@/lib/temporadas'
 import { cerrarVentanasExpiradas } from '@/lib/iniciacion'
 import { rechazarCron } from '@/lib/cron'
+import { featureEquipos } from '@/lib/features'
 
 export const dynamic = 'force-dynamic'
 
@@ -11,7 +12,8 @@ export async function GET(req: NextRequest) {
   const rechazo = rechazarCron(req)
   if (rechazo) return rechazo
 
-  const resultado = await cerrarTemporadaSiTerminada()
+  // Con FEATURE_EQUIPOS apagada no se cierran temporadas; las ventanas Founder siguen cerrándose
+  const resultado = featureEquipos() ? await cerrarTemporadaSiTerminada() : { omitido: 'FEATURE_EQUIPOS desactivada' }
   const ventanas = await cerrarVentanasExpiradas().catch(err => {
     console.error('[CRON] Error cerrando ventanas Founder:', err)
     return { ventanasCerradas: [] as string[], error: true }

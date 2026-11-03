@@ -5,6 +5,7 @@ import { HeroBanner } from '@/components/dashboard/HeroBanner'
 import { ActivityFeed } from '@/components/dashboard/ActivityFeed'
 import { EquipoDelMes } from '@/components/dashboard/EquipoDelMes'
 import { equipoGanadorMes, mesYAnio, nombreMes } from '@/lib/temporadas'
+import { featureEquipos } from '@/lib/features'
 import { formatFechaHora, DISCIPLINA_LABELS, DISCIPLINA_COLORS, cn } from '@/lib/utils'
 import Link from 'next/link'
 import { Trophy, Users, Flag } from 'lucide-react'
@@ -42,7 +43,7 @@ export default async function DashboardPage() {
       },
     }),
     prisma.user.count({ where: { role: 'PILOTO' } }),
-    equipoGanadorMes(mesAnterior.mes, mesAnterior.anio),
+    featureEquipos() ? equipoGanadorMes(mesAnterior.mes, mesAnterior.anio) : null,
   ])
 
   return (

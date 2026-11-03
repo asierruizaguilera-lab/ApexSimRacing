@@ -7,6 +7,7 @@ import { Header } from '@/components/layout/Header'
 import { PatrocinadoresTopBar } from '@/components/layout/PatrocinadoresTopBar'
 import { RastreadorVistas } from '@/components/layout/RastreadorVistas'
 import { AvisoVerificarEmail } from '@/components/layout/AvisoVerificarEmail'
+import { featureDM, featureEquipos } from '@/lib/features'
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const session = await getServerSession(authOptions)
@@ -27,7 +28,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
     >
       <RastreadorVistas />
       <PatrocinadoresTopBar patrocinadores={patrocinadores} />
-      <Sidebar />
+      <Sidebar equipos={featureEquipos()} dm={featureDM()} />
       <Header />
       <main
         className="lg:ml-56 min-h-screen"
