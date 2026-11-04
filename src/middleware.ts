@@ -5,7 +5,7 @@ import { NextResponse } from 'next/server'
 const PUBLIC_PATHS = [
   '/', '/login', '/register', '/registro', '/bloqueado',
   '/recuperar', '/restablecer', '/verificar-email', '/privacidad', '/terminos', '/cookies',
-  '/api/health',
+  '/api/health', '/api/unsubscribe',
 ]
 const PUBLIC_PREFIXES = ['/api/auth', '/api/paypal', '/api/cron', '/api/patrocinadores', '/api/referidos/validar', '/_next', '/favicon']
 
