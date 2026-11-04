@@ -140,6 +140,11 @@ model User {
   // Al restablecer la contraseña por email se invalidan las sesiones iniciadas antes de esta fecha
   passwordCambiadoEn DateTime?
 
+  // Emails: consentimiento comercial (casilla sin marcar en el registro) y baja global
+  marketingConsent    Boolean   @default(false)
+  marketingConsentAt  DateTime?
+  emailUnsubscribedAt DateTime? // baja: se respeta en SERVICIO y COMERCIAL, nunca en TRANSACCIONAL
+
   accounts            Account[]
   sessions            Session[]
   inscripciones       Inscripcion[]
@@ -172,6 +177,7 @@ model User {
   comisionesGeneradas   ComisionReferido[]    @relation("ComisionesReferidor")
   liquidacionesReferido LiquidacionReferido[] @relation("LiquidacionesReferidor")
   liquidacionesHechas   LiquidacionReferido[] @relation("LiquidacionesAdmin")
+  emailLogs             EmailLog[]
 
   @@map("users")
 }
@@ -879,4 +885,34 @@ model TokenSeguridad {
   @@index([tokenHash])
   @@index([userId, tipo])
   @@map("tokens_seguridad")
+}
+
+// Registro de emails: garantiza que cada (usuario, tipo, referencia) se envía una sola vez.
+// En EMAIL_DRY_RUN=true se guarda como SIMULADO sin enviar nada.
+enum TipoEmail {
+  TRANSACCIONAL // confirmación de inscripción y de pago: se envía siempre
+  SERVICIO // avisos de ronda y resultados: salvo baja
+  COMERCIAL // ventana Founder: solo con marketingConsent y sin baja
+}
+
+enum EstadoEmail {
+  ENVIADO
+  SIMULADO
+  FALLIDO
+  OMITIDO // no se envía por consentimiento o baja
+}
+
+model EmailLog {
+  id         String      @id @default(cuid())
+  userId     String
+  tipo       TipoEmail
+  referencia String // p. ej. "aviso24h:ronda3:carrera", "pago:I-XXXX"
+  estado     EstadoEmail
+  detalle    String?     @db.VarChar(300) // motivo de fallo u omisión; nunca direcciones ni claves
+  createdAt  DateTime    @default(now())
+  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, tipo, referencia])
+  @@index([createdAt])
+  @@map("email_log")
 }
