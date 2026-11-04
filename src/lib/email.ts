@@ -4,16 +4,23 @@ interface EmailPayload {
   html: string
 }
 
+// Emails de seguridad y legado (recuperar contraseña, verificar email, avisos existentes).
+// NO respetan EMAIL_DRY_RUN: si no salieran, nadie podría recuperar su cuenta.
+// EMAIL_TEST_TO solo se aplica fuera de producción.
+// Si EMAIL_PROVIDER=gmail pero faltan credenciales de Gmail, se usa Resend como antes.
 export async function sendEmail({ to, subject, html }: EmailPayload): Promise<boolean> {
   try {
     const { mailConfig } = await import('./mail/config')
     const { enviarCrudo } = await import('./mail/transporte')
     const cfg = mailConfig()
-    if (cfg.dryRun) {
-      console.warn(`[Email] DRY_RUN — no se envía: ${subject}`)
-      return false
+    let proveedor = cfg.provider
+    if (proveedor === 'gmail' && (!cfg.gmailUser || !cfg.gmailAppPassword)) {
+      console.warn('[Email] Faltan GMAIL_USER o GMAIL_APP_PASSWORD: se usa Resend como respaldo')
+      proveedor = 'resend'
     }
-    const result = await enviarCrudo({ to: cfg.testTo || to, subject: cfg.testTo ? `[TEST] ${subject}` : subject, html })
+    const testTo = process.env.NODE_ENV !== 'production' ? cfg.testTo : undefined
+    const result = await enviarCrudo({ to: testTo || to, subject: testTo ? `[TEST] ${subject}` : subject, html }, proveedor)
+    if (result.estado !== 'ENVIADO') console.warn(`[Email] No se envía (${result.motivo || result.estado}): ${subject}`)
     return result.estado === 'ENVIADO'
   } catch {
     const { maskEmail } = await import('./mail/mask')

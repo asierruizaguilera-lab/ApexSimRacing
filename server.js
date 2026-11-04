@@ -408,11 +408,13 @@ function avisarVariablesCriticas() {
   if (!process.env.NEXTAUTH_URL) faltan.push('NEXTAUTH_URL')
   if (!process.env.CRON_SECRET) faltan.push('CRON_SECRET (los crons responderán 503)')
   if (!process.env.LOG_SALT) faltan.push('LOG_SALT (el log de actividad no guardará ipHash)')
-  if (!process.env.RESEND_API_KEY) faltan.push('RESEND_API_KEY (sin emails: recuperación y verificación desactivadas)')
+  if (!process.env.RESEND_API_KEY && !(process.env.GMAIL_USER && process.env.GMAIL_APP_PASSWORD)) faltan.push('GMAIL_USER + GMAIL_APP_PASSWORD o RESEND_API_KEY (sin emails: recuperación y verificación desactivadas)')
   if (!process.env.PAYPAL_CLIENT_ID || !process.env.PAYPAL_CLIENT_SECRET) faltan.push('PAYPAL_CLIENT_ID / PAYPAL_CLIENT_SECRET')
   if (!process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID) faltan.push('NEXT_PUBLIC_PAYPAL_CLIENT_ID')
   if (prod && !process.env.PAYPAL_WEBHOOK_ID) faltan.push('PAYPAL_WEBHOOK_ID (en producción el webhook rechazará todos los eventos)')
   for (const v of faltan) console.warn(`[BOOT] ⚠️  Falta variable: ${v}`)
+  if (prod && process.env.EMAIL_TEST_TO) console.warn('[BOOT] ⚠️  EMAIL_TEST_TO está definida en producción: los emails de sendMail van SOLO a la dirección de prueba')
+  if (prod && process.env.EMAIL_DRY_RUN !== 'false') console.warn('[BOOT] ⚠️  EMAIL_DRY_RUN activo en producción (por defecto true): avisos, confirmaciones y Founder NO se envían')
 }
 
 const CANALES_PUBLICOS = ['GENERAL', 'RALLY', 'CIRCUITO', 'ANUNCIOS']
