@@ -8,3 +8,14 @@ dist/
 *.log
 .DS_Store
 Thumbs.db
+
+# Migración Render -> Neon (credenciales y copias de seguridad)
+.env.migracion
+*.dump
+
+# Cualquier .env salvo la plantilla
+.env*
+!.env.example
+
+# Bóveda de Obsidian (estado y sesiones, fuera del repo)
+APEX Code/
