@@ -5,24 +5,19 @@ interface EmailPayload {
 }
 
 export async function sendEmail({ to, subject, html }: EmailPayload): Promise<boolean> {
-  if (!process.env.RESEND_API_KEY) {
-    // Sin Resend se degrada sin romper: el flujo sigue, pero el email no sale (no se loguea la dirección)
-    console.warn(`[Email] Sin RESEND_API_KEY — no se envía: ${subject}`)
-    return false
-  }
-
   try {
-    const { Resend } = await import('resend')
-    const resend = new Resend(process.env.RESEND_API_KEY)
-    await resend.emails.send({
-      from: 'APEX SimRacing <noreply@apexsimracing.gg>',
-      to,
-      subject,
-      html,
-    })
-    return true
-  } catch (err) {
-    console.error('[Email] Error enviando:', err)
+    const { mailConfig } = await import('./mail/config')
+    const { enviarCrudo } = await import('./mail/transporte')
+    const cfg = mailConfig()
+    if (cfg.dryRun) {
+      console.warn(`[Email] DRY_RUN — no se envía: ${subject}`)
+      return false
+    }
+    const result = await enviarCrudo({ to: cfg.testTo || to, subject: cfg.testTo ? `[TEST] ${subject}` : subject, html })
+    return result.estado === 'ENVIADO'
+  } catch {
+    const { maskEmail } = await import('./mail/mask')
+    console.error(`[Email] Error enviando a ${maskEmail(to)}`)
     return false
   }
 }

@@ -7,6 +7,7 @@
     "build": "prisma generate && next build",
     "start": "NODE_ENV=production node server.js",
     "lint": "next lint",
+    "test": "vitest run",
     "db:push": "prisma db push",
     "db:seed": "prisma db seed",
     "db:studio": "prisma studio",
@@ -33,6 +34,7 @@
     "next": "^14.2.35",
     "next-auth": "^4.24.11",
     "node-cron": "^4.6.0",
+    "nodemailer": "10.1.7",
     "papaparse": "^5.5.4",
     "react": "^18.3.1",
     "react-day-picker": "^8.10.1",
@@ -40,6 +42,7 @@
     "react-hot-toast": "^2.4.1",
     "recharts": "^2.13.3",
     "resend": "^4.0.1",
+    "server-only": "^0.0.1",
     "socket.io": "^4.8.1",
     "socket.io-client": "^4.8.1",
     "tailwind-merge": "^2.5.4",
@@ -57,9 +60,13 @@
     "prisma": "^5.22.0",
     "tailwindcss": "^3.4.15",
     "ts-node": "^10.9.2",
-    "typescript": "^5.6.3"
+    "typescript": "^5.6.3",
+    "vitest": "^3.2.7"
   },
   "prisma": {
     "seed": "ts-node --transpile-only --compiler-options {\"module\":\"CommonJS\",\"moduleResolution\":\"node\"} prisma/seed.ts"
+  },
+  "overrides": {
+    "nodemailer": "$nodemailer"
   }
 }
