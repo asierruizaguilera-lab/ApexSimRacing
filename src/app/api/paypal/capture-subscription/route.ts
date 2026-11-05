@@ -60,7 +60,7 @@ export async function POST(req: NextRequest) {
     void enviarConfirmacion(session.user.id, `suscripcion_activa:${subscriptionId}`, u => ({
       subject: `Tu plan ${plan} está activo — ¡A competir!`,
       html: emailSuscripcionActiva(u.username, plan, precio, fechaRenovacion.toLocaleDateString('es-ES'), esFounder),
-    }))
+    })).catch(() => null)
 
     return NextResponse.json({ ok: true, plan, esFounder })
   } catch (err) {

@@ -30,7 +30,7 @@ export async function POST(_req: NextRequest) {
   void enviarConfirmacion(session.user.id, `suscripcion_cancelada:${suscripcion.paypalSubscriptionId ?? suscripcion.id}`, u => ({
     subject: 'Tu suscripción APEX ha sido cancelada',
     html: emailSuscripcionCancelada(u.username),
-  }))
+  })).catch(() => null)
 
   return NextResponse.json({ ok: true })
 }

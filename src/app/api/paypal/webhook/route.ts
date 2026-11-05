@@ -121,7 +121,7 @@ export async function POST(req: NextRequest) {
           void enviarConfirmacion(userId, `suscripcion_activa:${resource.id}`, u => ({
             subject: `Tu plan ${planTxt} está activo — ¡A competir!`,
             html: emailSuscripcionActiva(u.username, planTxt, precio, fechaRenovacion.toLocaleDateString('es-ES'), esFounder),
-          }))
+          })).catch(() => null)
         }
         break
       }
@@ -149,7 +149,7 @@ export async function POST(req: NextRequest) {
           void enviarConfirmacion(userId, `suscripcion_cancelada:${resource.id}`, u => ({
             subject: 'Tu suscripción APEX ha sido cancelada',
             html: emailSuscripcionCancelada(u.username),
-          }))
+          })).catch(() => null)
         }
         break
       }
