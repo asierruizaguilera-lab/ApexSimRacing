@@ -39,4 +39,31 @@ describe('enviarConfirmacion', () => {
     await enviarConfirmacion('u1', 'r', contenido)
     expect(sendMail).not.toHaveBeenCalled()
   })
+
+  it('si findUnique lanza no queda ningún rechazo sin capturar (llamada sin await, como en las rutas)', async () => {
+    const sinCapturar: unknown[] = []
+    const onUnhandled = (e: unknown) => { sinCapturar.push(e) }
+    process.on('unhandledRejection', onUnhandled)
+    try {
+      userFind.mockRejectedValue(new Error('db caída'))
+      void enviarConfirmacion('u1', 'suscripcion_activa:I-1', contenido)
+      await new Promise(r => setTimeout(r, 50))
+      expect(sinCapturar).toEqual([])
+      expect(sendMail).not.toHaveBeenCalled()
+      expect(console.error).toHaveBeenCalledWith('[Mail] Error en confirmación suscripcion_activa')
+    } finally {
+      process.off('unhandledRejection', onUnhandled)
+    }
+  })
+
+  it('la promesa se resuelve aunque referencia no sea texto y console.error lance', async () => {
+    userFind.mockRejectedValue(new Error('db'))
+    vi.mocked(console.error).mockImplementation(() => { throw new Error('console rota') })
+    await expect(enviarConfirmacion('u1', 42 as any, contenido)).resolves.toBeUndefined()
+  })
+
+  it('siempre envía con tipo TRANSACCIONAL', async () => {
+    await enviarConfirmacion('u1', 'r', contenido)
+    expect(sendMail.mock.calls[0][0].tipo).toBe('TRANSACCIONAL')
+  })
 })
