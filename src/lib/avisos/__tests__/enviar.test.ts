@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const { count, findMany, inscripciones, sendMail } = vi.hoisted(() => ({ count: vi.fn(), findMany: vi.fn(), inscripciones: vi.fn(), sendMail: vi.fn() }))
 vi.mock('@/lib/prisma', () => ({ prisma: { emailLog: { count, findMany }, inscripcion: { findMany: inscripciones } } }))
-vi.mock('@/lib/mail', () => ({ sendMail }))
+vi.mock('@/lib/mail', () => ({ sendMail, MAX_INTENTOS: 4 }))
 import { ejecutarAvisos } from '../enviar'
 import { parseRoundSchedule } from '../decision'
 
@@ -18,4 +18,9 @@ describe('ejecutarAvisos', () => {
   it('con cuota agotada no envía', async () => { count.mockResolvedValue(450); const r = await ejecutarAvisos({ ahora, dry: false, rondas }); expect(sendMail).not.toHaveBeenCalled(); expect(r.detenido).toBe('cuota') })
   it('dry cuenta, pero no llama sendMail', async () => { const r = await ejecutarAvisos({ ahora, dry: true, rondas }); expect(sendMail).not.toHaveBeenCalled(); expect(r.pendientes[0].destinatarios).toBe(3) })
   it('DETENIDO para el bucle', async () => { sendMail.mockResolvedValue({ estado: 'DETENIDO' }); const r = await ejecutarAvisos({ ahora, dry: false, rondas }); expect(sendMail).toHaveBeenCalledTimes(1); expect(r.detenido).toBe('transporte') })
+  it('cuenta la cuota por updatedAt y excluye los FALLIDO sin reintentos', async () => {
+    await ejecutarAvisos({ ahora, dry: true, rondas })
+    expect(count).toHaveBeenCalledWith({ where: { estado: 'ENVIADO', updatedAt: { gte: new Date(ahora.getTime() - 24 * 3600000) } } })
+    expect(findMany).toHaveBeenCalledWith(expect.objectContaining({ where: expect.objectContaining({ OR: [{ estado: 'ENVIADO' }, { estado: 'FALLIDO', intentos: { gte: 4 } }] }) }))
+  })
 })

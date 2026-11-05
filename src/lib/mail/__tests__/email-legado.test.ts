@@ -1,7 +1,8 @@
 import { beforeEach, expect, it, vi } from 'vitest'
 
-const { transport } = vi.hoisted(() => ({ transport: vi.fn() }))
+const { transport, logCreate } = vi.hoisted(() => ({ transport: vi.fn(), logCreate: vi.fn() }))
 vi.mock('../transporte', () => ({ enviarCrudo: transport, envioDetenido: () => false }))
+vi.mock('@/lib/prisma', () => ({ prisma: { emailLog: { create: logCreate } } }))
 
 import { sendEmail } from '@/lib/email'
 
@@ -40,4 +41,24 @@ it('EMAIL_TEST_TO redirige fuera de producción y se ignora en producción', asy
   env.NODE_ENV = 'production'
   await sendEmail(correo)
   expect(transport).toHaveBeenLastCalledWith(expect.objectContaining({ to: 'ana@dominio.com', subject: 'Recupera tu contraseña' }), 'gmail')
+})
+
+it('con registro guarda un ENVIADO en EmailLog para el tope diario', async () => {
+  logCreate.mockResolvedValue({})
+  expect(await sendEmail({ ...correo, registro: { userId: 'u1', referencia: 'seguridad:recuperar:abc' } })).toBe(true)
+  expect(logCreate).toHaveBeenCalledWith({ data: { userId: 'u1', tipo: 'TRANSACCIONAL', referencia: 'seguridad:recuperar:abc', estado: 'ENVIADO', intentos: 1 } })
+})
+
+it('si falla EmailLog el email de seguridad sigue contando como enviado', async () => {
+  logCreate.mockRejectedValue(new Error('db'))
+  vi.spyOn(console, 'error').mockImplementation(() => {})
+  expect(await sendEmail({ ...correo, registro: { userId: 'u1', referencia: 'r' } })).toBe(true)
+})
+
+it('sin registro o si no se envía no toca EmailLog', async () => {
+  expect(await sendEmail(correo)).toBe(true)
+  transport.mockResolvedValue({ estado: 'FALLIDO' })
+  vi.spyOn(console, 'warn').mockImplementation(() => {})
+  expect(await sendEmail({ ...correo, registro: { userId: 'u1', referencia: 'r' } })).toBe(false)
+  expect(logCreate).not.toHaveBeenCalled()
 })

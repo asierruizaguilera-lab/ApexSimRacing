@@ -1,6 +1,6 @@
 import { formatInTimeZone } from 'date-fns-tz'
 import { prisma } from '@/lib/prisma'
-import { sendMail } from '@/lib/mail'
+import { sendMail, MAX_INTENTOS } from '@/lib/mail'
 import { avisosPendientes, type Ronda, type AvisoPendiente } from './decision'
 
 export const TOPE_DIARIO = 450
@@ -33,14 +33,14 @@ function contenido(p: AvisoPendiente, username: string) {
 export async function ejecutarAvisos({ ahora, dry, rondas }: { ahora: Date; dry: boolean; rondas: Ronda[] }): Promise<Resumen> {
   const pendientes = avisosPendientes(rondas, ahora)
   if (!pendientes.length) return { ahora: ahora.toISOString(), dry, pendientes: [], enviados24h: 0, restante: TOPE_DIARIO }
-  const enviados24h = await prisma.emailLog.count({ where: { estado: 'ENVIADO', createdAt: { gte: new Date(ahora.getTime() - 24 * 60 * 60 * 1000) } } })
+  const enviados24h = await prisma.emailLog.count({ where: { estado: 'ENVIADO', updatedAt: { gte: new Date(ahora.getTime() - 24 * 60 * 60 * 1000) } } })
   let restante = Math.max(0, TOPE_DIARIO - enviados24h)
   const resumen: Resumen = { ahora: ahora.toISOString(), dry, pendientes: [], enviados24h, restante }
   if (restante <= 0) { resumen.detenido = 'cuota'; return resumen }
   for (const pendiente of pendientes) {
     const inscripciones = await prisma.inscripcion.findMany({ where: { campeonatoId: pendiente.campeonatoId, estado: 'CONFIRMADA', user: { emailUnsubscribedAt: null } }, select: { user: { select: { id: true, email: true, username: true } } } })
     const usuarios = inscripciones.map(x => x.user)
-    const yaEnviados = usuarios.length ? await prisma.emailLog.findMany({ where: { tipo: 'SERVICIO', referencia: pendiente.referencia, estado: 'ENVIADO', userId: { in: usuarios.map(u => u.id) } }, select: { userId: true } }) : []
+    const yaEnviados = usuarios.length ? await prisma.emailLog.findMany({ where: { tipo: 'SERVICIO', referencia: pendiente.referencia, OR: [{ estado: 'ENVIADO' }, { estado: 'FALLIDO', intentos: { gte: MAX_INTENTOS } }], userId: { in: usuarios.map(u => u.id) } }, select: { userId: true } }) : []
     const excluidos = new Set(yaEnviados.map(x => x.userId))
     const destinatarios = usuarios.filter(u => !excluidos.has(u.id))
     const conteo: Conteo = { referencia: pendiente.referencia, destinatarios: destinatarios.length, enviados: 0, simulados: 0, omitidos: 0, duplicados: 0, fallidos: 0 }

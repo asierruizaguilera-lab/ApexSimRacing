@@ -7,17 +7,20 @@ import { enviarCrudo } from './transporte'
 
 type Estado = 'ENVIADO' | 'SIMULADO' | 'OMITIDO' | 'DUPLICADO' | 'FALLIDO' | 'DETENIDO'
 type Input = { userId: string; tipo: TipoMail; referencia: string; to: string; subject: string; html: string; text?: string }
+// 1 envío + 3 reintentos. Los cortes por cuota (DETENIDO) no cuentan como intento.
+export const MAX_INTENTOS = 4
 const enCurso = new Set<string>()
 const keyOf = (x: Input) => `${x.userId}\0${x.tipo}\0${x.referencia}`
 
-async function guardar(input: Input, estado: 'ENVIADO' | 'SIMULADO' | 'FALLIDO' | 'OMITIDO', detalle?: string, protegerEnviado = false) {
+async function guardar(input: Input, estado: 'ENVIADO' | 'SIMULADO' | 'FALLIDO' | 'OMITIDO', detalle?: string, protegerEnviado = false, intento = false) {
+  const sumar = intento ? { intentos: { increment: 1 } } : {}
   const where = { userId_tipo_referencia: { userId: input.userId, tipo: input.tipo, referencia: input.referencia } }
   if (protegerEnviado) {
     const existing = await prisma.emailLog.findUnique({ where })
     if (existing?.estado === 'ENVIADO') return
-    if (existing) { await prisma.emailLog.update({ where: { id: existing.id }, data: { estado, detalle } }); return }
+    if (existing) { await prisma.emailLog.update({ where: { id: existing.id }, data: { estado, detalle, ...sumar } }); return }
   }
-  await prisma.emailLog.upsert({ where, create: { userId: input.userId, tipo: input.tipo, referencia: input.referencia, estado, detalle }, update: { estado, detalle } })
+  await prisma.emailLog.upsert({ where, create: { userId: input.userId, tipo: input.tipo, referencia: input.referencia, estado, detalle, intentos: intento ? 1 : 0 }, update: { estado, detalle, ...sumar } })
 }
 
 export async function sendMail(input: Input): Promise<{ estado: Estado; motivo?: string }> {
@@ -35,6 +38,7 @@ export async function sendMail(input: Input): Promise<{ estado: Estado; motivo?:
     const where = { userId_tipo_referencia: { userId: input.userId, tipo: input.tipo, referencia: input.referencia } }
     const previous = await prisma.emailLog.findUnique({ where })
     if (previous?.estado === 'ENVIADO' || (previous?.estado === 'OMITIDO' && previous.detalle === 'baja')) return { estado: 'DUPLICADO' }
+    if (previous?.estado === 'FALLIDO' && previous.intentos >= MAX_INTENTOS) return { estado: 'FALLIDO', motivo: 'max_reintentos' }
     const cfg = mailConfig()
     const to = cfg.testTo || input.to
     const subject = cfg.testTo ? `[TEST] ${input.subject}` : input.subject
@@ -53,10 +57,10 @@ export async function sendMail(input: Input): Promise<{ estado: Estado; motivo?:
       return { estado: 'DETENIDO' }
     }
     if (result.estado !== 'ENVIADO') {
-      await guardar(input, 'FALLIDO', result.motivo || 'error_transporte', true)
+      await guardar(input, 'FALLIDO', result.motivo || 'error_transporte', true, true)
       return { estado: 'FALLIDO', motivo: result.motivo }
     }
-    try { await guardar(input, cfg.testTo ? 'SIMULADO' : 'ENVIADO', cfg.testTo ? 'test_to' : undefined) }
+    try { await guardar(input, cfg.testTo ? 'SIMULADO' : 'ENVIADO', cfg.testTo ? 'test_to' : undefined, false, true) }
     catch { console.error(`[Mail] Enviado a ${maskEmail(to)}; no se pudo guardar EmailLog`) }
     return { estado: cfg.testTo ? 'SIMULADO' : 'ENVIADO' }
   } catch (error) {

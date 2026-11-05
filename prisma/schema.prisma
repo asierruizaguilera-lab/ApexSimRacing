@@ -909,10 +909,13 @@ model EmailLog {
   referencia String // p. ej. "aviso24h:ronda3:carrera", "pago:I-XXXX"
   estado     EstadoEmail
   detalle    String?     @db.VarChar(300) // motivo de fallo u omisión; nunca direcciones ni claves
+  intentos   Int         @default(0) // envíos reales intentados (no cuenta los cortes por cuota)
   createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @default(now()) @updatedAt // el tope diario cuenta los ENVIADO por esta fecha
   user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, tipo, referencia])
   @@index([createdAt])
+  @@index([estado, updatedAt])
   @@map("email_log")
 }

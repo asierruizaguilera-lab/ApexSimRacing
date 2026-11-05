@@ -99,4 +99,23 @@ describe('mail core', () => {
     userFind.mockRejectedValue(new Error('db'))
     await expect(sendMail(input)).resolves.toEqual({ estado: 'FALLIDO', motivo: 'error_interno' })
   })
+  it('reintenta un FALLIDO hasta 1 envío + 3 reintentos y suma intentos solo si se intenta enviar', async () => {
+    const tx = { ...input, tipo: 'TRANSACCIONAL' as const }
+    logFind.mockResolvedValue({ id: 'l1', estado: 'FALLIDO', intentos: 3 })
+    transport.mockResolvedValueOnce({ estado: 'FALLIDO', motivo: 'error_transporte' })
+    expect((await sendMail(tx)).estado).toBe('FALLIDO')
+    expect(transport).toHaveBeenCalledOnce()
+    expect(logUpdate).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ intentos: { increment: 1 } }) }))
+
+    vi.clearAllMocks()
+    logFind.mockResolvedValue({ id: 'l1', estado: 'FALLIDO', intentos: 4 })
+    expect(await sendMail(tx)).toEqual({ estado: 'FALLIDO', motivo: 'max_reintentos' })
+    expect(transport).not.toHaveBeenCalled()
+
+    vi.clearAllMocks()
+    logFind.mockResolvedValue({ id: 'l1', estado: 'FALLIDO', intentos: 1 })
+    transport.mockResolvedValueOnce({ estado: 'DETENIDO' })
+    expect((await sendMail(tx)).estado).toBe('DETENIDO')
+    expect(logUpdate).toHaveBeenCalledWith(expect.objectContaining({ data: { estado: 'FALLIDO', detalle: 'cuota' } }))
+  })
 })

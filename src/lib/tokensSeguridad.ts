@@ -78,6 +78,7 @@ export async function enviarEmailVerificacion(user: { id: string; email: string;
     to: user.email,
     subject: 'Confirma tu email — APEX SimRacing',
     html: emailVerificarEmail(user.username, `${BASE_URL}/verificar-email?token=${token}`),
+    registro: { userId: user.id, referencia: `seguridad:verificar:${hashToken(token).slice(0, 16)}` },
   })
 }
 
@@ -87,5 +88,6 @@ export async function enviarEmailRecuperacion(user: { id: string; email: string;
     to: user.email,
     subject: 'Restablecer contraseña — APEX SimRacing',
     html: emailRecuperarPassword(user.username, `${BASE_URL}/restablecer?token=${token}`),
+    registro: { userId: user.id, referencia: `seguridad:recuperar:${hashToken(token).slice(0, 16)}` },
   })
 }

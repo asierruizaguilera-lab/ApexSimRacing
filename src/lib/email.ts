@@ -2,13 +2,15 @@ interface EmailPayload {
   to: string
   subject: string
   html: string
+  // Si se indica, un envío correcto deja una fila ENVIADO en EmailLog para que cuente en el tope diario
+  registro?: { userId: string; referencia: string }
 }
 
 // Emails de seguridad y legado (recuperar contraseña, verificar email, avisos existentes).
 // NO respetan EMAIL_DRY_RUN: si no salieran, nadie podría recuperar su cuenta.
 // EMAIL_TEST_TO solo se aplica fuera de producción.
 // Si EMAIL_PROVIDER=gmail pero faltan credenciales de Gmail, se usa Resend como antes.
-export async function sendEmail({ to, subject, html }: EmailPayload): Promise<boolean> {
+export async function sendEmail({ to, subject, html, registro }: EmailPayload): Promise<boolean> {
   try {
     const { mailConfig } = await import('./mail/config')
     const { enviarCrudo } = await import('./mail/transporte')
@@ -21,6 +23,12 @@ export async function sendEmail({ to, subject, html }: EmailPayload): Promise<bo
     const testTo = process.env.NODE_ENV !== 'production' ? cfg.testTo : undefined
     const result = await enviarCrudo({ to: testTo || to, subject: testTo ? `[TEST] ${subject}` : subject, html }, proveedor)
     if (result.estado !== 'ENVIADO') console.warn(`[Email] No se envía (${result.motivo || result.estado}): ${subject}`)
+    else if (registro) {
+      try {
+        const { prisma } = await import('./prisma')
+        await prisma.emailLog.create({ data: { userId: registro.userId, tipo: 'TRANSACCIONAL', referencia: registro.referencia, estado: 'ENVIADO', intentos: 1 } })
+      } catch { console.error('[Email] Enviado; no se pudo guardar EmailLog') }
+    }
     return result.estado === 'ENVIADO'
   } catch {
     const { maskEmail } = await import('./mail/mask')
