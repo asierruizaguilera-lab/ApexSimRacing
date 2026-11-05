@@ -65,6 +65,20 @@ describe('POST /api/unsubscribe', () => {
     }))
   })
 
+  it('lee el token de la query string, no del cuerpo (One-Click de Gmail, RFC 8058)', async () => {
+    const token = firmarBaja(userId)!
+    const form = { 'content-type': 'application/x-www-form-urlencoded' }
+
+    const conQuery = await POST(request('POST', token, form, 'List-Unsubscribe=One-Click'))
+    expect(conQuery.status).toBe(200)
+    expect(updateMany).toHaveBeenCalledOnce()
+
+    updateMany.mockClear()
+    const soloCuerpo = await POST(request('POST', undefined, form, `List-Unsubscribe=One-Click&token=${encodeURIComponent(token)}`))
+    expect(soloCuerpo.status).toBe(400)
+    expect(updateMany).not.toHaveBeenCalled()
+  })
+
   it('rechaza token manipulado sin actualizar', async () => {
     const response = await POST(request('POST', 'manipulado'))
     expect(response.status).toBe(400)
