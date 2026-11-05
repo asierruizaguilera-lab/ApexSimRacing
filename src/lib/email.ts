@@ -7,8 +7,8 @@ interface EmailPayload {
 }
 
 // Emails de seguridad y legado (recuperar contraseña, verificar email, avisos existentes).
-// NO respetan EMAIL_DRY_RUN: si no salieran, nadie podría recuperar su cuenta.
-// EMAIL_TEST_TO solo se aplica fuera de producción.
+// En producción ignoran EMAIL_DRY_RUN y EMAIL_TEST_TO: si no salieran, nadie podría recuperar su cuenta.
+// Fuera de producción respetan los dos.
 // Si EMAIL_PROVIDER=gmail pero faltan credenciales de Gmail, se usa Resend como antes.
 export async function sendEmail({ to, subject, html, registro }: EmailPayload): Promise<boolean> {
   try {
@@ -20,7 +20,13 @@ export async function sendEmail({ to, subject, html, registro }: EmailPayload): 
       console.warn('[Email] Faltan GMAIL_USER o GMAIL_APP_PASSWORD: se usa Resend como respaldo')
       proveedor = 'resend'
     }
-    const testTo = process.env.NODE_ENV !== 'production' ? cfg.testTo : undefined
+    const produccion = process.env.NODE_ENV === 'production'
+    const testTo = produccion ? undefined : cfg.testTo
+    if (!produccion && cfg.dryRun) {
+      const { maskEmail } = await import('./mail/mask')
+      console.info(`[Email] DRY_RUN: no se envía a ${maskEmail(testTo || to)}: ${subject}`)
+      return true
+    }
     const result = await enviarCrudo({ to: testTo || to, subject: testTo ? `[TEST] ${subject}` : subject, html }, proveedor)
     if (result.estado !== 'ENVIADO') console.warn(`[Email] No se envía (${result.motivo || result.estado}): ${subject}`)
     else if (registro) {

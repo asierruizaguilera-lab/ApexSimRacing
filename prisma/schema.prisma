@@ -896,6 +896,7 @@ enum TipoEmail {
 }
 
 enum EstadoEmail {
+  ENVIANDO // reservado antes de llamar al transporte; >10 min = huérfano y reintentable
   ENVIADO
   SIMULADO
   FALLIDO

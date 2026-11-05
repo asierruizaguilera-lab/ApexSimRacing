@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { sendEmail, emailInscripcionConfirmada } from '@/lib/email'
+import { emailInscripcionConfirmada } from '@/lib/email'
+import { enviarConfirmacion } from '@/lib/mail/confirmaciones'
 import { validarBody, z } from '@/lib/validacion'
 
 const Esquema = z.object({ estado: z.enum(['CONFIRMADA', 'CANCELADA']) })
@@ -37,11 +38,12 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       },
     })
 
-    sendEmail({
-      to: inscripcion.user.email,
-      subject: `Inscripción confirmada: ${inscripcion.campeonato.nombre}`,
-      html: emailInscripcionConfirmada(inscripcion.user.username, inscripcion.campeonato.nombre),
-    }).catch(() => null)
+    // No bloquea; una sola vez por inscripción aunque se vuelva a confirmar
+    const campeonato = inscripcion.campeonato.nombre
+    enviarConfirmacion(inscripcion.userId, `inscripcion_confirmada:${inscripcion.id}`, u => ({
+      subject: `Inscripción confirmada: ${campeonato}`,
+      html: emailInscripcionConfirmada(u.username, campeonato),
+    }))
   }
 
   return NextResponse.json(inscripcion)

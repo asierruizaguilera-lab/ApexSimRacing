@@ -15,15 +15,24 @@ beforeEach(() => {
   env.EMAIL_PROVIDER = 'gmail'
   env.GMAIL_USER = 'remitente@example.com'
   env.GMAIL_APP_PASSWORD = 'x'
-  delete env.EMAIL_DRY_RUN
+  env.EMAIL_DRY_RUN = 'false'
   delete env.EMAIL_TEST_TO
   env.NODE_ENV = 'test'
 })
 
-it('ignora EMAIL_DRY_RUN: los emails de seguridad salen siempre', async () => {
+it('en producción ignora EMAIL_DRY_RUN: los emails de seguridad salen siempre', async () => {
+  env.NODE_ENV = 'production'
   env.EMAIL_DRY_RUN = 'true'
   expect(await sendEmail(correo)).toBe(true)
   expect(transport).toHaveBeenCalledWith(expect.objectContaining({ to: 'ana@dominio.com' }), 'gmail')
+})
+
+it('fuera de producción respeta EMAIL_DRY_RUN y no llama al transporte', async () => {
+  env.EMAIL_DRY_RUN = 'true'
+  vi.spyOn(console, 'info').mockImplementation(() => {})
+  expect(await sendEmail({ ...correo, registro: { userId: 'u1', referencia: 'r' } })).toBe(true)
+  expect(transport).not.toHaveBeenCalled()
+  expect(logCreate).not.toHaveBeenCalled()
 })
 
 it('con gmail sin credenciales usa Resend como respaldo', async () => {
@@ -39,6 +48,7 @@ it('EMAIL_TEST_TO redirige fuera de producción y se ignora en producción', asy
   await sendEmail(correo)
   expect(transport).toHaveBeenLastCalledWith(expect.objectContaining({ to: 'qa@dominio.com', subject: '[TEST] Recupera tu contraseña' }), 'gmail')
   env.NODE_ENV = 'production'
+  env.EMAIL_DRY_RUN = 'true'
   await sendEmail(correo)
   expect(transport).toHaveBeenLastCalledWith(expect.objectContaining({ to: 'ana@dominio.com', subject: 'Recupera tu contraseña' }), 'gmail')
 })
