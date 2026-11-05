@@ -40,10 +40,10 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
 
     // No bloquea; una sola vez por inscripción aunque se vuelva a confirmar
     const campeonato = inscripcion.campeonato.nombre
-    enviarConfirmacion(inscripcion.userId, `inscripcion_confirmada:${inscripcion.id}`, u => ({
+    void enviarConfirmacion(inscripcion.userId, `inscripcion_confirmada:${inscripcion.id}`, u => ({
       subject: `Inscripción confirmada: ${campeonato}`,
       html: emailInscripcionConfirmada(u.username, campeonato),
-    }))
+    })).catch(() => null)
   }
 
   return NextResponse.json(inscripcion)
