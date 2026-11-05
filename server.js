@@ -653,6 +653,32 @@ runMigrationSimuladorIfRequested()
     timezone: 'Europe/Madrid',
   })
 
+  if (process.env.ROUND_SCHEDULE) {
+    const { parseRoundSchedule, avisosPendientes, minutoTieneTrabajo } = require('./src/lib/avisos/decision.js')
+    const { rondas, error } = parseRoundSchedule(process.env.ROUND_SCHEDULE)
+    console.log(`[CRON] ROUND_SCHEDULE: ${rondas.length} rondas${error ? `; ${error}` : ''}`)
+    let avisosEnCurso = false
+    const completadas = new Set()
+    cron.schedule('* * * * *', async () => {
+      const ahora = new Date()
+      if (!minutoTieneTrabajo(rondas, ahora) || avisosEnCurso) return
+      const referencias = avisosPendientes(rondas, ahora).map(p => p.referencia)
+      if (referencias.every(ref => completadas.has(ref))) return
+      avisosEnCurso = true
+      try {
+        const base = process.env.NEXTAUTH_URL || `http://localhost:${port}`
+        const res = await fetch(`${base}/api/cron/avisos`, { headers: cronHeaders() })
+        const data = await res.json()
+        const sinFallos = (data.pendientes || []).every(p => !p.fallidos)
+        if (res.ok && !data.detenido && sinFallos) referencias.forEach(ref => completadas.add(ref))
+        const conteos = (data.pendientes || []).map(p => `${p.referencia}=${p.enviados}/${p.destinatarios}`).join(', ')
+        console.log(`[CRON] Avisos ${res.ok ? 'OK' : `HTTP ${res.status}`}: ${conteos || 'sin envíos'}${data.detenido ? `; detenido=${data.detenido}` : ''}`)
+      } catch (err) {
+        console.error('[CRON] Error enviando avisos:', err.message)
+      } finally { avisosEnCurso = false }
+    }, { timezone: 'Europe/Madrid' })
+  }
+
   httpServer.listen(port, hostname, () => {
     console.log(`\n🏁 APEX SimRacing Platform`)
     console.log(`   ✅ Servidor: http://localhost:${port}`)
