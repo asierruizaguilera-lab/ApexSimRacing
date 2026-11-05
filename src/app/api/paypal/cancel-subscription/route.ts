@@ -26,7 +26,10 @@ export async function POST(_req: NextRequest) {
   await cancelarSuscripcion(session.user.id)
   await desactivarUsoReferido(session.user.id)
 
-  // Email de confirmación (no bloquea). Misma referencia que el webhook CANCELLED: sale uno solo
+  // Email de confirmación (no bloquea). Misma referencia que el webhook CANCELLED: sale uno solo.
+  // Si paypalSubscriptionId es nulo (p. ej. suscripción GRATUITA) no hay suscripción en PayPal, así que PayPal
+  // nunca mandará un webhook con resource.id para ella: no hay referencia del webhook con la que coincidir.
+  // Se usa el id interno de la suscripción para que, aun así, solo salga un email por cancelación.
   void enviarConfirmacion(session.user.id, `suscripcion_cancelada:${suscripcion.paypalSubscriptionId ?? suscripcion.id}`, u => ({
     subject: 'Tu suscripción APEX ha sido cancelada',
     html: emailSuscripcionCancelada(u.username),

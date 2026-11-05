@@ -85,7 +85,8 @@ describe('POST /api/paypal/webhook · emails', () => {
     await vi.waitFor(() => expect(m.transport).toHaveBeenCalledOnce())
     const [mail] = m.transport.mock.calls[0]
     expect(mail.to).toBe('ana@dominio.com')
-    expect(mail.to).not.toBe(env.EMAIL_TEST_TO)
+    expect(env.EMAIL_TEST_TO).toBe('qa@dominio.com')
+    expect(mail.to).not.toBe('qa@dominio.com') // EMAIL_TEST_TO no desvía el TRANSACCIONAL en producción
     expect(mail.subject).toBe('Tu plan PRO está activo — ¡A competir!')
     expect(mail.subject).not.toContain('[TEST]')
   })
