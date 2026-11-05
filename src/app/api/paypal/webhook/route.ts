@@ -4,18 +4,12 @@ import { activarPlan, cancelarSuscripcion } from '@/lib/suscripciones'
 import { getPlanId, verificarWebhookPayPal, PAYPAL_EQUIPO_PLAN_IDS } from '@/lib/paypal'
 import { activarPlanEquipoFounder } from '@/lib/equipos'
 import { vincularReferido, registrarComisionPago, desactivarUsoReferido } from '@/lib/referidos'
-import { sendEmail, emailSuscripcionActiva, emailSuscripcionCancelada } from '@/lib/email'
+import { emailSuscripcionActiva, emailSuscripcionCancelada } from '@/lib/email'
+import { enviarConfirmacion } from '@/lib/mail/confirmaciones'
 import type { PlanSuscripcion } from '@prisma/client'
 import { logActividad, datosCliente } from '@/lib/actividad'
 
 export const dynamic = 'force-dynamic'
-
-async function getUserForNotification(userId: string) {
-  return prisma.user.findUnique({
-    where: { id: userId },
-    select: { email: true, username: true },
-  })
-}
 
 /** Devuelve true si el evento corresponde a un plan de equipo (y ya se ha procesado). */
 async function gestionarSuscripcionEquipo(eventType: string, resource: any): Promise<boolean> {
@@ -122,14 +116,12 @@ export async function POST(req: NextRequest) {
           })
           await vincularReferido(userId).catch(err => console.error('[PayPal Webhook] vincularReferido', err))
           await prisma.user.update({ where: { id: userId }, data: { descuentoTransicionEquipo: false } })
-          const user = await getUserForNotification(userId)
-          if (user) {
-            sendEmail({
-              to: user.email,
-              subject: `Tu plan ${plan} está activo — ¡A competir!`,
-              html: emailSuscripcionActiva(user.username, plan, precio, fechaRenovacion.toLocaleDateString('es-ES'), esFounder),
-            }).catch(() => null)
-          }
+          // No bloquea ni puede fallar el webhook. Misma referencia que capture-subscription: sale un solo email
+          const planTxt = plan
+          void enviarConfirmacion(userId, `suscripcion_activa:${resource.id}`, u => ({
+            subject: `Tu plan ${planTxt} está activo — ¡A competir!`,
+            html: emailSuscripcionActiva(u.username, planTxt, precio, fechaRenovacion.toLocaleDateString('es-ES'), esFounder),
+          }))
         }
         break
       }
@@ -153,14 +145,11 @@ export async function POST(req: NextRequest) {
         if (userId) {
           await cancelarSuscripcion(userId)
           await desactivarUsoReferido(userId)
-          const user = await getUserForNotification(userId)
-          if (user) {
-            sendEmail({
-              to: user.email,
-              subject: 'Tu suscripción APEX ha sido cancelada',
-              html: emailSuscripcionCancelada(user.username),
-            }).catch(() => null)
-          }
+          // Misma referencia que cancel-subscription: sale un solo email
+          void enviarConfirmacion(userId, `suscripcion_cancelada:${resource.id}`, u => ({
+            subject: 'Tu suscripción APEX ha sido cancelada',
+            html: emailSuscripcionCancelada(u.username),
+          }))
         }
         break
       }

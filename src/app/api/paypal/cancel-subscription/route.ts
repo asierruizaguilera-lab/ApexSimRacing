@@ -5,7 +5,8 @@ import { prisma } from '@/lib/prisma'
 import { cancelPayPalSubscription } from '@/lib/paypal'
 import { cancelarSuscripcion } from '@/lib/suscripciones'
 import { desactivarUsoReferido } from '@/lib/referidos'
-import { sendEmail, emailSuscripcionCancelada } from '@/lib/email'
+import { emailSuscripcionCancelada } from '@/lib/email'
+import { enviarConfirmacion } from '@/lib/mail/confirmaciones'
 
 export async function POST(_req: NextRequest) {
   const session = await getServerSession(authOptions)
@@ -25,18 +26,11 @@ export async function POST(_req: NextRequest) {
   await cancelarSuscripcion(session.user.id)
   await desactivarUsoReferido(session.user.id)
 
-  // Email de confirmación (async)
-  const user = await prisma.user.findUnique({
-    where: { id: session.user.id },
-    select: { email: true, username: true },
-  })
-  if (user) {
-    sendEmail({
-      to: user.email,
-      subject: 'Tu suscripción APEX ha sido cancelada',
-      html: emailSuscripcionCancelada(user.username),
-    }).catch(() => null)
-  }
+  // Email de confirmación (no bloquea). Misma referencia que el webhook CANCELLED: sale uno solo
+  void enviarConfirmacion(session.user.id, `suscripcion_cancelada:${suscripcion.paypalSubscriptionId ?? suscripcion.id}`, u => ({
+    subject: 'Tu suscripción APEX ha sido cancelada',
+    html: emailSuscripcionCancelada(u.username),
+  }))
 
   return NextResponse.json({ ok: true })
 }

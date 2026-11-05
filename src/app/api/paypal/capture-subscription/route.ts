@@ -5,7 +5,8 @@ import { prisma } from '@/lib/prisma'
 import { getPayPalSubscription, getPlanId } from '@/lib/paypal'
 import { activarPlan } from '@/lib/suscripciones'
 import { vincularReferido } from '@/lib/referidos'
-import { sendEmail, emailSuscripcionActiva } from '@/lib/email'
+import { emailSuscripcionActiva } from '@/lib/email'
+import { enviarConfirmacion } from '@/lib/mail/confirmaciones'
 import type { PlanSuscripcion } from '@prisma/client'
 import { logActividad, datosCliente } from '@/lib/actividad'
 import { validarBody, z, plan } from '@/lib/validacion'
@@ -55,24 +56,11 @@ export async function POST(req: NextRequest) {
     // El 20% de transición desde un Equipo Founder solo aplica al primer plan individual
     await prisma.user.update({ where: { id: session.user.id }, data: { descuentoTransicionEquipo: false } })
 
-    // Email de confirmación (async, no bloquea)
-    const user = await prisma.user.findUnique({
-      where: { id: session.user.id },
-      select: { email: true, username: true },
-    })
-    if (user) {
-      sendEmail({
-        to: user.email,
-        subject: `Tu plan ${plan} está activo — ¡A competir!`,
-        html: emailSuscripcionActiva(
-          user.username,
-          plan,
-          precio,
-          fechaRenovacion.toLocaleDateString('es-ES'),
-          esFounder
-        ),
-      }).catch(() => null)
-    }
+    // Email de confirmación (no bloquea). Misma referencia que el webhook ACTIVATED: sale uno solo
+    void enviarConfirmacion(session.user.id, `suscripcion_activa:${subscriptionId}`, u => ({
+      subject: `Tu plan ${plan} está activo — ¡A competir!`,
+      html: emailSuscripcionActiva(u.username, plan, precio, fechaRenovacion.toLocaleDateString('es-ES'), esFounder),
+    }))
 
     return NextResponse.json({ ok: true, plan, esFounder })
   } catch (err) {
