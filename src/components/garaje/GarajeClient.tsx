@@ -26,6 +26,8 @@ interface Props {
   coches: Coche[]
   suscripcionActual: { plan: string; estado: string } | null
   carrerasConMods?: CarreraMods[]
+  /** Modo temporada gratuita: catálogo completo sin plan, sin avisos de "activa tu plan" */
+  temporadaGratuita?: boolean
 }
 
 const DISCIPLINAS_ORDER = ['CIRCUITO', 'RALLY', 'DRIFT', 'KARTCROSS', 'MONOPLAZA']
@@ -231,10 +233,10 @@ function ModsCarrerasSection({ carreras }: { carreras: CarreraMods[] }) {
   )
 }
 
-export function GarajeClient({ coches, suscripcionActual, carrerasConMods = [] }: Props) {
+export function GarajeClient({ coches, suscripcionActual, carrerasConMods = [], temporadaGratuita = false }: Props) {
   const [seleccionado, setSeleccionado] = useState<Coche | null>(null)
 
-  if (!suscripcionActual) {
+  if (!suscripcionActual && !temporadaGratuita) {
     return (
       <div className="flex flex-col items-center justify-center py-20 text-center">
         <div className="w-20 h-20 bg-apex-card border border-apex-border rounded-2xl flex items-center justify-center mb-6">
@@ -258,10 +260,12 @@ export function GarajeClient({ coches, suscripcionActual, carrerasConMods = [] }
         <ModsCarrerasSection carreras={carrerasConMods} />
         <div className="text-center py-16 text-apex-muted">
           <Car size={48} className="mx-auto mb-4 opacity-30" />
-          <p>No tienes coches desbloqueados aún.</p>
-          <Link href="/planes" className="text-apex-red hover:underline text-sm mt-2 inline-block">
-            Actualiza tu plan para más coches
-          </Link>
+          <p>{temporadaGratuita ? 'Todavía no hay coches en el catálogo.' : 'No tienes coches desbloqueados aún.'}</p>
+          {!temporadaGratuita && (
+            <Link href="/planes" className="text-apex-red hover:underline text-sm mt-2 inline-block">
+              Actualiza tu plan para más coches
+            </Link>
+          )}
         </div>
       </div>
     )
@@ -278,13 +282,19 @@ export function GarajeClient({ coches, suscripcionActual, carrerasConMods = [] }
     <div className="space-y-8">
       {/* Banner plan */}
       <div className="bg-apex-card border border-apex-border rounded-xl p-4 flex items-center gap-3">
-        <div className={cn('text-xs px-2.5 py-1 rounded-full border font-semibold', PLAN_COLORS[suscripcionActual.plan])}>
-          {PLAN_LABELS[suscripcionActual.plan]}
-        </div>
+        {temporadaGratuita ? (
+          <div className="text-xs px-2.5 py-1 rounded-full border font-semibold border-apex-red/40 text-apex-red">
+            Temporada gratuita
+          </div>
+        ) : suscripcionActual && (
+          <div className={cn('text-xs px-2.5 py-1 rounded-full border font-semibold', PLAN_COLORS[suscripcionActual.plan])}>
+            {PLAN_LABELS[suscripcionActual.plan]}
+          </div>
+        )}
         <span className="text-sm text-apex-muted">
-          {coches.length} coches desbloqueados
+          {temporadaGratuita ? `${coches.length} coches del catálogo` : `${coches.length} coches desbloqueados`}
         </span>
-        {suscripcionActual.plan !== 'ELITE' && (
+        {!temporadaGratuita && suscripcionActual && suscripcionActual.plan !== 'ELITE' && (
           <Link href="/planes" className="ml-auto text-xs text-apex-red hover:underline flex items-center gap-1">
             <Star size={11} />Actualizar plan
           </Link>
