@@ -1,26 +1,37 @@
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { getTemporadaGratuitaActiva } from '@/lib/config'
 import { PlanesGrid } from '@/components/planes/PlanesGrid'
-import { Star } from 'lucide-react'
+import Link from 'next/link'
+import { Star, ArrowLeft } from 'lucide-react'
+import { ErrorAcceso } from '@/components/acceso/ErrorAcceso'
+import { ErrorLecturaFlag, leerTemporadaGratuita } from '@/lib/accesoServidor'
 
 export const metadata = { title: 'Planes de Suscripción' }
 
 export default async function PlanesPage() {
   const session = await getServerSession(authOptions)
 
-  const [suscripcion, temporadaGratuitaActiva] = await Promise.all([
-    session?.user?.id
-      ? prisma.suscripcion.findFirst({
-          where: { userId: session.user.id, estado: { in: ['ACTIVA', 'GRATUITA'] } },
-        })
-      : null,
-    getTemporadaGratuitaActiva(),
-  ])
+  let temporadaGratuitaActiva: boolean
+  try {
+    temporadaGratuitaActiva = await leerTemporadaGratuita('planes')
+  } catch (e) {
+    if (e instanceof ErrorLecturaFlag) return <ErrorAcceso />
+    throw e
+  }
+  const suscripcion = session?.user?.id
+    ? await prisma.suscripcion.findFirst({
+        where: { userId: session.user.id, estado: { in: ['ACTIVA', 'GRATUITA'] } },
+      })
+    : null
 
   return (
     <div>
+      {/* /planes nunca es un callejón sin salida: / lleva al dashboard o a la landing según el acceso */}
+      <Link href="/"
+        className="inline-flex items-center gap-2 mb-6 px-4 py-2 bg-apex-card border border-apex-border hover:border-apex-red/40 text-apex-text rounded-xl text-sm font-medium transition-colors">
+        <ArrowLeft size={14} />Volver al inicio
+      </Link>
       <div className="text-center mb-10">
         <div className="inline-flex items-center justify-center w-12 h-12 bg-apex-red/10 border border-apex-red/30 rounded-xl mb-4">
           <Star size={24} className="text-apex-red" />
