@@ -6,9 +6,19 @@ import { getSuscripcionActiva } from '@/lib/suscripciones'
 import { CampeonatoDetalle } from '@/components/campeonatos/CampeonatoDetalle'
 import { getMembresia, esMiembroEquipoFounder } from '@/lib/equipos'
 import { featureEquipos } from '@/lib/features'
+import { ErrorAcceso } from '@/components/acceso/ErrorAcceso'
+import { ErrorLecturaFlag, leerTemporadaGratuita } from '@/lib/accesoServidor'
 
 export default async function CampeonatoPage({ params }: { params: { id: string } }) {
   const session = await getServerSession(authOptions)
+  // Con la temporada gratuita activa no se exige plan para inscribirse (misma regla que la API)
+  let temporadaGratuita: boolean
+  try {
+    temporadaGratuita = await leerTemporadaGratuita('campeonato-detalle')
+  } catch (e) {
+    if (e instanceof ErrorLecturaFlag) return <ErrorAcceso />
+    throw e
+  }
   const suscripcion = session?.user?.id ? await getSuscripcionActiva(session.user.id) : null
 
   const campeonato = await prisma.campeonato.findUnique({
@@ -94,6 +104,7 @@ export default async function CampeonatoPage({ params }: { params: { id: string 
 
   return (
     <CampeonatoDetalle
+      temporadaGratuita={temporadaGratuita}
       campeonato={{
         ...campeonato,
         fechaInicio: campeonato.fechaInicio.toISOString(),

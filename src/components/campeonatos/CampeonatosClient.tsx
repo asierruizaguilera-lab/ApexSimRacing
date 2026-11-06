@@ -38,10 +38,12 @@ interface Patrocinador {
   linkExterno: string | null
 }
 
-export function CampeonatosClient({ campeonatos, userId, userPlan, patrocinadores = [], miEquipo = null }: {
+export function CampeonatosClient({ campeonatos, userId, userPlan, patrocinadores = [], miEquipo = null, temporadaGratuita = false }: {
   campeonatos: Campeonato[]
   userId?: string
   userPlan?: string | null
+  /** Modo temporada gratuita activo: no se exige plan mínimo ni Elite */
+  temporadaGratuita?: boolean
   patrocinadores?: Patrocinador[]
   miEquipo?: { id: string; nombre: string; esLider: boolean } | null
 }) {
@@ -164,7 +166,7 @@ export function CampeonatosClient({ campeonatos, userId, userPlan, patrocinadore
             const esEquipos = !!c.esCampeonatoEquipos
             const inscritosCount = esEquipos ? (c._count.inscripcionesEquipo ?? 0) : c._count.inscripciones
             const lleno = inscritosCount >= c.maxPilotos
-            const planOk = !!c.esIniciacion || ((userPlan ? planSuficiente(userPlan, c.categoriaMinima) : true) && (!c.soloElite || userPlan === 'ELITE'))
+            const planOk = !!c.esIniciacion || temporadaGratuita || ((userPlan ? planSuficiente(userPlan, c.categoriaMinima) : true) && (!c.soloElite || userPlan === 'ELITE'))
             return (
               <div key={c.id} className="bg-apex-card border border-apex-border rounded-xl overflow-hidden hover:border-apex-red/30 transition-all group">
                 {/* Header colored bar */}

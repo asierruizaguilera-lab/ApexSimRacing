@@ -43,6 +43,8 @@ interface Props {
   inscripcionActual: string | null
   userId?: string
   userPlan?: string | null
+  /** Modo temporada gratuita activo: no se exige plan mínimo ni Elite */
+  temporadaGratuita?: boolean
   bloqueoEquipoFounder?: boolean
 }
 
@@ -53,7 +55,7 @@ function getPodiumRowClass(pos: number): string {
   return ''
 }
 
-export function CampeonatoDetalle({ campeonato: c, clasificacion, clasificacionEquipos = [], miEquipo = null, inscripcionActual, userId, userPlan, bloqueoEquipoFounder = false }: Props) {
+export function CampeonatoDetalle({ campeonato: c, clasificacion, clasificacionEquipos = [], miEquipo = null, inscripcionActual, userId, userPlan, bloqueoEquipoFounder = false, temporadaGratuita = false }: Props) {
   const esEquipos = !!c.esCampeonatoEquipos
   const equiposConfirmados = (c.inscripcionesEquipo ?? []).filter((i: any) => i.estado === 'CONFIRMADA')
   const [tab, setTab] = useState<'info' | 'carreras' | 'clasificacion' | 'pilotos'>('info')
@@ -63,7 +65,7 @@ export function CampeonatoDetalle({ campeonato: c, clasificacion, clasificacionE
   const [raceResults, setRaceResults] = useState<Record<string, ResultadoCarrera[]>>({})
   const [loadingResults, setLoadingResults] = useState<string | null>(null)
   // La temporada de iniciación es gratuita: no exige plan
-  const planOk = !!c.esIniciacion || ((userPlan ? planSuficiente(userPlan, c.categoriaMinima) : true) && (!c.soloElite || userPlan === 'ELITE'))
+  const planOk = !!c.esIniciacion || temporadaGratuita || ((userPlan ? planSuficiente(userPlan, c.categoriaMinima) : true) && (!c.soloElite || userPlan === 'ELITE'))
 
   async function inscribirse() {
     if (!userId) { toast.error('Debes iniciar sesión'); return }
