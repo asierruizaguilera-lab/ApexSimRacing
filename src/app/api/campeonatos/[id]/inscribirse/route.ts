@@ -7,6 +7,7 @@ import { planSuficiente, PLAN_LABELS } from '@/lib/utils'
 import { esMiembroEquipoFounder } from '@/lib/equipos'
 import { featureEquipos } from '@/lib/features'
 import { usuarioDebeVerificarEmail, RESPUESTA_EMAIL_NO_VERIFICADO } from '@/lib/tokensSeguridad'
+import { ErrorLecturaFlag, getAccesoUsuario } from '@/lib/accesoServidor'
 
 export async function POST(_: NextRequest, { params }: { params: { id: string } }) {
   const session = await getServerSession(authOptions)
@@ -33,35 +34,40 @@ export async function POST(_: NextRequest, { params }: { params: { id: string } 
 
   // La temporada de iniciación es gratuita: no exige suscripción ni plan mínimo
   if (!camp.esIniciacion) {
-  // Verificar suscripción activa (ACTIVA o GRATUITA no expirada)
-  const suscripcion = await prisma.suscripcion.findFirst({
-    where: { userId: session.user.id, estado: { in: ['ACTIVA', 'GRATUITA'] } },
-  })
-  const accesoValido = suscripcion && (
-    !suscripcion.fechaExpiracionManual ||
-    new Date(suscripcion.fechaExpiracionManual) > new Date()
-  )
-  if (!accesoValido) {
-    return NextResponse.json({
-      error: 'Necesitas un plan activo para inscribirte en campeonatos',
-      code: 'NO_SUBSCRIPTION',
-      redirectTo: '/planes',
-    }, { status: 403 })
-  }
-  if (!planSuficiente(suscripcion!.plan, camp.categoriaMinima)) {
-    return NextResponse.json({
-      error: `Necesitas el plan ${PLAN_LABELS[camp.categoriaMinima]} o superior para inscribirte en esta categoría. Ve a /planes`,
-      code: 'PLAN_INSUFICIENTE',
-      redirectTo: '/planes',
-    }, { status: 403 })
-  }
-  if (camp.soloElite && suscripcion!.plan !== 'ELITE') {
-    return NextResponse.json({
-      error: 'Este campeonato es exclusivo para pilotos Elite. Mejora tu plan en /planes',
-      code: 'SOLO_ELITE',
-      redirectTo: '/planes',
-    }, { status: 403 })
-  }
+    let acceso
+    try {
+      acceso = await getAccesoUsuario(session.user.id, 'inscripcion')
+    } catch (e) {
+      if (e instanceof ErrorLecturaFlag) {
+        return NextResponse.json({ error: 'No se pudo comprobar tu acceso. Inténtalo de nuevo en unos segundos.', code: 'ERROR_ACCESO' }, { status: 503 })
+      }
+      throw e
+    }
+    if (!acceso.acceso) {
+      return NextResponse.json({
+        error: 'Necesitas un plan activo para inscribirte en campeonatos',
+        code: 'NO_SUBSCRIPTION',
+        redirectTo: '/planes',
+      }, { status: 403 })
+    }
+    // Con la temporada gratuita activa (o siendo admin) no se exige plan mínimo ni Elite
+    if (!acceso.temporadaGratuita && !acceso.esAdmin) {
+      const plan = acceso.plan ?? ''
+      if (!planSuficiente(plan, camp.categoriaMinima)) {
+        return NextResponse.json({
+          error: `Necesitas el plan ${PLAN_LABELS[camp.categoriaMinima]} o superior para inscribirte en esta categoría. Ve a /planes`,
+          code: 'PLAN_INSUFICIENTE',
+          redirectTo: '/planes',
+        }, { status: 403 })
+      }
+      if (camp.soloElite && plan !== 'ELITE') {
+        return NextResponse.json({
+          error: 'Este campeonato es exclusivo para pilotos Elite. Mejora tu plan en /planes',
+          code: 'SOLO_ELITE',
+          redirectTo: '/planes',
+        }, { status: 403 })
+      }
+    }
   }
   if (camp.estado === 'FINALIZADO') return NextResponse.json({ error: 'Este campeonato ya ha finalizado' }, { status: 400 })
   if (camp._count.inscripciones >= camp.maxPilotos) return NextResponse.json({ error: 'Campeonato lleno' }, { status: 400 })
