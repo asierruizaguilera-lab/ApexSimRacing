@@ -3,16 +3,16 @@ import { authOptions } from '@/lib/auth'
 import { redirect } from 'next/navigation'
 import { LandingClient } from '@/components/landing/LandingClient'
 import { ErrorAcceso } from '@/components/acceso/ErrorAcceso'
-import { ErrorLecturaFlag, getAccesoUsuario } from '@/lib/accesoServidor'
+import { ErrorLecturaFlag, getAccesoSesion } from '@/lib/accesoServidor'
 
 export default async function LandingPage() {
   const session = await getServerSession(authOptions)
 
   if (session?.user?.id) {
-    // Acceso leído de la BD, no del JWT (puede estar desfasado respecto al modo temporada gratuita)
+    // Misma regla y datos que el middleware; el flag se lee fresco de la BD, no del JWT
     let acceso: boolean
     try {
-      acceso = (await getAccesoUsuario(session.user.id, 'landing')).acceso
+      acceso = (await getAccesoSesion(session.user, 'landing')).acceso
     } catch (e) {
       if (e instanceof ErrorLecturaFlag) return <ErrorAcceso />
       throw e

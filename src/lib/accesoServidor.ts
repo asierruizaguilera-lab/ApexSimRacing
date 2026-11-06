@@ -60,3 +60,18 @@ export async function getAccesoUsuario(userId: string, origen: string): Promise<
     plan: suscripcionActiva ? user!.suscripcion!.plan : null,
   }
 }
+
+/**
+ * Misma decisión que el middleware (rol y suscripción del JWT + flag fresco de la BD). Para redirecciones
+ * de página: usar la BD para la suscripción y el JWT en el middleware podría crear un bucle / ↔ /dashboard.
+ */
+export async function getAccesoSesion(
+  user: { role?: string | null; baneado?: boolean | null; hasSuscripcion?: boolean | null },
+  origen: string,
+): Promise<{ acceso: boolean; temporadaGratuita: boolean }> {
+  const temporadaGratuita = await leerTemporadaGratuita(origen)
+  return {
+    acceso: tieneAcceso({ role: user.role, baneado: user.baneado, suscripcionActiva: !!user.hasSuscripcion, temporadaGratuita }),
+    temporadaGratuita,
+  }
+}
