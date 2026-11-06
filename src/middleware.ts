@@ -1,6 +1,6 @@
 import { withAuth, NextRequestWithAuth } from 'next-auth/middleware'
 import { NextResponse } from 'next/server'
-import { tieneAcceso } from '@/lib/acceso'
+import { diagAcceso, temporadaGratuitaForzada, tieneAcceso } from '@/lib/acceso'
 
 // Rutas públicas que no requieren ni login ni suscripción
 const PUBLIC_PATHS = [
@@ -28,6 +28,7 @@ let cacheFlag: { valor: boolean; expira: number } | null = null
 const ORIGEN_INTERNO = `http://127.0.0.1:${process.env.PORT || '3000'}`
 
 async function leerFlagTemporadaGratuita(): Promise<boolean | null> {
+  if (temporadaGratuitaForzada()) return true
   if (cacheFlag && cacheFlag.expira > Date.now()) return cacheFlag.valor
   const control = new AbortController()
   const temporizador = setTimeout(() => control.abort(), 3000)
@@ -88,10 +89,16 @@ export default withAuth(
 
     const temporadaGratuita = await leerFlagTemporadaGratuita()
     if (temporadaGratuita === null) {
+      diagAcceso(`middleware ${pathname}`, { role: token.role, suscripcionActiva: !!token.hasSuscripcion }, 'error_flag')
       if (pathname.startsWith('/api/')) return NextResponse.json({ error: 'No se pudo comprobar el acceso', code: 'ERROR_ACCESO' }, { status: 503 })
       return NextResponse.rewrite(new URL('/acceso-error', req.url))
     }
-    if (tieneAcceso({ role: token.role, baneado: false, suscripcionActiva: false, temporadaGratuita })) return NextResponse.next()
+    const datos = { role: token.role, baneado: false, suscripcionActiva: false, temporadaGratuita }
+    if (tieneAcceso(datos)) {
+      diagAcceso(`middleware ${pathname}`, datos, 'permitido_temporada')
+      return NextResponse.next()
+    }
+    diagAcceso(`middleware ${pathname}`, datos, 'redirect_landing')
 
     // Sin suscripción ni temporada gratuita → landing
     return NextResponse.redirect(new URL('/', req.url))

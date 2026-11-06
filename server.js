@@ -76,6 +76,23 @@ async function runSeedOnStartIfRequested() {
   }
 }
 
+// Plan B para recuperar el admin: si RUN_RESET_ADMIN=true y ADMIN_NEW_PASSWORD tiene 10 o más caracteres,
+// cambia la contraseña de admin@apex.gg (scripts/reset-admin-password.ts). La contraseña nunca se loguea.
+// Después de usarlo hay que quitar las dos variables del entorno. Best-effort: no impide arrancar.
+async function runResetAdminIfRequested() {
+  if (process.env.RUN_RESET_ADMIN !== 'true') return
+  if ((process.env.ADMIN_NEW_PASSWORD || '').length < 10) {
+    console.error('[BOOT] ❌ RUN_RESET_ADMIN=true pero ADMIN_NEW_PASSWORD falta o tiene menos de 10 caracteres: no se ejecuta')
+    return
+  }
+  console.log('[BOOT] RUN_RESET_ADMIN=true — ejecutando scripts/reset-admin-password.ts...')
+  try {
+    runTs('scripts/reset-admin-password.ts')
+  } catch (err) {
+    console.error('[BOOT] ❌ Error en reset-admin-password (código de salida', err.status ?? '?', ')')
+  }
+}
+
 // Migración opcional del enum Simulador: si RUN_MIGRATION_SIMULADOR=true, pasa a ASSETTO_CORSA
 // los campeonatos con otro simulador. Se ejecuta ANTES del seed (que elimina la columna) y es
 // best-effort: un fallo se loguea pero no impide arrancar.
@@ -427,6 +444,7 @@ function canalDM(a, b) {
 
 runMigrationSimuladorIfRequested()
   .then(() => runSeedOnStartIfRequested())
+  .then(() => runResetAdminIfRequested())
   .then(() => runCleanupAcademiaIfRequested())
   .then(() => runUpdateAcademiaLinksIfRequested())
   .then(() => app.prepare()).then(() => {

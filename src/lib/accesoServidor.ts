@@ -1,6 +1,6 @@
 import { prisma } from './prisma'
 import { getTemporadaGratuitaActiva } from './config'
-import { esAccesoActivo, tieneAcceso } from './acceso'
+import { esAccesoActivo, temporadaGratuitaForzada, tieneAcceso } from './acceso'
 
 /** No se pudo leer el flag de temporada gratuita: nunca se trata como "apagado" en silencio. */
 export class ErrorLecturaFlag extends Error {
@@ -18,6 +18,8 @@ export function describirError(e: unknown): string {
 
 /** Lee el flag de la BD. Si falla, lo registra como SEGURIDAD y lanza ErrorLecturaFlag. */
 export async function leerTemporadaGratuita(origen: string): Promise<boolean> {
+  // Forzada por entorno: no depende de la BD (ni de que su lectura funcione)
+  if (temporadaGratuitaForzada()) return true
   try {
     return await getTemporadaGratuitaActiva()
   } catch (e) {

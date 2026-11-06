@@ -8,6 +8,7 @@ import { esMiembroEquipoFounder } from '@/lib/equipos'
 import { featureEquipos } from '@/lib/features'
 import { usuarioDebeVerificarEmail, RESPUESTA_EMAIL_NO_VERIFICADO } from '@/lib/tokensSeguridad'
 import { ErrorLecturaFlag, getAccesoUsuario } from '@/lib/accesoServidor'
+import { diagAcceso } from '@/lib/acceso'
 
 export async function POST(_: NextRequest, { params }: { params: { id: string } }) {
   const session = await getServerSession(authOptions)
@@ -43,6 +44,7 @@ export async function POST(_: NextRequest, { params }: { params: { id: string } 
       }
       throw e
     }
+    diagAcceso('inscripcion', { role: acceso.esAdmin ? 'ADMIN' : 'otro', baneado: acceso.baneado, suscripcionActiva: acceso.suscripcionActiva, temporadaGratuita: acceso.temporadaGratuita }, acceso.acceso ? 'permitido' : 'NO_SUBSCRIPTION')
     if (!acceso.acceso) {
       return NextResponse.json({
         error: 'Necesitas un plan activo para inscribirte en campeonatos',
