@@ -23,13 +23,16 @@ function isPublic(pathname: string): boolean {
 // Los fallos no se cachean y nunca se interpretan como "modo apagado".
 const TTL_FLAG_MS = 30_000
 let cacheFlag: { valor: boolean; expira: number } | null = null
+// Origen fijo del propio servidor (server.js escucha en 0.0.0.0:PORT). No se usa req.nextUrl.origin: sale de
+// la cabecera Host y un atacante podría apuntar el fetch a un servidor suyo que responda { activa: true }.
+const ORIGEN_INTERNO = `http://127.0.0.1:${process.env.PORT || '3000'}`
 
-async function leerFlagTemporadaGratuita(req: NextRequestWithAuth): Promise<boolean | null> {
+async function leerFlagTemporadaGratuita(): Promise<boolean | null> {
   if (cacheFlag && cacheFlag.expira > Date.now()) return cacheFlag.valor
   const control = new AbortController()
   const temporizador = setTimeout(() => control.abort(), 3000)
   try {
-    const res = await fetch(new URL('/api/config/temporada-gratuita', req.nextUrl.origin), {
+    const res = await fetch(`${ORIGEN_INTERNO}/api/config/temporada-gratuita`, {
       cache: 'no-store',
       signal: control.signal,
     })
@@ -83,7 +86,7 @@ export default withAuth(
     if (pathname === '/perfil' || pathname === `/perfil/${token.id}`) return NextResponse.next()
     if (pathname.startsWith('/api/perfil') || pathname === '/api/actividad/vista') return NextResponse.next()
 
-    const temporadaGratuita = await leerFlagTemporadaGratuita(req)
+    const temporadaGratuita = await leerFlagTemporadaGratuita()
     if (temporadaGratuita === null) {
       if (pathname.startsWith('/api/')) return NextResponse.json({ error: 'No se pudo comprobar el acceso', code: 'ERROR_ACCESO' }, { status: 503 })
       return NextResponse.rewrite(new URL('/acceso-error', req.url))
