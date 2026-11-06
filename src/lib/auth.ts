@@ -3,7 +3,8 @@ import { PrismaAdapter } from '@auth/prisma-adapter'
 import CredentialsProvider from 'next-auth/providers/credentials'
 import bcrypt from 'bcryptjs'
 import { prisma } from './prisma'
-import { getTemporadaGratuitaActiva } from './config'
+import { leerTemporadaGratuita } from './accesoServidor'
+import { esAccesoActivo } from './acceso'
 import { logActividad, datosCliente } from './actividad'
 import { LIMITES, bloqueado, consumir, reiniciar } from './rateLimit'
 
@@ -58,7 +59,8 @@ export const authOptions: NextAuthOptions = {
 
         reiniciar(claveRate)
         const hasSuscripcion = esAccesoActivo(user.suscripcion)
-        const temporadaGratuita = await getTemporadaGratuitaActiva().catch(() => false)
+        // Si falla se registra como [SEGURIDAD]; el middleware vuelve a consultar el flag, así que no atrapa a nadie
+        const temporadaGratuita = await leerTemporadaGratuita('login').catch(() => false)
 
         logActividad({
           tipo: 'LOGIN_OK',
@@ -130,13 +132,6 @@ export const authOptions: NextAuthOptions = {
   },
 }
 
-function esAccesoActivo(suscripcion: { estado: string; fechaExpiracionManual: Date | null } | null): boolean {
-  if (!suscripcion) return false
-  if (suscripcion.estado === 'CANCELADA' || suscripcion.estado === 'EXPIRADA') return false
-  if (suscripcion.fechaExpiracionManual && new Date(suscripcion.fechaExpiracionManual) < new Date()) return false
-  return suscripcion.estado === 'ACTIVA' || suscripcion.estado === 'GRATUITA'
-}
-
 async function refreshSuscripcionToken(token: any) {
   try {
     const [user, temporadaGratuita] = await Promise.all([prisma.user.findUnique({
@@ -146,12 +141,13 @@ async function refreshSuscripcionToken(token: any) {
         baneado: true,
         suscripcion: { select: { estado: true, fechaExpiracionManual: true } },
       },
-    }), getTemporadaGratuitaActiva().catch(() => false)])
+    }), leerTemporadaGratuita('refresh-jwt').catch(() => null)])
     if (user) {
       token.id = user.id
       token.baneado = user.baneado
       token.hasSuscripcion = esAccesoActivo(user.suscripcion)
-      token.temporadaGratuita = temporadaGratuita
+      // Fallo al leer el flag (ya registrado como [SEGURIDAD]): se conserva el valor anterior
+      if (temporadaGratuita !== null) token.temporadaGratuita = temporadaGratuita
       token.lastChecked = Date.now()
     }
   } catch {}

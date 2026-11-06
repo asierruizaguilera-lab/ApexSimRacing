@@ -19,12 +19,7 @@ export function planesIncluidos(plan: PlanSuscripcion): PlanSuscripcion[] {
   return PLAN_ORDER.slice(0, idx + 1)
 }
 
-export function esAccesoActivo(suscripcion: { estado: string; fechaExpiracionManual: Date | null } | null): boolean {
-  if (!suscripcion) return false
-  if (suscripcion.estado === 'CANCELADA' || suscripcion.estado === 'EXPIRADA') return false
-  if (suscripcion.fechaExpiracionManual && new Date(suscripcion.fechaExpiracionManual) < new Date()) return false
-  return suscripcion.estado === 'ACTIVA' || suscripcion.estado === 'GRATUITA'
-}
+export { esAccesoActivo } from './acceso'
 
 export async function desbloquearCoches(userId: string, plan: PlanSuscripcion): Promise<void> {
   const planesValidos = planesIncluidos(plan)

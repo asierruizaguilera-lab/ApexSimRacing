@@ -5,11 +5,21 @@ import { getSuscripcionActiva } from '@/lib/suscripciones'
 import { CampeonatosClient } from '@/components/campeonatos/CampeonatosClient'
 import { getMembresia } from '@/lib/equipos'
 import { featureEquipos } from '@/lib/features'
+import { ErrorAcceso } from '@/components/acceso/ErrorAcceso'
+import { ErrorLecturaFlag, leerTemporadaGratuita } from '@/lib/accesoServidor'
 
 export const metadata = { title: 'Campeonatos' }
 
 export default async function CampeonatosPage() {
   const session = await getServerSession(authOptions)
+  // Con la temporada gratuita activa no se exige plan para inscribirse (misma regla que la API)
+  let temporadaGratuita: boolean
+  try {
+    temporadaGratuita = await leerTemporadaGratuita('campeonatos')
+  } catch (e) {
+    if (e instanceof ErrorLecturaFlag) return <ErrorAcceso />
+    throw e
+  }
   const membresia = featureEquipos() && session?.user?.id ? await getMembresia(session.user.id) : null
   const miEquipoId = membresia?.equipoId
 
@@ -47,6 +57,7 @@ export default async function CampeonatosPage() {
         <p className="text-apex-muted mt-1">Compite en los mejores campeonatos de SimRacing en español</p>
       </div>
       <CampeonatosClient
+        temporadaGratuita={temporadaGratuita}
         campeonatos={campeonatos.map(c => ({
           ...c,
           fechaInicio: c.fechaInicio.toISOString(),
