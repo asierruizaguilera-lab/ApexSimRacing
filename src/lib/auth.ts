@@ -4,6 +4,7 @@ import CredentialsProvider from 'next-auth/providers/credentials'
 import bcrypt from 'bcryptjs'
 import { prisma } from './prisma'
 import { getTemporadaGratuitaActiva } from './config'
+import { esAccesoActivo } from './acceso'
 import { logActividad, datosCliente } from './actividad'
 import { LIMITES, bloqueado, consumir, reiniciar } from './rateLimit'
 
@@ -128,13 +129,6 @@ export const authOptions: NextAuthOptions = {
       return session
     },
   },
-}
-
-function esAccesoActivo(suscripcion: { estado: string; fechaExpiracionManual: Date | null } | null): boolean {
-  if (!suscripcion) return false
-  if (suscripcion.estado === 'CANCELADA' || suscripcion.estado === 'EXPIRADA') return false
-  if (suscripcion.fechaExpiracionManual && new Date(suscripcion.fechaExpiracionManual) < new Date()) return false
-  return suscripcion.estado === 'ACTIVA' || suscripcion.estado === 'GRATUITA'
 }
 
 async function refreshSuscripcionToken(token: any) {
