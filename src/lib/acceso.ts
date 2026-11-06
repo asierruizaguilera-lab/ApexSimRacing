@@ -18,8 +18,21 @@ export type DatosAcceso = {
   temporadaGratuita: boolean
 }
 
-/** Acceso completo: no baneado y (admin || suscripción activa/gratuita no expirada || modo temporada gratuita activo). */
+/**
+ * TEMPORADA_GRATUITA_FORZADA=true en el entorno: temporada gratuita activa para todos, aunque el flag de la
+ * BD esté apagado o falle su lectura. Se lee en cada llamada (también en el middleware Edge).
+ */
+export function temporadaGratuitaForzada(): boolean {
+  return process.env.TEMPORADA_GRATUITA_FORZADA === 'true'
+}
+
+/** [DIAG] temporal: decisión de acceso sin datos personales (ni id, ni email, ni IP). QUITAR tras diagnosticar. */
+export function diagAcceso(origen: string, d: Partial<DatosAcceso>, decision: string): void {
+  console.log(`[DIAG] acceso ${origen}: decision=${decision} rol=${d.role ?? '-'} baneado=${!!d.baneado} suscripcion=${!!d.suscripcionActiva} flag=${d.temporadaGratuita ?? '-'} forzada=${temporadaGratuitaForzada()}`)
+}
+
+/** Acceso completo: no baneado y (admin || suscripción activa/gratuita no expirada || temporada gratuita activa o forzada). */
 export function tieneAcceso(d: DatosAcceso): boolean {
   if (d.baneado) return false
-  return d.role === 'ADMIN' || d.suscripcionActiva || d.temporadaGratuita
+  return d.role === 'ADMIN' || d.suscripcionActiva || d.temporadaGratuita || temporadaGratuitaForzada()
 }
