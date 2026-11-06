@@ -26,7 +26,9 @@ export default function LoginPage() {
       router.push('/dashboard')
       router.refresh()
     } else if (result?.error === 'RATE_LIMIT') {
-      toast.error('Demasiados intentos fallidos. Espera 15 minutos o restablece tu contraseña.')
+      toast.error('Acceso bloqueado temporalmente por demasiados intentos fallidos. Espera 15 minutos o restablece tu contraseña.')
+    } else if (result?.error === 'EMAIL_NO_VERIFICADO') {
+      toast.error('Confirma tu email antes de iniciar sesión. Revisa tu bandeja de entrada.')
     } else {
       toast.error('Email o contraseña incorrectos')
     }
